@@ -207,28 +207,12 @@
 				<string>public.rtf</string>
 				<string>public.plain-text</string>
 			</array>
-		</dict>
-		<dict>
-			<key>NSKeyEquivalent</key>
-			<dict>
-				<key>default</key>
-				<string>V</string>
-			</dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>nvALT: New Note from File</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>createFromSelection</string>
-			<key>NSPortName</key>
-			<string>nvALT</string>
 			<key>NSSendFileTypes</key>
 			<array>
 				<string>public.text</string>
-				<string>com.adobe.pdf</string>
-				<string>com.apple.webarchive</string>
 				<string>com.apple.rtfd</string>
+				<string>com.apple.webarchive</string>
+				<string>com.adobe.pdf</string>
 			</array>
 		</dict>
 	</array>
