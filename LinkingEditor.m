@@ -1743,13 +1743,19 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         if (shouldDeleteLastBullet) {
             //we had carried a bullet, but now it is no carried no more
             //so instead of inserting the extra space, delete both that previously-carried-bullet and the newline added by -super up there
-            [[self textStorage] deleteCharactersInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1)];
+            if ([self shouldChangeTextInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1) replacementString:@""]) { // Do it this way to mark it as an Undo
+                [self replaceCharactersInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1) withString:@""];
+                [self didChangeText];
+            }
         } else {
-            [self insertText:previousLineWhitespaceString];
-            if (carriedBulletRange.length) {
-                [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] 
-                                           forCharacterRange:carriedBulletRange];
-                //[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:carriedBulletRange];
+            if ([self shouldChangeTextInRange:NSMakeRange(NSMaxRange(previousLineRange), 0) replacementString:previousLineWhitespaceString]) {
+                [self replaceCharactersInRange:NSMakeRange(NSMaxRange(previousLineRange), 0) withString:previousLineWhitespaceString];
+                if (carriedBulletRange.length) {
+                    [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] 
+                                               forCharacterRange:carriedBulletRange];
+                    //[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:carriedBulletRange];
+                }
+                [self didChangeText];
             }
         }
 
