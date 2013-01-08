@@ -2054,19 +2054,19 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 
 - (NSString *)pairedCharacterForString:(NSString *)pairString{
-    if ([pairString isEqualToString:@"]"]) {
+    if ([@"]" isEqualToString:pairString]) {
         return @"n";
-    }else if ([pairString isEqualToString:@")"]) {
+    }else if ([@")" isEqualToString:pairString]) {
         return @"n";
-    }else if ([pairString isEqualToString:@"}"]) {
+    }else if ([@"}" isEqualToString:pairString]) {
         return @"n";
-    }else if ([pairString isEqualToString:@"["]) {
+    }else if ([@"[" isEqualToString:pairString]) {
         return @"]";
-    }else if ([pairString isEqualToString:@"("]) {
+    }else if ([@"(" isEqualToString:pairString]) {
         return @")";
-    }else if ([pairString isEqualToString:@"{"]) {
+    }else if ([@"{" isEqualToString:pairString]) {
         return @"}";
-    }else if ([pairString isEqualToString:@"\""]) {
+    }else if ([@"\"" isEqualToString:pairString]) {
         return @"\"";
     }
     return @"";
