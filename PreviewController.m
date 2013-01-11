@@ -330,7 +330,9 @@
 	if (self.isPreviewSticky) {
     return;
   }
-	NSString *lastScrollPosition = [[preview windowScriptObject] evaluateWebScript:@"document.getElementById('contentdiv').scrollTop"];
+		NSString *lastScrollPosition = [preview stringByEvaluatingJavaScriptFromString:@"document.getElementsByTagName('body')[0].scrollTop"];
+		NSLog(@"Scroll: %@",lastScrollPosition);
+//	NSString *lastScrollPosition = [[preview windowScriptObject] evaluateWebScript:@"document.getElementsByTagName('body')[0].scrollTop"];
 	AppController *app = object;
 	NSString *rawString = [app noteContent];
 	SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
@@ -340,7 +342,7 @@
 	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
 	
 	if (lastNote == [app selectedNoteObject]) {
-		NSString *restoreScrollPosition = [NSString stringWithFormat:@"\n<script>window.onload = function(){var div = document.getElementById('contentdiv'),oldscroll = %@;div.scrollTop = oldscroll;}</script>",lastScrollPosition];
+		NSString *restoreScrollPosition = [NSString stringWithFormat:@"\n<script>var body = document.getElementsByTagName('body')[0],oldscroll = %@;body.scrollTop = oldscroll;</script>",lastScrollPosition];
 		previewString = [processedString stringByAppendingString:restoreScrollPosition];
 	} else {
 		[cssString release];
@@ -358,6 +360,7 @@
 	
 	[[preview mainFrame] loadHTMLString:outputString baseURL:nil];
   [[preview window] setTitle:noteTitle];
+		
 	[sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
     self.isPreviewOutdated = NO;
 }
