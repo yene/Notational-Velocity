@@ -155,6 +155,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nvalt</string>
+				<string>nv</string>
 			</array>
 		</dict>
 	</array>

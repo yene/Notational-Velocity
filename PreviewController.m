@@ -210,12 +210,12 @@
 - (void)webView:(WebView *)sender decidePolicyForNavigationAction:(NSDictionary *)actionInformation request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener {
 	NSString *targetURL = [[request URL] scheme];
 
-    if ([targetURL isEqual:@"http"] || [targetURL isEqual:@"nvalt"]) {
-		[[NSWorkspace sharedWorkspace] openURL:[request URL]];
-        [listener ignore];
-    } else {
-		[listener use];
-	}
+    if (![[actionInformation objectForKey:@"WebActionNavigationTypeKey"] isEqualToNumber:[NSNumber numberWithInt:5]]) {
+				[[NSWorkspace sharedWorkspace] openURL:[request URL]];
+				[listener ignore];
+		} else {
+				[listener use];
+		}
 }
 
 - (void)webView:(WebView *)sender decidePolicyForNewWindowAction:(NSDictionary *)actionInformation request:(NSURLRequest *)request newFrameName:(NSString *)frameName decisionListener:(id<WebPolicyDecisionListener>)listener {
