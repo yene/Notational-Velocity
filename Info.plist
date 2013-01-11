@@ -159,7 +159,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>95</string>
+	<string>101</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSArchitecturePriority</key>
@@ -168,7 +168,7 @@
 		<string>i386</string>
 	</array>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.5.8</string>
+	<string>10.6</string>
 	<key>LSMinimumSystemVersionByArchitecture</key>
 	<dict>
 		<key>i386</key>
