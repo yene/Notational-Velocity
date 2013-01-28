@@ -49,3 +49,6 @@ zh_CN.lproj/*.nvhelp
 Portuguese.lproj/*.nvhelp
 Italian.lproj/*.nvhelp
 French.lproj/*.nvhelp
+*.pbxproj
+
+*.pbxproj
