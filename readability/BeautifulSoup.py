@@ -84,6 +84,7 @@ __copyright__ = "Copyright (c) 2004-2012 Leonard Richardson"
 __license__ = "New-style BSD"
 
 from sgmllib import SGMLParser, SGMLParseError
+from HTMLParser import HTMLParser, HTMLParseError
 import codecs
 import markupbase
 import types
