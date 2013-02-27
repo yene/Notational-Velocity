@@ -31,15 +31,14 @@
 
 //instances this short-lived class are intended to be started only once, and then deallocated
 
-- (id)initWithEntriesToCollect:(NSArray*)wantedEntries authToken:(NSString*)anAuthToken email:(NSString*)anEmail {
+- (id)initWithEntriesToCollect:(NSArray*)wantedEntries simperiumToken:(NSString*)aSimperiumToken {
 	if ([super init]) {
-		authToken = [anAuthToken retain];
-		email = [anEmail retain];
+		simperiumToken = [aSimperiumToken retain];
 		entriesToCollect = [wantedEntries retain];
 		entriesCollected = [[NSMutableArray alloc] init];
 		entriesInError = [[NSMutableArray alloc] init];
 		
-		if (![email length] || ![authToken length] || ![entriesToCollect count]) {
+		if (![simperiumToken length] || ![entriesToCollect count]) {
 			NSLog(@"%s: missing parameters", _cmd);
 			return nil;
 		}
@@ -80,8 +79,7 @@
 	[entriesToCollect release];
 	[entriesInError release];
 	[representedObject release];
-	[email release];
-	[authToken release];
+	[simperiumToken release];
 	[super dealloc];
 }
 
@@ -113,10 +111,9 @@
 		originalNote = entry;
 		entry = [[entry syncServicesMD] objectForKey:SimplenoteServiceName];
 	}
-	NSURL *noteURL = [SimplenoteSession servletURLWithPath: [NSString stringWithFormat:@"/api2/data/%@", [entry objectForKey: @"key"]] parameters:
-					  [NSDictionary dictionaryWithObjectsAndKeys: email, @"email", 
-					   authToken, @"auth", nil]];
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:nil delegate:self];
+	NSDictionary *headers = [NSDictionary dictionaryWithObjectsAndKeys: simperiumToken, @"X-Simperium-Token", nil];
+	NSURL *noteURL = [SimplenoteSession simperiumURLWithPath:[NSString stringWithFormat:@"/Note/i/%@", [entry objectForKey: @"key"]] parameters:nil];
+	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:nil headers:headers delegate:self];
 	//remember the note for later? why not.
 	if (originalNote) [fetcher setRepresentedObject:originalNote];
 	return [fetcher autorelease];
@@ -136,6 +133,10 @@
 - (NSDictionary*)preparedDictionaryWithFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data {
 	//logic abstracted for subclassing
 	
+	NSInteger version = 0;
+	if ([[fetcher headers] objectForKey:@"X-Simperium-Version"]) {
+		version = [[[fetcher headers] objectForKey:@"X-Simperium-Version"] integerValue];
+	}
 	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
 	
 	NSDictionary *rawObject = nil;
@@ -149,23 +150,28 @@
 		if (!rawObject)
 			return nil;
 	}
+	NSURL *url = [fetcher requestURL];
+	int index = [[url pathComponents] indexOfObject:@"i"];
+	NSString *key;
+	if (index > 0 && index+1 < [[url pathComponents] count]) {
+		key = [[url pathComponents] objectAtIndex:(index+1)];
+	}
 
 	NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithCapacity:12];
-	[entry setObject:[rawObject objectForKey:@"key"] forKey:@"key"];
-	[entry setObject:[NSNumber numberWithInt:[[rawObject objectForKey:@"deleted"] intValue]] forKey:@"deleted"];
+	NSNumber *deleted = [NSNumber numberWithInt:[[rawObject objectForKey:@"deleted"] intValue]];
+	[entry setObject:key forKey:@"key"];
+	[entry setObject:[NSNumber numberWithInt:version] forKey:@"version"];
+	[entry setObject:deleted forKey:@"deleted"];
 	// Normalize dates from unix epoch timestamps to mac os x epoch timestamps
-	[entry setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"createdate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"create"];
-	[entry setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"modifydate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"modify"];
-	[entry setObject:[NSNumber numberWithInt:[[rawObject objectForKey:@"syncnum"] intValue]] forKey:@"syncnum"];
-	[entry setObject:[NSNumber numberWithInt:[[rawObject objectForKey:@"version"] intValue]] forKey:@"version"];
-	[entry setObject:[NSNumber numberWithInt:[[rawObject objectForKey:@"minversion"] intValue]] forKey:@"minversion"];
+	[entry setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"creationDate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"create"];
+	[entry setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"modificationDate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"modify"];
 	if ([rawObject objectForKey:@"sharekey"]) {
-		[entry setObject:[rawObject objectForKey:@"sharekey"] forKey:@"sharekey"];
+		[entry setObject:[rawObject objectForKey:@"shareURL"] forKey:@"sharekey"];
 	}
 	if ([rawObject objectForKey:@"publishkey"]) {
-		[entry setObject:[rawObject objectForKey:@"publishkey"] forKey:@"publishkey"];
+		[entry setObject:[rawObject objectForKey:@"publishURL"] forKey:@"publishkey"];
 	}
-	[entry setObject:[rawObject objectForKey:@"systemtags"] forKey:@"systemtags"];
+	[entry setObject:[rawObject objectForKey:@"systemTags"] forKey:@"systemtags"];
 	[entry setObject:[rawObject objectForKey:@"tags"] forKey:@"tags"];
 	if ([[fetcher representedObject] conformsToProtocol:@protocol(SynchronizedNote)]) [entry setObject:[fetcher representedObject] forKey:@"NoteObject"];
 	[entry setObject:[rawObject objectForKey:@"content"] forKey:@"content"];
@@ -178,7 +184,7 @@
 - (void)syncResponseFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data returningError:(NSString*)errString {
 	
 	if (errString) {
-		NSLog(@"collector-%@ returned %@", fetcher, errString);
+		NSLog(@"%s: collector-%@ returned %@", _cmd, fetcher, errString);
 		id obj = [fetcher representedObject];
 		if (obj) {
 			[entriesInError addObject:[NSDictionary dictionaryWithObjectsAndKeys: obj, @"NoteObject", 
@@ -194,7 +200,9 @@
 											[NSNumber numberWithInt:[fetcher statusCode]], @"StatusCode", nil]];
 			}
 		} else {
-			[entriesCollected addObject: preparedDictionary];
+			if ([preparedDictionary count]) {
+				[entriesCollected addObject: preparedDictionary];
+			}
 		}
 	}
 	
@@ -225,8 +233,8 @@
 //modification times dates are set in case the app has been out of connectivity for a long time
 //and to ensure we know what the time was for the next time we compare dates
 
-- (id)initWithEntries:(NSArray*)wantedEntries operation:(SEL)opSEL authToken:(NSString*)anAuthToken email:(NSString*)anEmail {
-	if ([super initWithEntriesToCollect:wantedEntries authToken:anAuthToken email:anEmail]) {
+- (id)initWithEntries:(NSArray*)wantedEntries operation:(SEL)opSEL simperiumToken:(NSString *)aSimperiumToken {
+	if ([super initWithEntriesToCollect:wantedEntries simperiumToken:aSimperiumToken]) {
 		//set creation and modification date when creating
 		//set modification date when updating
 		//need to check for success when deleting
@@ -253,32 +261,46 @@
 	CFAbsoluteTime modNum = doesCreate ? modifiedDateOfNote(aNote) : [[info objectForKey:@"modify"] doubleValue];
 	
 	//always set the mod date, set created date if we are creating, set the key if we are updating
-	NSDictionary *params = [NSDictionary dictionaryWithObjectsAndKeys: email, @"email", authToken, @"auth", nil];	
-	
 	NSMutableString *noteBody = [[[aNote combinedContentWithContextSeparator: /* explicitly assume default separator if creating */
 								   doesCreate ? nil : [info objectForKey:SimplenoteSeparatorKey]] mutableCopy] autorelease];
 	//simpletext iPhone app loses any tab characters
 	[noteBody replaceTabsWithSpacesOfWidth:[[GlobalPrefs defaultPrefs] numberOfSpacesInTab]];
 	
-	NSMutableDictionary *rawObject = [NSMutableDictionary dictionaryWithCapacity: 12];
-	if (modNum > 0.0) [rawObject setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSinceReferenceDate:modNum] timeIntervalSince1970]] forKey:@"modifydate"];
-	if (doesCreate) [rawObject setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSinceReferenceDate:createdDateOfNote(aNote)] timeIntervalSince1970]] forKey:@"createdate"];
+	NSMutableDictionary *rawObject = [NSMutableDictionary dictionaryWithCapacity: 8];
+	if (modNum > 0.0) [rawObject setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSinceReferenceDate:modNum] timeIntervalSince1970]] forKey:@"modificationDate"];
+	if (doesCreate) {
+		[rawObject setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSinceReferenceDate:createdDateOfNote(aNote)] timeIntervalSince1970]] forKey:@"creationDate"];
+		[rawObject setObject:[NSMutableArray array] forKey:@"systemTags"];
+		[rawObject setObject:@"" forKey:@"shareURL"];
+		[rawObject setObject:@"" forKey:@"publishURL"];
+		[rawObject setObject:[NSNumber numberWithInt:0] forKey:@"deleted"];
+	}
 	
 	NSArray *tags = [aNote orderedLabelTitles];
-	// Don't send an empty tagset if this note has never been synced via sn-api2
-	if ([tags count] || ([info objectForKey:@"syncnum"] != nil)) {
-		[rawObject setObject:tags forKey:@"tags"];
-	}
+	[rawObject setObject:tags forKey:@"tags"];
 	
 	[rawObject setObject:noteBody forKey:@"content"];
 
 	NSURL *noteURL = nil;
+	NSDictionary *params = [NSDictionary dictionaryWithObjectsAndKeys:@"1", @"response", nil];
 	if (doesCreate) {
-		noteURL = [SimplenoteSession servletURLWithPath:@"/api2/data" parameters:params];
+		CFUUIDRef theUUID = CFUUIDCreate(NULL);
+		CFStringRef string = CFUUIDCreateString(NULL, theUUID);
+		CFRelease(theUUID);
+
+		NSString *str = [(NSString *)string autorelease];
+		str = [[str stringByReplacingOccurrencesOfString:@"-" withString:@""] lowercaseString];
+		noteURL = [SimplenoteSession simperiumURLWithPath:[NSString stringWithFormat:@"/Note/i/%@", str] parameters:params];
 	} else {
-		noteURL = [SimplenoteSession servletURLWithPath:[NSString stringWithFormat:@"/api2/data/%@", [info objectForKey:@"key"]] parameters:params];
+		NSUInteger v = [[info objectForKey:@"version"] integerValue];
+		if (v > 0) {
+			noteURL = [SimplenoteSession simperiumURLWithPath:[NSString stringWithFormat:@"/Note/i/%@/v/%u", [info objectForKey:@"key"], v] parameters:params];
+		} else {
+			noteURL = [SimplenoteSession simperiumURLWithPath:[NSString stringWithFormat:@"/Note/i/%@", [info objectForKey:@"key"]] parameters:params];
+		}
 	}
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:[[rawObject jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] contentType:@"application/json" delegate:self];
+	NSDictionary *headers = [NSDictionary dictionaryWithObject:simperiumToken forKey:@"X-Simperium-Token"];
+	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:[[rawObject jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] headers:headers contentType:@"application/json" delegate:self];
 	[fetcher setRepresentedObject:aNote];
 	return [fetcher autorelease];
 }
@@ -307,11 +329,10 @@
 	
 	//in keeping with nv's behavior with sn api1, deleting only marks a note as deleted.
 	//may want to implement actual purging (using HTTP DELETE) in the future
-	NSURL *noteURL = [SimplenoteSession servletURLWithPath:[NSString stringWithFormat:@"/api2/data/%@", [info objectForKey:@"key"]] parameters:
-					  [NSDictionary dictionaryWithObjectsAndKeys: email, @"email", 
-					   authToken, @"auth", nil]];
+	NSURL *noteURL = [SimplenoteSession simperiumURLWithPath:[NSString stringWithFormat:@"/Note/i/%@", [info objectForKey:@"key"]] parameters:nil];
 	NSData *postData = [[[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:1] forKey:@"deleted"] jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding];
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:postData contentType:@"application/json" delegate:self];
+	NSDictionary *headers = [NSDictionary dictionaryWithObject:simperiumToken forKey:@"X-Simperium-Token"];
+	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:postData headers:headers contentType:@"application/json" delegate:self];
 	[fetcher setRepresentedObject:aDeletedNote];
 	return [fetcher autorelease];
 	
@@ -352,7 +373,6 @@
 #endif
 
 - (NSDictionary*)preparedDictionaryWithFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data {
-	
 	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
 	
 	NSDictionary *rawObject = nil;
@@ -362,21 +382,32 @@
 	@catch (NSException *e) {
 		NSLog(@"Exception while parsing Simplenote JSON note object: %@", [e reason]);
 	}
-	@finally {
-		if (!rawObject)
-			return nil;
-	}
 	
-	NSString *keyString = [rawObject objectForKey:@"key"];
+	NSString *keyString = nil;
+	NSURL *url = [fetcher requestURL];
+	int index = [[url pathComponents] indexOfObject:@"i"];
+	if (index > 0 && index+1 < [[url pathComponents] count]) {
+		keyString = [[url pathComponents] objectAtIndex:(index+1)];
+	}
+	NSInteger version = 0;
+	if ([[fetcher headers] objectForKey:@"X-Simperium-Version"]) {
+		version = [[[fetcher headers] objectForKey:@"X-Simperium-Version"] integerValue];
+	}
 	
 	NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:5];
 	NSMutableDictionary *syncMD = [NSMutableDictionary dictionaryWithCapacity:5];
-	[syncMD setObject:[rawObject objectForKey:@"key"] forKey:@"key"];
-	[syncMD setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"createdate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"create"];
-	[syncMD setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"modifydate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"modify"];
-	[syncMD setObject:[NSNumber numberWithInt:[[rawObject objectForKey:@"syncnum"] intValue]] forKey:@"syncnum"];
-	[syncMD setObject:[NSNumber numberWithBool:NO] forKey:@"dirty"];
-	
+	if (rawObject) {
+		[syncMD setObject:keyString forKey:@"key"];
+		[syncMD setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"creationDate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"create"];
+		[syncMD setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"modificationDate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"modify"];
+		[syncMD setObject:[NSNumber numberWithInt:version] forKey:@"version"];
+		[syncMD setObject:[NSNumber numberWithBool:NO] forKey:@"dirty"];
+	} else {
+		if ([fetcher statusCode] == 412 || [fetcher statusCode] == 413) {
+			[syncMD setObject:[NSNumber numberWithBool:NO] forKey:@"dirty"];
+		}
+		[syncMD setObject:[NSNumber numberWithInt:version] forKey:@"version"];
+	}
 	if ([fetcher representedObject]) {
 		id <SynchronizedNote> aNote = [fetcher representedObject];
 		[result setObject:aNote forKey:@"NoteObject"];
@@ -391,7 +422,9 @@
 			
 			NSAssert([aNote isKindOfClass:[NoteObject class]], @"received a non-noteobject from a fetcherForCreatingNote: operation!");
 			//don't need to store a separator for newly-created notes; when nil it is presumed the default separator
-			[aNote setSyncObjectAndKeyMD:syncMD forService:SimplenoteServiceName];
+			if (rawObject) {
+				[aNote setSyncObjectAndKeyMD:syncMD forService:SimplenoteServiceName];
+			}
 
 			[(NoteObject*)aNote makeNoteDirtyUpdateTime:NO updateFile:NO];
 		} else if (@selector(fetcherForDeletingNote:) == fetcherOpSEL) {
@@ -402,26 +435,34 @@
 		} else if (@selector(fetcherForUpdatingNote:) == fetcherOpSEL) {
 			// SN api2 can return a content key in an update response containing
 			// the merged changes from other clients....
-			if ([rawObject objectForKey:@"content"]) {
-				NSUInteger bodyLoc = 0;
-				NSString *separator = nil;
-				NSString *combinedContent = [rawObject objectForKey:@"content"];
-				NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote) maxTitleLen:60];
+			if (rawObject) {
+				if ([rawObject objectForKey:@"content"]) {
+					NSUInteger bodyLoc = 0;
+					NSString *separator = nil;
+					NSString *combinedContent = [rawObject objectForKey:@"content"];
+					NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote) maxTitleLen:60];
 				
-				[(NoteObject *)aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
-			}
+					[(NoteObject *)aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
+				}
 			
-			// Tags may have been changed by another client...
-			NSSet *localTags = [NSSet setWithArray:[(NoteObject *)aNote orderedLabelTitles]];
-			NSSet *remoteTags = [NSSet setWithArray:[rawObject objectForKey:@"tags"]];
-			if (![localTags isEqualToSet:remoteTags]) {
-				NSLog(@"Updating tags with remote values.");
-				NSString *newLabelString = [[remoteTags allObjects] componentsJoinedByString:@" "];
-				[(NoteObject *)aNote setLabelString:newLabelString];
+				// Tags may have been changed by another client...
+				NSSet *localTags = [NSSet setWithArray:[(NoteObject *)aNote orderedLabelTitles]];
+				NSSet *remoteTags = [NSSet setWithArray:[rawObject objectForKey:@"tags"]];
+				if (![localTags isEqualToSet:remoteTags]) {
+					NSLog(@"Updating tags with remote values.");
+					NSString *newLabelString = [[remoteTags allObjects] componentsJoinedByString:@" "];
+					[(NoteObject *)aNote setLabelString:newLabelString];
+				}
 			}
-
+			NSNumber *originalVersion = [[[aNote syncServicesMD] objectForKey:SimplenoteServiceName] objectForKey:@"version"];
+			// There have been changes besides ours if the new version number is more than 1 from what we posted to
+			BOOL merged = (version - [originalVersion integerValue]) > 1 ? YES : NO;
 			[aNote setSyncObjectAndKeyMD:syncMD forService: SimplenoteServiceName];
+
 			//NSLog(@"note update:\n %@", [aNote syncServicesMD]);
+			if (merged) {
+				[[[(NoteObject *)aNote delegate] delegate] contentsUpdatedForNote:aNote];
+			}
 		} else {
 			NSLog(@"%s called with unknown opSEL: %s", _cmd, fetcherOpSEL);
 		}

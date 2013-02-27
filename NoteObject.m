@@ -595,6 +595,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 //assume any changes have been synchronized with undomanager
 - (void)setContentString:(NSAttributedString*)attributedString {
+	[self setContentString:attributedString updateTime:YES];
+}
+
+- (void)setContentString:(NSAttributedString*)attributedString updateTime:(BOOL)updateTime {
 	if (attributedString) {
 		[contentString setAttributedString:attributedString];
 		
@@ -604,7 +608,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		[delegate note:self attributeChanged:NotePreviewString];
 	
-		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
+		[self makeNoteDirtyUpdateTime:updateTime updateFile:YES];
 	}
 }
 - (NSAttributedString*)contentString {
@@ -1538,7 +1542,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	[attributedBodyString addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBodyString length])];
 	
 	//should eventually sync changes back to disk:
-	[self setContentString:[attributedBodyString autorelease]];
+	[self setContentString:[attributedBodyString autorelease] updateTime:NO];
 
 	//actions that user-editing via AppDelegate would have handled for us:
     [self updateContentCacheCStringIfNecessary];

@@ -92,6 +92,12 @@
 	[self makeNotesMatchList:allEntries fromSyncSession:syncSession];
 }
 
+- (void)syncSession:(id <SyncServiceSession>)syncSession receivedPartialNoteList:(NSArray*)entries withRemovedList:(NSArray*)removed {
+
+	[self processPartialNotesList:entries withRemovedList:removed fromSyncSession:syncSession];
+}
+
+
 - (void)syncSession:(id <SyncServiceSession>)syncSession receivedAddedNotes:(NSArray*)addedNotes {
 	//insert these notes into the list
 	//no need to "reveal" them to the user
@@ -118,6 +124,64 @@
 	//we can examine the list of deleted notes in case the syncSession 
 	//removed any service-specific metadata in entryDeleterDidFinish:
 	[self _purgeAlreadyDistributedDeletedNotes];
+}
+
+- (void)processPartialNotesList:(NSArray*)entries withRemovedList:(NSArray*)removedEntries fromSyncSession:(id <SyncServiceSession>)syncSession {
+	NSString *keyName = [[syncSession class] nameOfKeyElement];
+	NSString *serviceName = [[syncSession class] serviceName];
+	NSUInteger i = 0;
+	NSMutableArray *notesToDelete = [NSMutableArray array];
+	NSMutableArray *changedNotes = [NSMutableArray array];
+	NSMutableArray *checkEntries = [NSMutableArray array];
+	NSDictionary *localNotesDict = [self invertedDictionaryOfNotes:allNotes forSession:syncSession];
+
+	//we only have a partial remote list, plus possibly a list of permanently deleted notes.
+	//since we only have some remotes, we can't perform full sync operations like comparing
+	//full sets of notes to find out what local ones need to be removed. we rely on the partial
+	//list updates to keep us up to date.
+	for (i=0; i<[entries count]; i++) {
+		NSDictionary *remoteEntry = [entries objectAtIndex:i];
+		NSString *remoteKey = [remoteEntry objectForKey:keyName];
+		id <SynchronizedNote>note = [localNotesDict objectForKey:remoteKey];
+		NSDictionary *thisServiceInfo = [[note syncServicesMD] objectForKey:serviceName];
+		if ([localNotesDict objectForKey:remoteKey]) {
+			if ([syncSession remoteEntryWasMarkedDeleted:remoteEntry]) {
+				[notesToDelete addObject:note];
+			} else {
+				NSComparisonResult changeDiff = [syncSession localEntry:thisServiceInfo compareToRemoteEntry:remoteEntry];
+				if (changeDiff == NSOrderedAscending) {
+					[changedNotes addObject:note];
+				} else {
+					//NSLog(@"remote note not newer, not asking for changes");
+				}
+			}
+		} else {
+			// If we don't have the note and it is marked deleted, we don't care
+			// Otherwise, we should add it to checkEntries which will add it to our collection
+			if (![syncSession remoteEntryWasMarkedDeleted:remoteEntry]) {
+				[checkEntries addObject:remoteEntry];
+			}
+		}
+	}
+	for (i=0; i<[removedEntries count]; i++) {
+		NSDictionary *remoteEntry = [removedEntries objectAtIndex:i];
+		NSString *remoteKey = [remoteEntry objectForKey:keyName];
+		if ([localNotesDict objectForKey:remoteKey]) {
+			[notesToDelete addObject:[localNotesDict objectForKey:remoteKey]];
+		}
+	}
+	if ([checkEntries count]) {
+		[syncSession startCollectingAddedNotesWithEntries:checkEntries mergingWithNotes:nil];
+	}
+	if ([changedNotes count]) {
+		[syncSession startCollectingChangedNotesWithEntries:changedNotes];
+	}
+	if ([notesToDelete count]) {
+		NSLog(@"removing %u notes", [notesToDelete count]);
+		[syncSession suppressPushingForNotes:notesToDelete];
+		[self removeNotes:notesToDelete];
+		[syncSession stopSuppressingPushingForNotes:notesToDelete];
+	}
 }
 
 - (void)makeNotesMatchList:(NSArray*)MDEntries fromSyncSession:(id <SyncServiceSession>)syncSession {

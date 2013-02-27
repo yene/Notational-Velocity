@@ -31,7 +31,7 @@ extern NSString *SimplenoteSeparatorKey;
 
 @interface SimplenoteSession : NSObject <SyncServiceSession, NSCopying> {
 
-	NSString *emailAddress, *password, *authToken;
+	NSString *emailAddress, *password, *simperiumToken;
 	
 	CFAbsoluteTime lastSyncedTime;
 	BOOL lastIndexAuthFailed, reachabilityFailed;
@@ -39,7 +39,7 @@ extern NSString *SimplenoteSeparatorKey;
 	
 	SCNetworkReachabilityRef reachableRef;
 	
-	SyncResponseFetcher *loginFetcher, *listFetcher;
+	SyncResponseFetcher *loginFetcher, *listFetcher, *changesFetcher;
 	
 	//used for scheduling mutations:
 	//e.g., controlling whether a given note should be scheduled
@@ -58,6 +58,7 @@ extern NSString *SimplenoteSeparatorKey;
 	//used to span multiple partial index fetches (when mark is present in response)
 	NSMutableArray *indexEntryBuffer;
 	NSString *indexMark;
+	NSString *lastCV;
 	
 	id delegate;
 }
@@ -68,6 +69,7 @@ extern NSString *SimplenoteSeparatorKey;
 + (NSString*)serviceName;
 + (NSString*)nameOfKeyElement;
 + (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
++ (NSURL*)simperiumURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget;
 //+ (NSString*)localizedNetworkDiagnosticMessage;
 - (void)invalidateReachabilityRefs;
@@ -101,10 +103,11 @@ extern NSString *SimplenoteSeparatorKey;
 
 - (SyncResponseFetcher*)loginFetcher;
 - (SyncResponseFetcher*)listFetcher;
+- (SyncResponseFetcher*)changesFetcher;
 
 - (void)_stoppedWithErrorString:(NSString*)aString;
 - (void)_updateSyncTime;
-- (void)_clearAuthTokenAndDependencies;
+- (void)_clearTokenAndDependencies;
 - (BOOL)_checkToken;
 
 - (NSArray*)_notesWithEntries:(NSArray*)entries;

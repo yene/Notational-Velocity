@@ -84,6 +84,7 @@
 - (void)syncSession:(id <SyncServiceSession>)syncSession didStopWithError:(NSString*)errString;
 
 - (void)syncSession:(id <SyncServiceSession>)syncSession receivedFullNoteList:(NSArray*)allEntries;
+- (void)syncSession:(id <SyncServiceSession>)syncSession receivedPartialNoteList:(NSArray*)entries withRemovedList:(NSArray*)removed;
 - (void)syncSession:(id <SyncServiceSession>)syncSession receivedAddedNotes:(NSArray*)addedNotes;
 - (void)syncSession:(id <SyncServiceSession>)syncSession didModifyNotes:(NSArray*)changedNotes;
 - (void)syncSessionDidFinishRemoteModifications:(id <SyncServiceSession>)syncSession;
