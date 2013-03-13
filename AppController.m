@@ -284,9 +284,9 @@ BOOL isEd;
 		[splitView display];
 
 
-        if (![NSApp isActive]) {
-            [NSApp activateIgnoringOtherApps:YES];
-        }
+//        if (![NSApp isActive]) {  probably a mistake to have put this in the begin with
+//            [NSApp activateIgnoringOtherApps:YES];
+//        }
 		awakenedViews = YES;
 	}
 }
@@ -2310,7 +2310,10 @@ terminateApp:
 	if (![window isKeyWindow]) {
 	//	[self focusOnCtrlFld:self];
        if (![window isMainWindow]) [window makeKeyAndOrderFront:self];
-		[NSApp activateIgnoringOtherApps:YES];
+        
+        if (![NSApp isActive]) {
+            [NSApp activateIgnoringOtherApps:YES];
+        }
 	}else {
 		[NSApp hide:[aNotification object]];
 	//	[statusItem popUpStatusItemMenu:statBarMenu];
