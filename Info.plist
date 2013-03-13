@@ -170,6 +170,8 @@
 	</array>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.6</string>
+	<key>CFBundleName</key>
+	<string></string>
 	<key>LSMinimumSystemVersionByArchitecture</key>
 	<dict>
 		<key>i386</key>
