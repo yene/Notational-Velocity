@@ -271,6 +271,14 @@
 		93B90E85138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E80138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m */; };
 		93B90E86138601C100BEC5FB /* ODBEditor.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E82138601C100BEC5FB /* ODBEditor.m */; };
 		93B90E921386072E00BEC5FB /* TemporaryFileCachePreparer.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E911386072E00BEC5FB /* TemporaryFileCachePreparer.m */; };
+		B69E26F016F0B523001C6E4B /* Clear@2x.tif in Resources */ = {isa = PBXBuildFile; fileRef = B69E26E816F0B523001C6E4B /* Clear@2x.tif */; };
+		B69E26F116F0B523001C6E4B /* ClearPressed@2x.tif in Resources */ = {isa = PBXBuildFile; fileRef = B69E26E916F0B523001C6E4B /* ClearPressed@2x.tif */; };
+		B69E26F216F0B523001C6E4B /* DFCapLeftRounded@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B69E26EA16F0B523001C6E4B /* DFCapLeftRounded@2x.png */; };
+		B69E26F316F0B523001C6E4B /* DFCapLeftRoundedInactive@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B69E26EB16F0B523001C6E4B /* DFCapLeftRoundedInactive@2x.png */; };
+		B69E26F416F0B523001C6E4B /* DFCapRight@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B69E26EC16F0B523001C6E4B /* DFCapRight@2x.png */; };
+		B69E26F516F0B523001C6E4B /* DFCapRightInactive@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B69E26ED16F0B523001C6E4B /* DFCapRightInactive@2x.png */; };
+		B69E26F616F0B523001C6E4B /* Pencil@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B69E26EE16F0B523001C6E4B /* Pencil@2x.png */; };
+		B69E26F716F0B523001C6E4B /* Search@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B69E26EF16F0B523001C6E4B /* Search@2x.png */; };
 		D3EECA00106F66C70023D7F8 /* NVPasswordGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */; };
 /* End PBXBuildFile section */
 
@@ -783,6 +791,14 @@
 		93B90E83138601C100BEC5FB /* ODBEditorSuite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ODBEditorSuite.h; sourceTree = "<group>"; };
 		93B90E901386072E00BEC5FB /* TemporaryFileCachePreparer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCachePreparer.h; sourceTree = "<group>"; };
 		93B90E911386072E00BEC5FB /* TemporaryFileCachePreparer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCachePreparer.m; sourceTree = "<group>"; };
+		B69E26E816F0B523001C6E4B /* Clear@2x.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = "Clear@2x.tif"; path = "Images/Clear@2x.tif"; sourceTree = "<group>"; };
+		B69E26E916F0B523001C6E4B /* ClearPressed@2x.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = "ClearPressed@2x.tif"; path = "Images/ClearPressed@2x.tif"; sourceTree = "<group>"; };
+		B69E26EA16F0B523001C6E4B /* DFCapLeftRounded@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "DFCapLeftRounded@2x.png"; path = "Images/DFCapLeftRounded@2x.png"; sourceTree = "<group>"; };
+		B69E26EB16F0B523001C6E4B /* DFCapLeftRoundedInactive@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "DFCapLeftRoundedInactive@2x.png"; path = "Images/DFCapLeftRoundedInactive@2x.png"; sourceTree = "<group>"; };
+		B69E26EC16F0B523001C6E4B /* DFCapRight@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "DFCapRight@2x.png"; path = "Images/DFCapRight@2x.png"; sourceTree = "<group>"; };
+		B69E26ED16F0B523001C6E4B /* DFCapRightInactive@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "DFCapRightInactive@2x.png"; path = "Images/DFCapRightInactive@2x.png"; sourceTree = "<group>"; };
+		B69E26EE16F0B523001C6E4B /* Pencil@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Pencil@2x.png"; path = "Images/Pencil@2x.png"; sourceTree = "<group>"; };
+		B69E26EF16F0B523001C6E4B /* Search@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Search@2x.png"; path = "Images/Search@2x.png"; sourceTree = "<group>"; };
 		D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVPasswordGenerator.m; sourceTree = "<group>"; };
 		D3EEC9FF106F66C70023D7F8 /* NVPasswordGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVPasswordGenerator.h; sourceTree = "<group>"; };
 		F0E01EE812DB95F40000B192 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/Preferences.xib; sourceTree = "<group>"; };
@@ -1069,6 +1085,14 @@
 		219196B109D4F1DB00586B15 /* Images */ = {
 			isa = PBXGroup;
 			children = (
+				B69E26E816F0B523001C6E4B /* Clear@2x.tif */,
+				B69E26E916F0B523001C6E4B /* ClearPressed@2x.tif */,
+				B69E26EA16F0B523001C6E4B /* DFCapLeftRounded@2x.png */,
+				B69E26EB16F0B523001C6E4B /* DFCapLeftRoundedInactive@2x.png */,
+				B69E26EC16F0B523001C6E4B /* DFCapRight@2x.png */,
+				B69E26ED16F0B523001C6E4B /* DFCapRightInactive@2x.png */,
+				B69E26EE16F0B523001C6E4B /* Pencil@2x.png */,
+				B69E26EF16F0B523001C6E4B /* Search@2x.png */,
 				93B348241371547800658F98 /* HUDIconLock.png */,
 				93B348251371547800658F98 /* HUDIconPrint.png */,
 				93B348261371547800658F98 /* HUDIconSave.png */,
@@ -1568,6 +1592,14 @@
 				934C3FB314FDA06A000D14BA /* customclean.css in Resources */,
 				934C3FB414FDA06A000D14BA /* template.html in Resources */,
 				934C3FB514FDA06A000D14BA /* templateclean.html in Resources */,
+				B69E26F016F0B523001C6E4B /* Clear@2x.tif in Resources */,
+				B69E26F116F0B523001C6E4B /* ClearPressed@2x.tif in Resources */,
+				B69E26F216F0B523001C6E4B /* DFCapLeftRounded@2x.png in Resources */,
+				B69E26F316F0B523001C6E4B /* DFCapLeftRoundedInactive@2x.png in Resources */,
+				B69E26F416F0B523001C6E4B /* DFCapRight@2x.png in Resources */,
+				B69E26F516F0B523001C6E4B /* DFCapRightInactive@2x.png in Resources */,
+				B69E26F616F0B523001C6E4B /* Pencil@2x.png in Resources */,
+				B69E26F716F0B523001C6E4B /* Search@2x.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
