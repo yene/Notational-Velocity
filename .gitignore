@@ -52,3 +52,7 @@ French.lproj/*.nvhelp
 *.pbxproj
 
 *.pbxproj
+
+*.pbxproj
+
+*.xcscheme
