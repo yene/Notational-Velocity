@@ -66,7 +66,7 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 	//and if aNote is in plaintext format and this editor is ODB-capable, then it should also be a general-purpose texteditor
 	//conversely ODB editors should never be allowed to open non-plain-text documents; for some reason LSCanURLAcceptURL claims they can do that
 	//one exception known: writeroom can edit rich-text documents
-	if ([self isODBEditor] && ![bundleIdentifier hasPrefix:@"com.hogbaysoftware.WriteRoom"]) {
+	if (([self isODBEditor] && ![bundleIdentifier hasPrefix:@"com.hogbaysoftware.WriteRoom"]) || [bundleIdentifier hasPrefix:@"com.multimarkdown.composer.mac"]) {
 		return storageFormatOfNote(aNote) == PlainTextFormat;
 	}
 		

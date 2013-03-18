@@ -282,11 +282,11 @@ BOOL isEd;
 		}	
 		//this is necessary on 10.3; keep just in case
 		[splitView display];
-		
-        
-        if (![NSApp isActive]) {
-            [NSApp activateIgnoringOtherApps:YES];
-        }
+
+
+//        if (![NSApp isActive]) {  probably a mistake to have put this in the begin with
+//            [NSApp activateIgnoringOtherApps:YES];
+//        }
 		awakenedViews = YES;
 	}
 }
@@ -2310,7 +2310,10 @@ terminateApp:
 	if (![window isKeyWindow]) {
 	//	[self focusOnCtrlFld:self];
        if (![window isMainWindow]) [window makeKeyAndOrderFront:self];
-		[NSApp activateIgnoringOtherApps:YES];
+        
+        if (![NSApp isActive]) {
+            [NSApp activateIgnoringOtherApps:YES];
+        }
 	}else {
 		[NSApp hide:[aNotification object]];
 	//	[statusItem popUpStatusItemMenu:statBarMenu];
@@ -2845,8 +2848,8 @@ terminateApp:
 - (IBAction)setLCColorScheme:(id)sender{
 	userScheme=1;
 	[[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];
-	[self setForegrndColor:[NSColor colorWithCalibratedRed:0.172f green:0.172f blue:0.172f alpha:1.0f]];
-	[self setBackgrndColor:[NSColor colorWithCalibratedRed:0.874f green:0.874f blue:0.874f alpha:1.0f]];
+	[self setForegrndColor:[NSColor colorWithDeviceRed:0.405 green:0.405 blue:0.405 alpha:1.0]];
+	[self setBackgrndColor:[NSColor colorWithDeviceWhite:0.970 alpha:1.0]];
 	NSMenu *mainM = [NSApp mainMenu];
 	NSMenu *viewM = [[mainM itemWithTitle:@"View"] submenu];
 	mainM = [[viewM itemWithTitle:@"Color Schemes"] submenu];
