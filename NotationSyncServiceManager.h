@@ -28,6 +28,7 @@
 
 - (NoteObject*)noteForKey:(NSString*)key ofServiceClass:(Class<SyncServiceSession>)serviceClass;
 
+- (void)processPartialNotesList:(NSArray*)entries withRemovedList:(NSArray*)removedEntries fromSyncSession:(id <SyncServiceSession>)syncSession;
 - (void)makeNotesMatchList:(NSArray*)MDEntries fromSyncSession:(id <SyncServiceSession>)syncSession;
 
 - (void)schedulePushToAllSyncServicesForNote:(id <SynchronizedNote>)aNote;

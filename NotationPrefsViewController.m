@@ -448,17 +448,18 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (void)startLoginVerifier {
 	if (!loginVerifier && [[syncAccountField stringValue] length] && [[syncPasswordField stringValue] length]) {
-		NSURL *loginURL = [SimplenoteSession servletURLWithPath:@"/api/login" parameters:nil];
-		loginVerifier = [[SyncResponseFetcher alloc] initWithURL:loginURL bodyStringAsUTF8B64:
-						[[NSDictionary dictionaryWithObjectsAndKeys: [syncAccountField stringValue], @"email", [syncPasswordField stringValue], @"password", nil] 
-						 URLEncodedString] delegate:self];
+		NSURL *loginURL = [SimplenoteSession servletURLWithPath:@"/api2/login" parameters:nil];
+		loginVerifier = [[SyncResponseFetcher alloc] initWithURL:loginURL POSTData:
+						[[[NSDictionary dictionaryWithObjectsAndKeys:
+						   [syncAccountField stringValue], @"email", [syncPasswordField stringValue], @"password", @"1", @"api", nil] URLEncodedString]
+                         dataUsingEncoding:NSUTF8StringEncoding] delegate:self];
 		[loginVerifier start];
 		[self setVerificationStatus:VERIFY_IN_PROGRESS withString:@""];
 	}
 }
 
 - (void)syncResponseFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data returningError:(NSString*)errString {
-	BOOL authFailed = errString && [fetcher statusCode] == 400;
+	BOOL authFailed = errString && [fetcher statusCode] >= 400;
 	
 	[self setVerificationStatus:errString ? VERIFY_FAILED : VERIFY_SUCCESS withString: 
 	 authFailed ? NSLocalizedString(@"Incorrect login and password", @"sync status menu msg") : errString];
@@ -483,7 +484,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (IBAction)visitSimplenoteSite:(id)sender {
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://simplenoteapp.com/"]];
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://simplenote.com/"]];
 }
 
 - (IBAction)makeDefaultExtension:(id)sender {
