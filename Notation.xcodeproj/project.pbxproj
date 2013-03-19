@@ -627,6 +627,7 @@
 		5C84319714229D940020E5A7 /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C84319814229D940020E5A7 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C84319914229D940020E5A7 /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
+		5C8FA1F416F8A91800A2C6D7 /* SimperiumConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimperiumConfig.h; sourceTree = "<group>"; };
 		5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom3.tif; sourceTree = "<group>"; };
 		5C94376D132A0C9D00B08B80 /* greyscrollervertfill3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertfill3.tif; sourceTree = "<group>"; };
 		5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollerverttop3.tif; sourceTree = "<group>"; };
@@ -1220,6 +1221,7 @@
 				21F0797D10EC93B0004FE56F /* SyncResponseFetcher.m */,
 				21AD284E110BE99B00B7A985 /* SyncSessionController.h */,
 				21AD284F110BE99B00B7A985 /* SyncSessionController.m */,
+				5C8FA1F416F8A91800A2C6D7 /* SimperiumConfig.h */,
 			);
 			name = "Sync Services";
 			sourceTree = "<group>";

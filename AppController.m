@@ -2847,9 +2847,11 @@ terminateApp:
 
 - (IBAction)setLCColorScheme:(id)sender{
 	userScheme=1;
-	[[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];
-	[self setForegrndColor:[NSColor colorWithDeviceRed:0.405 green:0.405 blue:0.405 alpha:1.0]];
-	[self setBackgrndColor:[NSColor colorWithDeviceWhite:0.970 alpha:1.0]];
+	[[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];    
+    //	[self setForegrndColor:[NSColor colorWithDeviceRed:0.405 green:0.405 blue:0.405 alpha:1.0]];
+    [self setForegrndColor:[NSColor colorWithDeviceWhite:0.2430 alpha:1.0]];
+//[self setBackgrndColor:[NSColor colorWithDeviceWhite:0.970 alpha:1.0]];
+    [self setBackgrndColor:[NSColor colorWithDeviceWhite:0.902 alpha:1.0]];
 	NSMenu *mainM = [NSApp mainMenu];
 	NSMenu *viewM = [[mainM itemWithTitle:@"View"] submenu];
 	mainM = [[viewM itemWithTitle:@"Color Schemes"] submenu];
