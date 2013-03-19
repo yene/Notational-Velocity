@@ -15,7 +15,9 @@
    - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
      or promote products derived from this software without specific prior written permission. */
 
-
+// SimplenoteConfig.h should be copied from SimplenoteConfig-example.h and set up with your Simperium API key
+// If you choose not to use Simperium, just include an empty string in the file.
+#import "SimperiumConfig.h"
 #import "SimplenoteSession.h"
 #import "SyncResponseFetcher.h"
 #import "SimplenoteEntryCollector.h"
@@ -38,9 +40,10 @@ NSString *SimplenoteServiceName = @"SN";
 NSString *SimplenoteSeparatorKey = @"SepStr";
 #define kSimplenoteSessionIndexBatchSize 100
 
+// Set in SimperiumConfig.h
 // If you're building from source and want to sync with Simplenote, you can request your own API key
 // For now, please email: fred@simperium.com
-NSString * const kSimperiumAPIKey = @"your simplenote-simperium api key";
+NSString * const kSimperiumAPIKey = kSimperiumAPIKeyString;
 
 @implementation SimplenoteSession
 

@@ -50,9 +50,5 @@ Portuguese.lproj/*.nvhelp
 Italian.lproj/*.nvhelp
 French.lproj/*.nvhelp
 *.pbxproj
-
-*.pbxproj
-
-*.pbxproj
-
 *.xcscheme
+SimperiumConfig.h
