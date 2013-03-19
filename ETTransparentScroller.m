@@ -108,11 +108,19 @@
 }
 
 - (void)drawKnobSlotInRect:(NSRect)slotRect highlight:(BOOL)flag{
-    if (isOverlay) {
-        [super drawKnobSlotInRect:slotRect highlight:flag];
-    }else{
-        NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
-    }
+//    if (isOverlay) {
+//        NSRect knobRect=[self rectForPart:NSScrollerKnobSlot];
+//        NSBezierPath *aPath=[NSBezierPath bezierPathWithRoundedRect:knobRect xRadius:4.0 yRadius:4.0];
+//        [[NSColor colorWithCalibratedWhite:0.7 alpha:0.4] setFill];
+//        [aPath fill];
+//        [aPath setLineWidth:0.3];
+//        [[NSColor colorWithCalibratedWhite:0.2 alpha:0.7] setStroke];
+//        [aPath stroke];
+//        [super drawKnobSlotInRect:slotRect highlight:flag];
+//    }else{
+//        NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
+//    }
+    NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
 }
 
 - (void)drawKnob;
@@ -123,14 +131,14 @@
    
 }
 //
-- (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
-{
-	// Call super even though we're not using its value (has some side effects we need)
-	[super _drawingRectForPart:aPart];
-	
-	// Return our own rects rather than use the default behavior
-	return [self rectForPart:aPart];
-}
+//- (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
+//{
+//	// Call super even though we're not using its value (has some side effects we need)
+//	[super _drawingRectForPart:aPart];
+//	
+//	// Return our own rects rather than use the default behavior
+//	return [self rectForPart:aPart];
+//}
 
 //- (NSScrollerPart)testPart:(NSPoint)aPoint{
 //    NSScrollerPart aPart=[super testPart:aPoint];
@@ -165,19 +173,18 @@
 	{
 		case NSScrollerNoPart:
         {
-            NSLog(@"aquie");
 			return [self bounds];
 			break;
 		}
         case NSScrollerKnob:
-		{		
-			NSRect knobRect;
-			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];	
+		{
+			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
+			NSRect knobRect=[super rectForPart:NSScrollerKnob];
 			
 			float knobHeight = roundf(slotRect.size.height * [self knobProportion]);
             
-			if (knobHeight < minKnobHeight)
-				knobHeight = minKnobHeight;
+//			if (knobHeight < minKnobHeight)
+//				knobHeight = minKnobHeight;
 			
 			float knobY = slotRect.origin.y + roundf((slotRect.size.height - knobHeight) * [self floatValue]);
 			knobRect = NSMakeRect(verticalPaddingLeft, knobY, slotRect.size.width, knobHeight);
@@ -188,10 +195,11 @@
 			break;	
 		case NSScrollerKnobSlot:
 		{
-			NSRect slotRect;
-			
-            
-			slotRect = NSMakeRect(verticalPaddingLeft,verticalPaddingTop,roundf([self bounds].size.width - verticalPaddingLeft - verticalPaddingRight), roundf([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom));
+			NSRect slotRect=[super rectForPart:NSScrollerKnobSlot];
+			slotRect.origin.x=roundf(verticalPaddingLeft);
+            slotRect.size.width=roundf([self bounds].size.width - verticalPaddingLeft - verticalPaddingRight);
+            slotRect.origin.y=roundf(verticalPaddingTop);
+            slotRect.size.height=roundf(slotRect.size.height-verticalPaddingTop-verticalPaddingBottom);
 			return slotRect;
 		}
 			break;
