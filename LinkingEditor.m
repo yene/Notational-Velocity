@@ -36,6 +36,8 @@
 static long (*GetGetScriptManagerVariablePointer())(short);
 #endif
 
+#define kDefaultTextInsetWidth 8.0
+#define kDefaultTextInsetHeight 8.0
 
 @interface NSCursor (WhiteIBeamCursor)
 + (NSCursor*)whiteIBeamCursor;
@@ -86,7 +88,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 	// @selector(setBackgroundTextColor:sender:),
 	// @selector(setForegroundTextColor:sender:),
 	
-	[self setTextContainerInset:NSMakeSize(3, 8)];
+	[self setTextContainerInset:NSMakeSize(kDefaultTextInsetWidth, kDefaultTextInsetHeight)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
@@ -163,8 +165,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 }
 
 - (BOOL)setInsetForFrame:(NSRect)frameRect{
-    CGFloat insX=3.0;
-    CGFloat insY=8.0;
+    CGFloat insX=kDefaultTextInsetWidth;
+    CGFloat insY=kDefaultTextInsetHeight;
     if (([[NSApp delegate]isInFullScreen])||([prefsController managesTextWidthInWindow])) {
         if (frameRect.size.width>[prefsController maxNoteBodyWidth]) {
             insX=kTextMargins;
