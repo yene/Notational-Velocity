@@ -38,6 +38,10 @@ NSString *SimplenoteServiceName = @"SN";
 NSString *SimplenoteSeparatorKey = @"SepStr";
 #define kSimplenoteSessionIndexBatchSize 100
 
+// If you're building from source and want to sync with Simplenote, you can request your own API key
+// For now, please email: fred@simperium.com
+NSString * const kSimperiumAPIKey = @"your simplenote-simperium api key";
+
 @implementation SimplenoteSession
 
 static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info);
@@ -54,17 +58,17 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	return @"key";
 }
 
-+ (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params {
++ (NSURL*)authURLWithPath:(NSString*)path parameters:(NSDictionary*)params {
 	NSAssert(path != nil, @"path is required");
-	//path example: "/api2/index"
+	//path example: "/authorize"
 	
 	NSString *queryStr = params ? [NSString stringWithFormat:@"?%@", [params URLEncodedString]] : @"";
-	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
+	return [NSURL URLWithString:[NSString stringWithFormat:@"https://auth.simperium.com/1/chalk-bump-f49%@%@", path, queryStr]];
 }
 
 + (NSURL*)simperiumURLWithPath:(NSString*)path parameters:(NSDictionary*)params {
 	NSAssert(path != nil, @"path is required");
-	//path example: "/api2/index"
+	//path example: "/Note/index"
 
 	NSString *queryStr = params ? [NSString stringWithFormat:@"?%@", [params URLEncodedString]] : @"";
     return [NSURL URLWithString:[NSString stringWithFormat:@"https://api.simperium.com/1/chalk-bump-f49%@%@", path, queryStr]];
@@ -73,7 +77,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 #if 0
 + (NSString*)localizedNetworkDiagnosticMessage {
 	
-	CFNetDiagnosticRef networkDiagnosticRef = CFNetDiagnosticCreateWithURL(kCFAllocatorDefault, (CFURLRef)[self servletURLWithPath:@"/" parameters:nil]);
+	CFNetDiagnosticRef networkDiagnosticRef = CFNetDiagnosticCreateWithURL(kCFAllocatorDefault, (CFURLRef)[self authURLWithPath:@"/" parameters:nil]);
 	if (networkDiagnosticRef) {
 		
 		CFStringRef localizedDiagnosticString = NULL;
@@ -90,7 +94,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget {
 	SCNetworkReachabilityRef reachableRef = NULL;
 	
-	if ((reachableRef = SCNetworkReachabilityCreateWithName(NULL, [[[SimplenoteSession servletURLWithPath:
+	if ((reachableRef = SCNetworkReachabilityCreateWithName(NULL, [[[SimplenoteSession authURLWithPath:
 																   @"/" parameters:nil] host] UTF8String]))) {
 		SCNetworkReachabilityContext context = {0, aTarget, NULL, NULL, NULL};
 		if (SCNetworkReachabilitySetCallback(reachableRef, callout, &context)) {
@@ -292,11 +296,11 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	
 	//init fetcher for login method; credentials POSTed in body
 	if (!loginFetcher) {
-		NSURL *loginURL = [SimplenoteSession servletURLWithPath:@"/api2/login" parameters:nil];
-		loginFetcher = [[SyncResponseFetcher alloc] initWithURL:loginURL POSTData:
-						[[[NSDictionary dictionaryWithObjectsAndKeys:
-						  emailAddress, @"email", password, @"password", @"1", @"api", nil] URLEncodedString]
-                         dataUsingEncoding:NSUTF8StringEncoding] delegate:self];
+		NSURL *loginURL = [SimplenoteSession authURLWithPath:@"/authorize/" parameters:nil];
+		NSDictionary *headers = [NSDictionary dictionaryWithObject:kSimperiumAPIKey forKey:@"X-Simperium-API-Key"];
+		NSDictionary *login = [NSDictionary dictionaryWithObjectsAndKeys:
+							   emailAddress, @"username", password, @"password", nil];
+		loginFetcher = [[SyncResponseFetcher alloc] initWithURL:loginURL POSTData:[[login jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] headers:headers contentType:@"application/json" delegate:self];
 	}
 	return loginFetcher;
 }
@@ -1082,9 +1086,14 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	NSUInteger i = 0;
 
 	if (fetcher == loginFetcher) {
-		if ([[fetcher headers] objectForKey:@"Simperium-Token"]) {
+		@try {
+			responseDictionary = [NSDictionary dictionaryWithJSONString:bodyString];
+		} @catch (NSException *e) {
+			NSLog(@"Exception while parsing Simplenote user: %@", [e reason]);
+		}
+		if ([responseDictionary objectForKey:@"access_token"]) {
 			[simperiumToken autorelease];
-			simperiumToken = [[[fetcher headers] objectForKey:@"Simperium-Token"] retain];
+			simperiumToken = [[responseDictionary objectForKey:@"access_token"] retain];
 		} else {
 			[self _stoppedWithErrorString:NSLocalizedString(@"No authorization token", @"Simplenote-specific error")];
 		}
