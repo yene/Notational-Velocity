@@ -66,7 +66,6 @@
 					<int key="NSvFlags">256</int>
 					<string key="NSFrameSize">{399, 334}</string>
 					<reference key="NSSuperview"/>
-					<reference key="NSWindow"/>
 					<reference key="NSNextKeyView"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
@@ -503,7 +502,7 @@
 				<string key="NSExtension">NSResponder</string>
 			</object>
 			<object class="NSCustomView" id="476135578">
-				<nil key="NSNextResponder"/>
+				<reference key="NSNextResponder"/>
 				<int key="NSvFlags">256</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSTextField" id="1008640992">
@@ -598,6 +597,7 @@
 						<int key="NSvFlags">256</int>
 						<string key="NSFrameSize">{368, 346}</string>
 						<reference key="NSSuperview" ref="476135578"/>
+						<reference key="NSNextKeyView"/>
 						<object class="NSMutableString" key="NSClassName">
 							<characters key="NS.bytes">NSView</characters>
 						</object>
@@ -605,6 +605,7 @@
 					</object>
 				</array>
 				<string key="NSFrameSize">{368, 406}</string>
+				<reference key="NSSuperview"/>
 				<reference key="NSNextKeyView" ref="1008640992"/>
 				<object class="NSMutableString" key="NSClassName">
 					<characters key="NS.bytes">NSView</characters>
@@ -612,7 +613,7 @@
 				<string key="NSExtension">NSResponder</string>
 			</object>
 			<object class="NSCustomView" id="718780854">
-				<nil key="NSNextResponder"/>
+				<reference key="NSNextResponder"/>
 				<int key="NSvFlags">256</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSTextField" id="602398812">
@@ -679,6 +680,7 @@
 						<int key="NSvFlags">268</int>
 						<string key="NSFrame">{{153, 16}, {194, 26}}</string>
 						<reference key="NSSuperview" ref="718780854"/>
+						<reference key="NSNextKeyView"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSPopUpButtonCell" key="NSCell" id="446692414">
 							<int key="NSCellFlags">-2076180416</int>
@@ -1262,6 +1264,7 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 					</object>
 				</array>
 				<string key="NSFrameSize">{368, 450}</string>
+				<reference key="NSSuperview"/>
 				<reference key="NSNextKeyView" ref="301436009"/>
 				<object class="NSMutableString" key="NSClassName">
 					<characters key="NS.bytes">NSView</characters>
@@ -1277,7 +1280,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{35, 77}, {242, 18}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="191747856"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="41674116">
@@ -1301,7 +1303,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">268</int>
 						<string key="NSFrame">{{105, 106}, {172, 18}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="147017409"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="240461858">
@@ -1326,7 +1327,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">268</int>
 						<string key="NSFrame">{{20, 128}, {257, 18}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="35055039"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="805277808">
@@ -1349,9 +1349,8 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 					<object class="NSTextField" id="308093778">
 						<reference key="NSNextResponder" ref="113051861"/>
 						<int key="NSvFlags">289</int>
-						<string key="NSFrame">{{343, 25}, {42, 13}}</string>
+						<string key="NSFrame">{{343, 23}, {42, 15}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="701250644">
@@ -1370,7 +1369,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">289</int>
 						<string key="NSFrame">{{310, 24}, {36, 14}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="308093778"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="338470066">
@@ -1389,7 +1387,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{43, 23}, {149, 17}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="362040419"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="654990342">
@@ -1408,7 +1405,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">268</int>
 						<string key="NSFrame">{{193, 23}, {113, 15}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="12489117"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSSliderCell" key="NSCell" id="146573636">
@@ -1432,7 +1428,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{35, 46}, {242, 18}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="61723147"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="718377012">
@@ -1456,7 +1451,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{21, 161}, {326, 14}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="62508865"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="106052185">
@@ -1475,7 +1469,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">268</int>
 						<string key="NSFrame">{{127, 254}, {130, 18}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="1054467971"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="82739852">
@@ -1500,7 +1493,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{35, 296}, {76, 20}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="126674627"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="294412381">
@@ -1519,7 +1511,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{315, 289}, {72, 32}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="636447885"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSButtonCell" key="NSCell" id="826576078">
@@ -1545,7 +1536,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">266</int>
 						<string key="NSFrame">{{116, 296}, {197, 23}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="134866422"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="73989760">
@@ -1571,7 +1561,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{163, 184}, {94, 17}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="832564280"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="128876516">
@@ -1595,7 +1584,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						</set>
 						<string key="NSFrame">{{261, 180}, {52, 24}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="25363412"/>
 						<bool key="NSEnabled">YES</bool>
 						<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
@@ -1607,7 +1595,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						<int key="NSvFlags">264</int>
 						<string key="NSFrame">{{134, 216}, {123, 17}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="401313623"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="1023010529">
@@ -1631,7 +1618,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						</set>
 						<string key="NSFrame">{{261, 212}, {52, 24}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="325769847"/>
 						<bool key="NSEnabled">YES</bool>
 						<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
@@ -1648,7 +1634,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 						</set>
 						<string key="NSFrame">{{261, 251}, {52, 24}}</string>
 						<reference key="NSSuperview" ref="113051861"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="605940815"/>
 						<bool key="NSEnabled">YES</bool>
 						<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
@@ -1661,7 +1646,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 				</array>
 				<string key="NSFrameSize">{420, 340}</string>
 				<reference key="NSSuperview"/>
-				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="887798228"/>
 				<string key="NSClassName">NSView</string>
 				<string key="NSExtension">NSResponder</string>
@@ -3454,578 +3438,6 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBUserSource</string>
 						<string key="minorKey"/>
-					</object>
-				</object>
-				<object class="IBPartialClassDescription">
-					<string key="className">NotationPrefsViewController</string>
-					<string key="superclassName">NSObject</string>
-					<dictionary class="NSMutableDictionary" key="actions">
-						<string key="addedExtension:">id</string>
-						<string key="addedType:">id</string>
-						<string key="changePassphrase:">id</string>
-						<string key="changedFileDeletionWarningSettings:">id</string>
-						<string key="changedFileStorageFormat:">id</string>
-						<string key="changedKeyLength:">id</string>
-						<string key="changedKeychainSettings:">id</string>
-						<string key="changedSecureTextEntry:">id</string>
-						<string key="makeDefaultExtension:">id</string>
-						<string key="removeFromKeychain:">id</string>
-						<string key="removedExtension:">id</string>
-						<string key="removedType:">id</string>
-						<string key="syncFrequencyChange:">id</string>
-						<string key="toggledEncryption:">id</string>
-						<string key="toggledSyncing:">id</string>
-						<string key="visitSimplenoteSite:">id</string>
-					</dictionary>
-					<dictionary class="NSMutableDictionary" key="actionInfosByName">
-						<object class="IBActionInfo" key="addedExtension:">
-							<string key="name">addedExtension:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="addedType:">
-							<string key="name">addedType:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changePassphrase:">
-							<string key="name">changePassphrase:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedFileDeletionWarningSettings:">
-							<string key="name">changedFileDeletionWarningSettings:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedFileStorageFormat:">
-							<string key="name">changedFileStorageFormat:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedKeyLength:">
-							<string key="name">changedKeyLength:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedKeychainSettings:">
-							<string key="name">changedKeychainSettings:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedSecureTextEntry:">
-							<string key="name">changedSecureTextEntry:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="makeDefaultExtension:">
-							<string key="name">makeDefaultExtension:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="removeFromKeychain:">
-							<string key="name">removeFromKeychain:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="removedExtension:">
-							<string key="name">removedExtension:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="removedType:">
-							<string key="name">removedType:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="syncFrequencyChange:">
-							<string key="name">syncFrequencyChange:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="toggledEncryption:">
-							<string key="name">toggledEncryption:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="toggledSyncing:">
-							<string key="name">toggledSyncing:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="visitSimplenoteSite:">
-							<string key="name">visitSimplenoteSite:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-					</dictionary>
-					<dictionary class="NSMutableDictionary" key="outlets">
-						<string key="allowedExtensionsTable">NSTableView</string>
-						<string key="allowedTypesTable">NSTableView</string>
-						<string key="changePasswordButton">NSButton</string>
-						<string key="confirmFileDeletionButton">NSButton</string>
-						<string key="enableEncryptionButton">NSButton</string>
-						<string key="enabledSyncButton">NSButton</string>
-						<string key="fileAttributesHelpText">NSTextField</string>
-						<string key="keyLengthField">NSTextField</string>
-						<string key="keyLengthStepper">NSStepper</string>
-						<string key="makeDefaultExtensionButton">NSButton</string>
-						<string key="newExtensionButton">NSButton</string>
-						<string key="newTypeButton">NSButton</string>
-						<string key="passwordSettingsMatrix">NSMatrix</string>
-						<string key="removeExtensionButton">NSButton</string>
-						<string key="removeFromKeychainButton">NSButton</string>
-						<string key="removeTypeButton">NSButton</string>
-						<string key="secureTextEntryButton">NSButton</string>
-						<string key="storageFormatPopupButton">NSPopUpButton</string>
-						<string key="syncAccountField">NSTextField</string>
-						<string key="syncEncAlertField">NSTextField</string>
-						<string key="syncEncAlertView">NSImageView</string>
-						<string key="syncPasswordField">NSTextField</string>
-						<string key="syncingFrequency">NSPopUpButton</string>
-						<string key="verifyStatusField">NSTextField</string>
-						<string key="verifyStatusImageView">NSImageView</string>
-						<string key="view">NSView</string>
-						<string key="webOptionsWindow">NSWindow</string>
-					</dictionary>
-					<dictionary class="NSMutableDictionary" key="toOneOutletInfosByName">
-						<object class="IBToOneOutletInfo" key="allowedExtensionsTable">
-							<string key="name">allowedExtensionsTable</string>
-							<string key="candidateClassName">NSTableView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="allowedTypesTable">
-							<string key="name">allowedTypesTable</string>
-							<string key="candidateClassName">NSTableView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="changePasswordButton">
-							<string key="name">changePasswordButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="confirmFileDeletionButton">
-							<string key="name">confirmFileDeletionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="enableEncryptionButton">
-							<string key="name">enableEncryptionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="enabledSyncButton">
-							<string key="name">enabledSyncButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="fileAttributesHelpText">
-							<string key="name">fileAttributesHelpText</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="keyLengthField">
-							<string key="name">keyLengthField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="keyLengthStepper">
-							<string key="name">keyLengthStepper</string>
-							<string key="candidateClassName">NSStepper</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="makeDefaultExtensionButton">
-							<string key="name">makeDefaultExtensionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="newExtensionButton">
-							<string key="name">newExtensionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="newTypeButton">
-							<string key="name">newTypeButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="passwordSettingsMatrix">
-							<string key="name">passwordSettingsMatrix</string>
-							<string key="candidateClassName">NSMatrix</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="removeExtensionButton">
-							<string key="name">removeExtensionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="removeFromKeychainButton">
-							<string key="name">removeFromKeychainButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="removeTypeButton">
-							<string key="name">removeTypeButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="secureTextEntryButton">
-							<string key="name">secureTextEntryButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="storageFormatPopupButton">
-							<string key="name">storageFormatPopupButton</string>
-							<string key="candidateClassName">NSPopUpButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="syncAccountField">
-							<string key="name">syncAccountField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="syncEncAlertField">
-							<string key="name">syncEncAlertField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="syncEncAlertView">
-							<string key="name">syncEncAlertView</string>
-							<string key="candidateClassName">NSImageView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="syncPasswordField">
-							<string key="name">syncPasswordField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="syncingFrequency">
-							<string key="name">syncingFrequency</string>
-							<string key="candidateClassName">NSPopUpButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="verifyStatusField">
-							<string key="name">verifyStatusField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="verifyStatusImageView">
-							<string key="name">verifyStatusImageView</string>
-							<string key="candidateClassName">NSImageView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="view">
-							<string key="name">view</string>
-							<string key="candidateClassName">NSView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="webOptionsWindow">
-							<string key="name">webOptionsWindow</string>
-							<string key="candidateClassName">NSWindow</string>
-						</object>
-					</dictionary>
-					<object class="IBClassDescriptionSource" key="sourceIdentifier">
-						<string key="majorKey">IBProjectSource</string>
-						<string key="minorKey">./Classes/NotationPrefsViewController.h</string>
-					</object>
-				</object>
-				<object class="IBPartialClassDescription">
-					<string key="className">PrefsWindowController</string>
-					<string key="superclassName">NSObject</string>
-					<dictionary class="NSMutableDictionary" key="actions">
-						<string key="changeBodyFont:">id</string>
-						<string key="changedAltRows:">id</string>
-						<string key="changedAutoPairing:">id</string>
-						<string key="changedAutoSuggestLinks:">id</string>
-						<string key="changedBackgroundTextColorWell:">id</string>
-						<string key="changedExternalEditorsMenu:">id</string>
-						<string key="changedForegroundTextColorWell:">id</string>
-						<string key="changedHighlightSearchTerms:">id</string>
-						<string key="changedMakeURLsClickable:">id</string>
-						<string key="changedNoteDeletion:">id</string>
-						<string key="changedNotesFolderLocation:">id</string>
-						<string key="changedQuitBehavior:">id</string>
-						<string key="changedRTL:">id</string>
-						<string key="changedSearchHighlightColorWell:">id</string>
-						<string key="changedShowGrid:">id</string>
-						<string key="changedSoftTabs:">id</string>
-						<string key="changedSpellChecking:">id</string>
-						<string key="changedStyledTextBehavior:">id</string>
-						<string key="changedTabBehavior:">id</string>
-						<string key="changedTableText:">id</string>
-						<string key="changedTitleCompletion:">id</string>
-						<string key="changedUseETScrollbarsOnLion:">id</string>
-						<string key="changedUseMarkdownImport:">id</string>
-						<string key="changedUseReadability:">id</string>
-						<string key="setAppShortcut:">id</string>
-						<string key="setMaxWidth:">id</string>
-						<string key="toggleHideDockIcon:">id</string>
-						<string key="toggleKeepsTextWidthInWindow:">id</string>
-					</dictionary>
-					<dictionary class="NSMutableDictionary" key="actionInfosByName">
-						<object class="IBActionInfo" key="changeBodyFont:">
-							<string key="name">changeBodyFont:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedAltRows:">
-							<string key="name">changedAltRows:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedAutoPairing:">
-							<string key="name">changedAutoPairing:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedAutoSuggestLinks:">
-							<string key="name">changedAutoSuggestLinks:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedBackgroundTextColorWell:">
-							<string key="name">changedBackgroundTextColorWell:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedExternalEditorsMenu:">
-							<string key="name">changedExternalEditorsMenu:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedForegroundTextColorWell:">
-							<string key="name">changedForegroundTextColorWell:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedHighlightSearchTerms:">
-							<string key="name">changedHighlightSearchTerms:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedMakeURLsClickable:">
-							<string key="name">changedMakeURLsClickable:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedNoteDeletion:">
-							<string key="name">changedNoteDeletion:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedNotesFolderLocation:">
-							<string key="name">changedNotesFolderLocation:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedQuitBehavior:">
-							<string key="name">changedQuitBehavior:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedRTL:">
-							<string key="name">changedRTL:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedSearchHighlightColorWell:">
-							<string key="name">changedSearchHighlightColorWell:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedShowGrid:">
-							<string key="name">changedShowGrid:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedSoftTabs:">
-							<string key="name">changedSoftTabs:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedSpellChecking:">
-							<string key="name">changedSpellChecking:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedStyledTextBehavior:">
-							<string key="name">changedStyledTextBehavior:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedTabBehavior:">
-							<string key="name">changedTabBehavior:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedTableText:">
-							<string key="name">changedTableText:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedTitleCompletion:">
-							<string key="name">changedTitleCompletion:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedUseETScrollbarsOnLion:">
-							<string key="name">changedUseETScrollbarsOnLion:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedUseMarkdownImport:">
-							<string key="name">changedUseMarkdownImport:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="changedUseReadability:">
-							<string key="name">changedUseReadability:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="setAppShortcut:">
-							<string key="name">setAppShortcut:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="setMaxWidth:">
-							<string key="name">setMaxWidth:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="toggleHideDockIcon:">
-							<string key="name">toggleHideDockIcon:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="toggleKeepsTextWidthInWindow:">
-							<string key="name">toggleKeepsTextWidthInWindow:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-					</dictionary>
-					<dictionary class="NSMutableDictionary" key="outlets">
-						<string key="altRowsButton">NSButton</string>
-						<string key="appList">NSComboBox</string>
-						<string key="appShortcutField">NSTextField</string>
-						<string key="autoPairButton">NSButton</string>
-						<string key="autoSuggestLinksButton">NSButton</string>
-						<string key="backgroundColorWell">NSColorWell</string>
-						<string key="bodyTextFontField">NSTextField</string>
-						<string key="checkSpellingButton">NSButton</string>
-						<string key="completeNoteTitlesButton">NSButton</string>
-						<string key="confirmDeletionButton">NSButton</string>
-						<string key="databaseView">NSView</string>
-						<string key="editingView">NSView</string>
-						<string key="externalEditorMenuButton">NSPopUpButton</string>
-						<string key="folderLocationsMenuButton">NSPopUpButton</string>
-						<string key="fontsColorsView">NSView</string>
-						<string key="foregroundColorWell">NSColorWell</string>
-						<string key="generalView">NSView</string>
-						<string key="highlightSearchTermsButton">NSButton</string>
-						<string key="makeURLsClickable">NSButton</string>
-						<string key="maxWidthSlider">NSSlider</string>
-						<string key="notationPrefsView">NSView</string>
-						<string key="notationPrefsViewController">NotationPrefsViewController</string>
-						<string key="quitWhenClosingButton">NSButton</string>
-						<string key="rtlButton">NSButton</string>
-						<string key="searchHighlightColorWell">NSColorWell</string>
-						<string key="showGridButton">NSButton</string>
-						<string key="softTabsButton">NSButton</string>
-						<string key="styledTextButton">NSButton</string>
-						<string key="tabKeyRadioMatrix">NSMatrix</string>
-						<string key="tableTextMenuButton">NSPopUpButton</string>
-						<string key="tableTextSizeField">NSTextField</string>
-						<string key="togDockButton">NSButton</string>
-						<string key="togDockLabel">NSTextField</string>
-						<string key="useETScrollbarsOnLionButton">NSButton</string>
-						<string key="useMarkdownImportButton">NSButton</string>
-						<string key="useReadabilityButton">NSButton</string>
-						<string key="window">NSWindow</string>
-					</dictionary>
-					<dictionary class="NSMutableDictionary" key="toOneOutletInfosByName">
-						<object class="IBToOneOutletInfo" key="altRowsButton">
-							<string key="name">altRowsButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="appList">
-							<string key="name">appList</string>
-							<string key="candidateClassName">NSComboBox</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="appShortcutField">
-							<string key="name">appShortcutField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="autoPairButton">
-							<string key="name">autoPairButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="autoSuggestLinksButton">
-							<string key="name">autoSuggestLinksButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="backgroundColorWell">
-							<string key="name">backgroundColorWell</string>
-							<string key="candidateClassName">NSColorWell</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="bodyTextFontField">
-							<string key="name">bodyTextFontField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="checkSpellingButton">
-							<string key="name">checkSpellingButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="completeNoteTitlesButton">
-							<string key="name">completeNoteTitlesButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="confirmDeletionButton">
-							<string key="name">confirmDeletionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="databaseView">
-							<string key="name">databaseView</string>
-							<string key="candidateClassName">NSView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="editingView">
-							<string key="name">editingView</string>
-							<string key="candidateClassName">NSView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="externalEditorMenuButton">
-							<string key="name">externalEditorMenuButton</string>
-							<string key="candidateClassName">NSPopUpButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="folderLocationsMenuButton">
-							<string key="name">folderLocationsMenuButton</string>
-							<string key="candidateClassName">NSPopUpButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="fontsColorsView">
-							<string key="name">fontsColorsView</string>
-							<string key="candidateClassName">NSView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="foregroundColorWell">
-							<string key="name">foregroundColorWell</string>
-							<string key="candidateClassName">NSColorWell</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="generalView">
-							<string key="name">generalView</string>
-							<string key="candidateClassName">NSView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="highlightSearchTermsButton">
-							<string key="name">highlightSearchTermsButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="makeURLsClickable">
-							<string key="name">makeURLsClickable</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="maxWidthSlider">
-							<string key="name">maxWidthSlider</string>
-							<string key="candidateClassName">NSSlider</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="notationPrefsView">
-							<string key="name">notationPrefsView</string>
-							<string key="candidateClassName">NSView</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="notationPrefsViewController">
-							<string key="name">notationPrefsViewController</string>
-							<string key="candidateClassName">NotationPrefsViewController</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="quitWhenClosingButton">
-							<string key="name">quitWhenClosingButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="rtlButton">
-							<string key="name">rtlButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="searchHighlightColorWell">
-							<string key="name">searchHighlightColorWell</string>
-							<string key="candidateClassName">NSColorWell</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="showGridButton">
-							<string key="name">showGridButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="softTabsButton">
-							<string key="name">softTabsButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="styledTextButton">
-							<string key="name">styledTextButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="tabKeyRadioMatrix">
-							<string key="name">tabKeyRadioMatrix</string>
-							<string key="candidateClassName">NSMatrix</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="tableTextMenuButton">
-							<string key="name">tableTextMenuButton</string>
-							<string key="candidateClassName">NSPopUpButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="tableTextSizeField">
-							<string key="name">tableTextSizeField</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="togDockButton">
-							<string key="name">togDockButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="togDockLabel">
-							<string key="name">togDockLabel</string>
-							<string key="candidateClassName">NSTextField</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="useETScrollbarsOnLionButton">
-							<string key="name">useETScrollbarsOnLionButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="useMarkdownImportButton">
-							<string key="name">useMarkdownImportButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="useReadabilityButton">
-							<string key="name">useReadabilityButton</string>
-							<string key="candidateClassName">NSButton</string>
-						</object>
-						<object class="IBToOneOutletInfo" key="window">
-							<string key="name">window</string>
-							<string key="candidateClassName">NSWindow</string>
-						</object>
-					</dictionary>
-					<object class="IBClassDescriptionSource" key="sourceIdentifier">
-						<string key="majorKey">IBProjectSource</string>
-						<string key="minorKey">./Classes/PrefsWindowController.h</string>
 					</object>
 				</object>
 			</array>
