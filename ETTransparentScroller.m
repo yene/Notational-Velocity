@@ -34,7 +34,7 @@
        verticalPaddingRight = 3.75f;
        verticalPaddingTop =3.75f;
        verticalPaddingBottom = 4.25f;
-       minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 25.0;
+       minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 20.0;
         slotAlpha=0.45f;
         knobAlpha=0.45f;
 		[self setArrowsPosition:NSScrollerArrowsNone];
@@ -182,9 +182,13 @@
 			NSRect knobRect=[super rectForPart:NSScrollerKnob];
 			
 			float knobHeight = roundf(slotRect.size.height * [self knobProportion]);
-            
-//			if (knobHeight < minKnobHeight)
-//				knobHeight = minKnobHeight;
+			if (knobHeight < minKnobHeight){
+                if (minKnobHeight>slotRect.size.height) {
+                    knobHeight=knobRect.size.height;
+                }else{
+                    knobHeight = minKnobHeight;
+                }
+            }
 			
 			float knobY = slotRect.origin.y + roundf((slotRect.size.height - knobHeight) * [self floatValue]);
 			knobRect = NSMakeRect(verticalPaddingLeft, knobY, slotRect.size.width, knobHeight);
