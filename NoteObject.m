@@ -1650,7 +1650,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
 			break;
 		case HTMLFormat:
-			formattedData = [contentMinusColor dataFromRange:NSMakeRange(0, [contentMinusColor length]) 
+			formattedData = [contentMinusColor dataFromRange:NSMakeRange(0, [contentMinusColor length])
 									  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
 																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			break;
