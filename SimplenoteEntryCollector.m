@@ -403,8 +403,11 @@
 		[syncMD setObject:[NSNumber numberWithInt:version] forKey:@"version"];
 		[syncMD setObject:[NSNumber numberWithBool:NO] forKey:@"dirty"];
 	} else {
-		if ([fetcher statusCode] == 412 || [fetcher statusCode] == 413) {
+		if ([fetcher statusCode] == 412) {
 			[syncMD setObject:[NSNumber numberWithBool:NO] forKey:@"dirty"];
+		} else if ([fetcher statusCode] == 413) {
+			// note was too large, don't clear dirty flag
+			[syncMD setObject:[NSNumber numberWithBool:YES] forKey:@"error"];
 		}
 		[syncMD setObject:[NSNumber numberWithInt:version] forKey:@"version"];
 	}
