@@ -61,7 +61,7 @@
 					<object class="NSTabView" id="654053441">
 						<reference key="NSNextResponder" ref="419849795"/>
 						<int key="NSvFlags">274</int>
-						<string key="NSFrame">{{-12, -10}, {393, 362}}</string>
+						<string key="NSFrame">{{-12, 10}, {393, 362}}</string>
 						<reference key="NSSuperview" ref="419849795"/>
 						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="745068758"/>
@@ -186,7 +186,7 @@
 										<object class="NSButton" id="717376056">
 											<reference key="NSNextResponder" ref="745068758"/>
 											<int key="NSvFlags">256</int>
-											<string key="NSFrame">{{189, 45}, {163, 32}}</string>
+											<string key="NSFrame">{{189, 46}, {163, 32}}</string>
 											<reference key="NSSuperview" ref="745068758"/>
 											<reference key="NSWindow"/>
 											<reference key="NSNextKeyView" ref="16963162"/>
@@ -236,7 +236,7 @@
 										<object class="NSTextField" id="645494898">
 											<reference key="NSNextResponder" ref="745068758"/>
 											<int key="NSvFlags">256</int>
-											<string key="NSFrame">{{24, 89}, {325, 34}}</string>
+											<string key="NSFrame">{{24, 72}, {325, 51}}</string>
 											<reference key="NSSuperview" ref="745068758"/>
 											<reference key="NSWindow"/>
 											<reference key="NSNextKeyView" ref="717376056"/>
@@ -244,7 +244,7 @@
 											<object class="NSTextFieldCell" key="NSCell" id="89078425">
 												<int key="NSCellFlags">67108864</int>
 												<int key="NSCellFlags2">272629760</int>
-												<string key="NSContents">Notes will be kept in sync with the Simplenote iPhone application and web site.</string>
+												<string key="NSContents">Notes will be kept in sync with the Simplenote iOS applications and web site.</string>
 												<reference key="NSSupport" ref="3328430"/>
 												<reference key="NSControlView" ref="645494898"/>
 												<reference key="NSBackgroundColor" ref="852890870"/>
@@ -486,15 +486,15 @@
 										<object class="NSTextField" id="545359917">
 											<reference key="NSNextResponder" ref="745068758"/>
 											<int key="NSvFlags">268</int>
-											<string key="NSFrame">{{50, 19}, {299, 14}}</string>
+											<string key="NSFrame">{{50, -3}, {299, 36}}</string>
 											<reference key="NSSuperview" ref="745068758"/>
 											<reference key="NSWindow"/>
-											<reference key="NSNextKeyView" ref="654053441"/>
+											<reference key="NSNextKeyView"/>
 											<bool key="NSEnabled">YES</bool>
 											<object class="NSTextFieldCell" key="NSCell" id="91530491">
 												<int key="NSCellFlags">67108864</int>
 												<int key="NSCellFlags2">272760832</int>
-												<string key="NSContents">Warning: Note contents will be delivered as clear text.</string>
+												<string key="NSContents">Warning: Note contents will be delivered as clear text. Notes &gt;400k in size may have issues with sync.</string>
 												<reference key="NSSupport" ref="26"/>
 												<reference key="NSControlView" ref="545359917"/>
 												<reference key="NSBackgroundColor" ref="852890870"/>
@@ -1529,7 +1529,7 @@ AAA</bytes>
 						</array>
 					</object>
 				</array>
-				<string key="NSFrameSize">{368, 346}</string>
+				<string key="NSFrameSize">{368, 366}</string>
 				<reference key="NSSuperview"/>
 				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="654053441"/>
@@ -1577,7 +1577,7 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 					</array>
 					<string key="NSFrame">{{1, 1}, {360, 240}}</string>
 				</object>
-				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
+				<string key="NSScreenRect">{{0, 0}, {1920, 1058}}</string>
 				<string key="NSMinSize">{213, 129}</string>
 				<string key="NSMaxSize">{10000000000000, 10000000000000}</string>
 				<bool key="NSWindowIsRestorable">YES</bool>
@@ -1586,7 +1586,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 				<nil key="NSNextResponder"/>
 				<int key="NSvFlags">256</int>
 				<string key="NSFrameSize">{125, 1}</string>
-				<reference key="NSNextKeyView" ref="645494898"/>
 			</object>
 		</array>
 		<object class="IBObjectContainer" key="IBDocument.Objects">
@@ -2325,8 +2324,8 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 							<reference ref="767517803"/>
 							<reference ref="16963162"/>
 							<reference ref="545359917"/>
-							<reference ref="717376056"/>
 							<reference ref="640809030"/>
+							<reference ref="717376056"/>
 						</array>
 						<reference key="parent" ref="70596253"/>
 					</object>

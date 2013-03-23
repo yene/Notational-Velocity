@@ -1712,6 +1712,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	[[ODBEditor sharedODBEditor] editNote:self inEditor:ed context:nil];
 }
 
+- (void)previewUsingMarked {
+		NSWorkspace * ws = [NSWorkspace sharedWorkspace];
+		[ws openFile:[self noteFilePath] withApplication:@"Marked" andDeactivate:YES];
+}
+
 - (void)abortEditingInExternalEditor {
 	[[ODBEditor sharedODBEditor] abortAllEditingSessionsForClient:self];
 }

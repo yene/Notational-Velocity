@@ -885,6 +885,19 @@ terminateApp:
   }
 }
 
+- (IBAction)previewNoteWithMarked:(id)sender {
+		if (LSFindApplicationForInfo(kLSUnknownCreator, (CFStringRef)@"com.brettterpstra.marky", NULL, NULL, NULL) == kLSApplicationNotFoundErr)
+		{
+				NSBeep();
+				NSLog(@"Marked not found");
+		} else {
+				NSIndexSet *indexes = [notesTableView selectedRowIndexes];
+				//force-write any queued changes to disk in case notes are being stored as separate files which might be opened directly by the method below
+				[notationController synchronizeNoteChanges:nil];
+				[[notationController notesAtIndexes:indexes] makeObjectsPerformSelector:@selector(previewUsingMarked)];
+		} 
+}
+
 - (IBAction)printNote:(id)sender {
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	
