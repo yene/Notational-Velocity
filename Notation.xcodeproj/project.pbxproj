@@ -2212,6 +2212,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				SDKROOT = macosx10.7;
 			};
 			name = Development;
 		};
@@ -2284,7 +2285,7 @@
 				PRIVATE_HEADERS_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/PrivateHeaders";
 				PRODUCT_NAME = nvALT;
 				RUN_CLANG_STATIC_ANALYZER = YES;
-				SDKROOT = macosx;
+				SDKROOT = macosx10.7;
 				STRIP_INSTALLED_PRODUCT = NO;
 				VERSION_INFO_BUILDER = ElasticThreads;
 				WARNING_LDFLAGS = "-pg";
@@ -2350,7 +2351,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				PRIVATE_HEADERS_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/PrivateHeaders";
 				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx;
+				SDKROOT = macosx10.7;
 				SECTORDER_FLAGS = (
 					"-sectorder",
 					__TEXT,
@@ -2370,6 +2371,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				SDKROOT = macosx10.7;
 			};
 			name = ForBuilding;
 		};
