@@ -2212,6 +2212,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				SDKROOT = macosx10.7;
 			};
 			name = Development;
 		};
@@ -2370,6 +2371,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				SDKROOT = macosx10.7;
 			};
 			name = ForBuilding;
 		};
