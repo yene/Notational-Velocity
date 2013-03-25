@@ -82,6 +82,19 @@ BOOL isEd;
 - (id)init {
 		self = [super init];
 		if (self) {
+			hasLaunched=NO;
+        
+	        if (![[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]){
+	            ProcessSerialNumber psn = { 0, kCurrentProcess };
+	            OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToUIElementApplication);
+	            if( returnCode != 0) {
+	                NSLog(@"Could not bring the application to front. Error %d", returnCode);
+	            }
+                if (![[NSUserDefaults standardUserDefaults] boolForKey:@"StatusBarItem"]) {
+                     [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"StatusBarItem"];
+                }
+	        }
+        
 				splitViewAwoke = NO;
 				windowUndoManager = [[NSUndoManager alloc] init];
 				
@@ -103,6 +116,8 @@ BOOL isEd;
 				[nc addObserver:self selector:@selector(toggleAttachedWindow:) name:@"NVShouldActivate" object:nil];
 				[nc addObserver:self selector:@selector(toggleAttachedMenu:) name:@"StatusItemMenuShouldDrop" object:nil];
 				[nc addObserver:self selector:@selector(togDockIcon:) name:@"AppShouldToggleDockIcon" object:nil];
+            	[nc addObserver:self selector:@selector(toggleStatusItem:) name:@"AppShouldToggleStatusItem" object:nil];
+           
 				[nc addObserver:self selector:@selector(resetModTimers:) name:@"ModTimersShouldReset" object:nil];
 				
 				// Setup URL Handling
@@ -119,19 +134,7 @@ BOOL isEd;
 }
 
 - (void)awakeFromNib {
-	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]){		
-		
-        if((IsSnowLeopardOrLater)&&([[NSApplication sharedApplication] respondsToSelector: @selector(setActivationPolicy:)])) {
-            enum {NSApplicationActivationPolicyRegular};	
-            [[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
-        }else {
-            ProcessSerialNumber psn = { 0, kCurrentProcess }; 
-            OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-            if( returnCode != 0) {
-                NSLog(@"Could not bring the application to front. Error %d", returnCode);
-            }
-        }	
-    }
+//    NSLog(@"awake");
     theFieldEditor = [[[NSTextView alloc]initWithFrame:[window frame]] retain];
 	[theFieldEditor setFieldEditor:YES];
     // [theFieldEditor setDelegate:self];
@@ -212,12 +215,7 @@ BOOL isEd;
 	
 	// Create elasticthreads' NSStatusItem.
 	if ( [[NSUserDefaults standardUserDefaults] boolForKey:@"StatusBarItem"]) {
-		float width = 25.0f;
-		CGFloat height = [[NSStatusBar systemStatusBar] thickness];
-		NSRect viewFrame = NSMakeRect(0.0f, 0.0f, width, height);
-		statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:width] retain];
-		cView = [[[StatusItemView alloc] initWithFrame:viewFrame controller:self] autorelease];
-		[statusItem setView:cView];		
+		[self setUpStatusBarItem];
 	}
 	
 	currentPreviewMode = [[NSUserDefaults standardUserDefaults] integerForKey:@"markupPreviewMode"];
@@ -229,7 +227,6 @@ BOOL isEd;
         [textilePreview setState:NSOnState];
     }
 	
-	[NSApp setServicesProvider:self];
 	outletObjectAwoke(self);
 }
 
@@ -383,7 +380,30 @@ void outletObjectAwoke(id sender) {
 	}else {			
 		[wordCounter setHidden:YES];
 	}
-	//	
+	//
+	[NSApp setServicesProvider:self];
+    if (!hasLaunched) {
+        
+        hasLaunched=YES;
+        [self focusControlField:self activate:NO];
+
+        
+    }
+    
+  
+    
+//       NSLog(@"hia");
+//    [NSApp activateIgnoringOtherApps:NO];
+//    [window makeKeyAndOrderFront:self];
+}
+
+
+- (void)applicationWillFinishLaunching:(NSNotification *)aNotification{
+  
+    
+//    NSLog(@"will finish");
+    
+//    NSLog(@"will finish :>%@<  withObjecT",[[aNotification object] description]);
 }
 
 
@@ -566,7 +586,7 @@ terminateApp:
 }
 
 - (BOOL)applicationOpenUntitledFile:(NSApplication *)sender {
-    if (![prefsController quitWhenClosingWindow]) {
+    if ((![prefsController quitWhenClosingWindow])&&(hasLaunched)) {
         [self bringFocusToControlField:nil];
         return YES;
     }
@@ -2264,11 +2284,9 @@ terminateApp:
 	[self bringFocusToControlField:sender];
 }
 
-- (IBAction)bringFocusToControlField:(id)sender {
-	//For ElasticThreads' fullscreen mode use this if/else otherwise uncomment the expand toolbar
-    
+- (void)focusControlField:(id)sender activate:(BOOL)shouldActivate{
     if (IsLionOrLater) {
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:sender];        
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:sender];
     }
 	if ([notesSubview isCollapsed]) {
 		[self toggleCollapse:self];
@@ -2276,17 +2294,27 @@ terminateApp:
 		
         [self setDualFieldIsVisible:YES];
 	}
-
+    
 	[field selectText:sender];
-	
-	if (![NSApp isActive]) {
+    
+	if (shouldActivate&&(![NSApp isActive])) {
 		CurrentContextForWindowNumber([window windowNumber], &spaceSwitchCtx);
 		[NSApp activateIgnoringOtherApps:YES];
 	}
-	if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];
+    if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];
+	
 	[self setEmptyViewState:currentNote == nil];
     isEd = NO;
+
+
 }
+
+- (IBAction)bringFocusToControlField:(id)sender {
+	//For ElasticThreads' fullscreen mode use this if/else otherwise uncomment the expand toolbar
+    
+    [self focusControlField:sender activate:YES];
+}
+
 
 - (NSWindow*)window {
 	return window;
@@ -3325,6 +3353,8 @@ terminateApp:
 
 #pragma mark toggleDock
 - (void)togDockIcon:(NSNotification *)notification{
+    
+    [NSApp hide:self];
     BOOL showIt=[[notification object]boolValue];
     if (showIt) {	   
         [self performSelectorOnMainThread:@selector(reactivateAfterDelay) withObject:nil waitUntilDone:NO];
@@ -3338,25 +3368,51 @@ terminateApp:
     
     [self performSelector:@selector(relaunchNV:) withObject:self afterDelay:0.22];	
 }
+    
+- (void)setUpStatusBarItem{    
+    float width = 25.0f;
+    CGFloat height = [[NSStatusBar systemStatusBar] thickness];
+    NSRect viewFrame = NSMakeRect(0.0f, 0.0f, width, height);
+    statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:width] retain];
+    cView = [[[StatusItemView alloc] initWithFrame:viewFrame controller:self] autorelease];
+    [statusItem setView:cView];
+}
+    
+- (void)toggleStatusItem:(NSNotification *)notification{
+    if (!statusItem) {
+        [self setUpStatusBarItem];
+    }else{
+        [[NSStatusBar systemStatusBar]removeStatusItem:statusItem];
+        cView=nil;
+        statusItem=nil;
+    }
+}
 
 - (void)relaunchNV:(id)sender{
-    id fullPath = [[NSBundle mainBundle] executablePath];
-    NSArray *arg = [NSArray arrayWithObjects:nil];    
-    [NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
-    [NSApp terminate:sender];
+//    id fullPath = [[NSBundle mainBundle] executablePath];
+//    NSArray *arg = [NSArray arrayWithObjects:nil];    
+//    [NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
+//    [NSApp terminate:sender];
+    
+    ProcessSerialNumber psn = { 0, kCurrentProcess };
+    OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToUIElementApplication);
+    if( returnCode != 0) {
+        NSLog(@"Could not bring the application to front. Error %d", returnCode);
+    }
+    if (!statusItem) {
+        [self setUpStatusBarItem];
+	}
+    
+    
+    [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.36];
 }
 
 - (void)reactivateAfterDelay{
-    [NSApp hide:self];
-    if((IsSnowLeopardOrLater)&&([NSApp respondsToSelector: @selector(setActivationPolicy:)])) {
-        enum {NSApplicationActivationPolicyRegular};	
-        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-    }else {
-        ProcessSerialNumber psn = { 0, kCurrentProcess }; 
-        OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-        if( returnCode != 0) {
-            NSLog(@"Could not bring the application to front. Error %d", returnCode);
-        }
+    
+    ProcessSerialNumber psn = { 0, kCurrentProcess };
+    OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+    if( returnCode != 0) {
+        NSLog(@"Could not bring the application to front. Error %d", returnCode);
     }
     [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.16];
 }

@@ -431,16 +431,16 @@
 		
 		if ([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]) {
             [togDockButton setTitle:@"Hide Dock Icon"];
-			[togDockLabel setStringValue:@"This will immediately restart NV"];		
-		}else {			
+//			[togDockLabel setStringValue:@"This will immediately restart NV"];		
+		}else {
             [togDockButton setTitle:@"Show Dock Icon"];
-			[togDockLabel setStringValue:@""];
+//			[togDockLabel setStringValue:@""];
 		}
 
 	}else {	
 		[togDockButton setEnabled:NO];
 		[togDockButton setHidden:YES];
-		[togDockLabel setHidden:YES];
+//		[togDockLabel setHidden:YES];
 	}
     //for Brett's Markdownify/Readability import
 	[useMarkdownImportButton setState:[prefsController useMarkdownImport]];
@@ -566,15 +566,28 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
     if (showIt) {
         [stdDefaults setBool:YES forKey:@"ShowDockIcon"];
         [togDockButton setTitle:@"Hide Dock Icon"];        
-        [togDockLabel setStringValue:@"This will immediately restart NV"];	
+//        [togDockLabel setStringValue:@"This will immediately restart NV"];	
     }else{
         [stdDefaults setBool:YES forKey:@"StatusBarItem"];
         [stdDefaults setBool:NO forKey:@"ShowDockIcon"];
+        [togDockButton setTitle:@"Show Dock Icon"];
     }
     [stdDefaults synchronize];
 	[[NSNotificationCenter defaultCenter]postNotificationName:@"AppShouldToggleDockIcon" object:[NSNumber numberWithBool:showIt]];
 }
 
+- (IBAction)toggleStatusItem:(id)sender{
+//    NSUserDefaults *stdDefaults=[NSUserDefaults standardUserDefaults];
+//    BOOL showIt=[stdDefaults boolForKey:@"StatusBarItem"];
+//    if (showIt) {
+//        [stdDefaults setBool:NO forKey:@"StatusBarItem"];
+//        //        [togDockLabel setStringValue:@"This will immediately restart NV"];
+//    }else{
+//        [stdDefaults setBool:YES forKey:@"StatusBarItem"];
+//    }
+//    [stdDefaults synchronize];
+	[[NSNotificationCenter defaultCenter]postNotificationName:@"AppShouldToggleStatusItem" object:nil];
+}
 
 
 - (IBAction)toggleKeepsTextWidthInWindow:(id)sender{

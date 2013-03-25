@@ -89,7 +89,7 @@
 - (IBAction)changedShowGrid:(id)sender;
 - (IBAction)changedAltRows:(id)sender;
 - (IBAction)changedAutoPairing:(id)sender;
-
+- (IBAction)toggleStatusItem:(id)sender;
 - (void)_selectDefaultExternalEditor;
 
 - (NSMenu*)directorySelectionMenu;
