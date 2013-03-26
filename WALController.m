@@ -40,7 +40,6 @@
 - (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
     if ([super init]) {
 		logFD = -1;
-		
 		char filename[] = "Interim Note-Changes";
 		size_t newPathLength = sizeof(filename) + strlen(path) + 2;
 		
@@ -48,7 +47,7 @@
 		strlcpy(journalFile, path, newPathLength);
 		strlcat(journalFile, "/", newPathLength);
 		strlcat(journalFile, filename, newPathLength);
-		
+        
 		//for simplicity's sake the log file is always compressed and encrypted with the key for the current database
 		//if the database has no encryption, it should have passed some constant known key to us instead
 		logSessionKey = [key retain];

@@ -41,6 +41,7 @@
 #import "SyncSessionController.h"
 #import "BookmarksController.h"
 #import "DeletionManager.h"
+#import "nvaDevConfig.h"
 
 @implementation NotationController
 
@@ -347,8 +348,15 @@ returnResult:
     UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
     OSStatus err = noErr;
 	NSData *walSessionKey = [notationPrefs WALSessionKey];
-	
+    
+    //nvALT change to store Interim Note-Changes in ~/Library/Caches/
+#if kUseCachesFolderForInterimNoteChanges
+    NSString *cPath=[self createCachesFolder];
+    if (cPath) {
+        convertedPath=[cPath UTF8String];
+#else
     if ((err = FSRefMakePath(&noteDirectoryRef, convertedPath, maxPathSize)) == noErr) {
+#endif
 		//initialize the journal if necessary
 		if (!(walWriter = [[WALStorageController alloc] initWithParentFSRep:(char*)convertedPath encryptionKey:walSessionKey])) {
 			//journal file probably already exists, so try to recover it
@@ -380,6 +388,7 @@ returnResult:
 					goto bail;
 				}
 				
+//                NSLog(@"convertPath4:>%s<",convertedPath);
 				if (!(walWriter = [[WALStorageController alloc] initWithParentFSRep:(char*)convertedPath encryptionKey:walSessionKey])) {
 					//couldn't create a journal after recovering the old one
 					//if databaseCouldNotBeFlushed is true here, then we've potentially lost notes; perhaps exchangeobjects would be better here?
@@ -1572,6 +1581,29 @@ bail:
 	[unwrittenNotes release];
     
     [super dealloc];
+}
+
+#pragma mark nvALT stuff
+- (NSString *)createCachesFolder{
+    NSString *path = nil;
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    if ([paths count])
+    {
+        NSString *bundleName =
+        [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleIdentifier"];
+        path = [[paths objectAtIndex:0] stringByAppendingPathComponent:bundleName];
+        NSError *theError;
+        if ((path)&&([[NSFileManager defaultManager]createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&theError])) {
+//           NSLog(@"cache folder :>%@<",path);
+            return path;
+
+        }else{
+            NSLog(@"error creating cache folder :>%@<",[theError description]);
+        }
+    }else{
+        NSLog(@"Unable to find or create cache folder:\n%@", path);
+    }
+    return nil;
 }
 
 @end
