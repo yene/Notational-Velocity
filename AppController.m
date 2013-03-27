@@ -97,10 +97,8 @@ BOOL isEd;
             }
         }else{
             if (!IsLionOrLater) {
-                NSLog(@"for sure 10.6");
-                
-            enum {NSApplicationActivationPolicyRegular};
-            [[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
+                enum {NSApplicationActivationPolicyRegular};
+                [[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
             }
         
         }
@@ -2303,6 +2301,7 @@ terminateApp:
 	}
 	[self bringFocusToControlField:sender];
 }
+
 - (void)focusControlField:(id)sender activate:(BOOL)shouldActivate{
     if (IsLionOrLater) {
         [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:sender];
@@ -2331,7 +2330,6 @@ terminateApp:
             [window makeKeyAndOrderFront:sender];
         }
 	}
-	
 	[self setEmptyViewState:currentNote == nil];
     isEd = NO;
     
@@ -2382,7 +2380,7 @@ terminateApp:
 
 - (void)toggleAttachedMenu:(NSNotification *)aNotification
 {
-	[statusItem popUpStatusItemMenu:statBarMenu];	
+	[statusItem popUpStatusItemMenu:statBarMenu];
 }
 
 
@@ -3390,7 +3388,6 @@ terminateApp:
             }
 
         }else{
-            NSLog(@"showing dock icon in 10.6");
             enum {NSApplicationActivationPolicyRegular};
             [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         }
