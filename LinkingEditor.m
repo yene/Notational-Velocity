@@ -1295,6 +1295,9 @@ copyRTFType:
 - (void)mouseExited:(NSEvent*)anEvent {
 	mouseInside = NO;
 	[self fixCursorForBackgroundUpdatingMouseInside:NO];
+    
+    //fix for tooltip hanging around
+    [super mouseExited:anEvent];
 }
 
 - (void)_fixCursorForBackgroundUpdatingMouseInside:(NSNumber*)num {
