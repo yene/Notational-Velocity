@@ -1094,8 +1094,6 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 		ishor = [self isHorizontal];
 		document = [[self enclosingScrollView] documentView];
 		if (document) {
-            
-            //NSLog(@"uhoh2");
 			frame = [document frame];
 		} else {
 			window = [self window];
@@ -1166,8 +1164,6 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 		ishor = [self isHorizontal];
 		document = [[self enclosingScrollView] documentView];
 		if (document) {
-            
-          //  NSLog(@"uhoh3");
 			frame = [document frame];
 		} else {
 			window = [self window];
@@ -1230,8 +1226,6 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 		ishor = [self isHorizontal];
 		document = [[self enclosingScrollView] documentView];
 		if (document) {
-            
-         ///   NSLog(@"uhoh4");
 			frame = [document frame];
 		} else {
 			window = [self window];

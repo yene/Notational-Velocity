@@ -140,29 +140,11 @@
 //	return [self rectForPart:aPart];
 //}
 
-//- (NSScrollerPart)testPart:(NSPoint)aPoint{
-//    NSScrollerPart aPart=[super testPart:aPoint];
-//    if (aPart==NSScrollerKnobSlot) {
-//        NSLog(@"super found knobslot");
-//    }else if (aPart==NSScrollerKnob) {
-//        NSLog(@"super found knob");
-//    }else{
-//        NSLog(@"suer found else:%lu",aPart);
-//    }
-//    if (NSPointInRect(aPoint, [self rectForPart:NSScrollerKnob])) {
-//        NSLog(@"knob");
-//    }else if (NSPointInRect(aPoint, [self rectForPart:NSScrollerKnobSlot])) {
-//        NSLog(@"knobsliot");
-//        return NSScrollerKnobSlot;
-//    }
-//    NSLog(@"aqui");
-//    return NSScrollerNoPart;
-//}
+
 
 //- (void)trackKnob:(NSEvent *)theEvent{
 //    NSPoint aPoint=[theEvent locationInWindow];
 //    NSScrollerPart aPart=[super testPart:aPoint];
-//     NSLog(@"trackThis :>%lu<",aPart);
 //    [super trackKnob:theEvent];
 //}
 

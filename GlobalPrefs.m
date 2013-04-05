@@ -647,7 +647,6 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		NSColor *fgColor = [[NSApp delegate] foregrndColor];
 		
 		if (!ColorsEqualWith8BitChannels([NSColor blackColor], fgColor)) {
-		//	NSLog(@"golly1");
 			[attrs setObject:fgColor forKey:NSForegroundColorAttributeName];
 		}
 		// background text color is handled directly by the NSTextView subclass and so does not need to be stored here
@@ -667,7 +666,6 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		NSColor *fgColor = [[NSApp delegate] foregrndColor];
 		
 		//	if (!ColorsEqualWith8BitChannels([NSColor blackColor], fgColor)) {
-		//NSLog(@"golly122");
 		[attrs setObject:fgColor forKey:NSForegroundColorAttributeName];
 		noteBodyAttributes = attrs;
 		//	}

@@ -388,7 +388,6 @@ returnResult:
 					goto bail;
 				}
 				
-//                NSLog(@"convertPath4:>%s<",convertedPath);
 				if (!(walWriter = [[WALStorageController alloc] initWithParentFSRep:(char*)convertedPath encryptionKey:walSessionKey])) {
 					//couldn't create a journal after recovering the old one
 					//if databaseCouldNotBeFlushed is true here, then we've potentially lost notes; perhaps exchangeobjects would be better here?

@@ -35,7 +35,6 @@
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)command{
 	if (command == @selector(cancelOperation:)) {
 		[tagPanel orderOut:self];
-		NSLog(@"tagman cancaelr");
 		//[self closeTP:self];
 	}
 	return NO;
