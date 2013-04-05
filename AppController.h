@@ -234,9 +234,9 @@ void outletObjectAwoke(id sender);
 - (void)relaunchNV:(id)sender;
 - (void)reactivateAfterDelay;
 - (void)reActivate:(id)sender;
-- (NSArray *)referenceLinksInString:(NSString *)contentString;
 //- (IBAction)testThing:(id)sender;
 - (void)setUpStatusBarItem;
+- (NSArray *)referenceLinksInString:(NSString *)contentString;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)postToggleToolbar:(NSNumber *)boolNum;
 #endif

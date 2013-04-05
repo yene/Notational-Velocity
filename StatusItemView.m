@@ -16,7 +16,7 @@ NSString *imageName = @"nvMenuDark";
 
 - (id)initWithFrame:(NSRect)frame controller:(AppController *)ctrlr
 {
-    if (self == [super initWithFrame:frame]) {
+    if (self = [super initWithFrame:frame]) {
         controller = ctrlr; // deliberately weak reference.
     }    
     return self;

@@ -84,8 +84,6 @@ CGFloat _perceptualDarkness(NSColor*a);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:),
 	 @selector(setShouldHighlightSearchTerms:sender:),
-     @selector(setMaxNoteBodyWidth:sender:),
-     @selector(setManagesTextWidthInWindow:sender:), nil];	
 	// @selector(setBackgroundTextColor:sender:),
 	// @selector(setForegroundTextColor:sender:),
 	

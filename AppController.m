@@ -737,7 +737,6 @@ terminateApp:
 
 - (void)_configureDividerForCurrentLayout {
     
-    
     self.isEditing = NO;
 	BOOL horiz = [prefsController horizontalLayout];
 	if ([notesSubview isCollapsed]) {
@@ -2372,7 +2371,6 @@ terminateApp:
 - (void)toggleAttachedMenu:(NSNotification *)aNotification
 {
 	[statusItem popUpStatusItemMenu:statBarMenu];
-	
 }
 
 
