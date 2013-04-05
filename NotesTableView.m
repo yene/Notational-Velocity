@@ -1195,7 +1195,6 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		
 		NSTextView *editor = [aNotification object];
 		
-		//NSLog(@"isAutocompleting: %d, wasDeleting: %d", isAutocompleting, wasDeleting);
 		if (!isAutocompleting && !wasDeleting) {
 			isAutocompleting = YES;
 			[editor complete:self];
@@ -1230,7 +1229,6 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 				tags = [labelsListSource labelTitlesPrefixedByString:[fieldString substringWithRange:charRange] 
 														  indexOfSelectedItem:&index minusWordSet:existingWordSet];
 				
-                //NSLog(@"tags is :%@",[tags description]);
 			}
 		}
 	}

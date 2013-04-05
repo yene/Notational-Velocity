@@ -40,7 +40,6 @@
 }
 
 - (void)showWindow:(id)sender {
-	//NSLog(@"showwin");
 	if (!window) {
 		if (![NSBundle loadNibNamed:@"Preferences" owner:self])  {
 			NSLog(@"Failed to load Preferences.nib");

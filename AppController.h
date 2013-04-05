@@ -109,6 +109,7 @@
 	BOOL isCreatingANote;
 	NSString *typedString;
 	NSArray *cTags;
+    BOOL isEditing;
 	
 	NoteObject *currentNote;
 	NSArray *savedSelectedNotes;
@@ -123,6 +124,8 @@
   IBOutlet NSMenuItem *savePreviewItem;
   NSInteger currentPreviewMode;
 }
+
+@property(readwrite)BOOL isEditing;
 
 void outletObjectAwoke(id sender);
 
@@ -178,7 +181,6 @@ void outletObjectAwoke(id sender);
 
 //elasticwork
 //- (void)setIsEditing:(BOOL)inBool inCell:(NSCell *)theCell;
-- (void)setIsEditing:(BOOL)inBool;
 //- (void)focusOnCtrlFld:(id)sender;
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex;
 - (NSMenu *)statBarMenu;
@@ -233,7 +235,7 @@ void outletObjectAwoke(id sender);
 - (void)reactivateAfterDelay;
 - (void)reActivate:(id)sender;
 - (NSArray *)referenceLinksInString:(NSString *)contentString;
-- (IBAction)testThing:(id)sender;
+//- (IBAction)testThing:(id)sender;
 - (void)setUpStatusBarItem;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)postToggleToolbar:(NSNumber *)boolNum;
