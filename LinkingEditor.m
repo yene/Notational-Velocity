@@ -83,17 +83,17 @@ CGFloat _perceptualDarkness(NSColor*a);
 	 @selector(setNoteBodyFont:sender:),
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:),
-	 @selector(setShouldHighlightSearchTerms:sender:),
-	// @selector(setBackgroundTextColor:sender:),
-	// @selector(setForegroundTextColor:sender:),
-	
+	 @selector(setShouldHighlightSearchTerms:sender:), nil];
 	[self setTextContainerInset:NSMakeSize(kDefaultTextInsetWidth, kDefaultTextInsetHeight)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:NO];
     
-    
+     
+     // @selector(setBackgroundTextColor:sender:),
+     // @selector(setForegroundTextColor:sender:),
+     
     [self prepareTextFinder];
     
 	[self updateTextColors];
@@ -436,24 +436,26 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 												 @selector(initWithHTML:documentAttributes:) : @selector(initWithRTF:documentAttributes:) 
 																						withObject:[pboard dataForType:type] withObject:nil] autorelease];
 		if ([newString length]) {
-			NSRange selectedRange = [self rangeForUserTextChange];
-			if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
-				
-				if (![type isEqualToString:NVPTFPboardType]) {
-					//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
-					//and we only want real URLs to be linked
-					[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
-					[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
-				}
-				
-				[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
-																	  NSMakeRange(0, [newString length]) documentAttributes:nil]];
-			
-				//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
-				//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
-				[self didChangeText];
-				return YES;
-			}
+			if (![type isEqualToString:NVPTFPboardType]) {
+							//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
+							//and we only want real URLs to be linked
+							[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
+							[newString indentTextLists];
+							[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
+						}
+
+						NSRange selectedRange = [self rangeForUserTextChange];
+						if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
+
+							[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
+																				  NSMakeRange(0, [newString length]) documentAttributes:nil]];
+
+							//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
+							//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
+							[self didChangeText];
+
+							return YES;
+						}
 		}
 	}
 	
@@ -1061,8 +1063,7 @@ copyRTFType:
             return;
         }      
     }
-	BOOL wasAutomatic = NO;
-	[self selectedRangeWasAutomatic:&wasAutomatic];
+	BOOL wasAutomatic = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
 	
 	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length] || didChangeIntoAutomaticRange)) {
 		[self insertTabIgnoringFieldEditor:sender];
