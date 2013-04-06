@@ -531,13 +531,9 @@ terminateApp:
 	
     if (newNotation) {
 		if (notationController) {
-			[notationController endDeletionManagerIfNecessary];
-			[notationController stopSyncServices];
+			[notationController closeAllResources];
 			[[NSNotificationCenter defaultCenter] removeObserver:self name:SyncSessionsChangedVisibleStatusNotification
 														  object:[notationController syncSessionController]];
-			[notationController stopFileNotifications];
-			if ([notationController flushAllNoteChanges])
-				[notationController closeJournal];
 		}
 		
 		NotationController *oldNotation = notationController;
@@ -1043,7 +1039,7 @@ terminateApp:
 		
 		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
-		//[notationController invalidateAllLabelPreviewImages];
+		[[notationController labelsListDataSource] invalidateCachedLabelImages];
 		[self _forceRegeneratePreviewsForTitleColumn];
         
 		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];
@@ -1149,7 +1145,6 @@ terminateApp:
 	//sync note files when switching apps so user doesn't have to guess when they'll be updated
 	[notationController synchronizeNoteChanges:nil];
 	[cView setInactiveIcon:self];
-    //	[self resetModTimers];
     [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     
 }
