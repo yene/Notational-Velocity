@@ -229,14 +229,15 @@ void outletObjectAwoke(id sender);
 - (void)focusControlField:(id)sender activate:(BOOL)shouldActivate;
 #pragma mark toggling dock icon
 - (void)togDockIcon:(NSNotification *)notification;
-- (void)toggleStatusItem:(NSNotification *)notification;
-- (void)relaunchAfterDelay;
-- (void)relaunchNV:(id)sender;
-- (void)reactivateAfterDelay;
+- (void)hideDockIconAfterDelay;
+- (void)hideDockIcon;
+- (void)showDockIcon;
 - (void)reActivate:(id)sender;
+- (void)toggleStatusItem:(NSNotification *)notification;
 //- (IBAction)testThing:(id)sender;
 - (void)setUpStatusBarItem;
 - (NSArray *)referenceLinksInString:(NSString *)contentString;
+- (IBAction)testThing:(id)sender;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)postToggleToolbar:(NSNumber *)boolNum;
 #endif

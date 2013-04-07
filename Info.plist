@@ -160,7 +160,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>106</string>
+	<string>107</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSArchitecturePriority</key>
@@ -169,16 +169,9 @@
 		<string>i386</string>
 	</array>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.6</string>
+	<string>10.7</string>
 	<key>CFBundleName</key>
 	<string></string>
-	<key>LSMinimumSystemVersionByArchitecture</key>
-	<dict>
-		<key>i386</key>
-		<string>10.5.8</string>
-		<key>x86_64</key>
-		<string>10.6.0</string>
-	</dict>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
 	<key>NSMainNibFile</key>
@@ -229,6 +222,8 @@
 	<real>345600</real>
 	<key>SmartCrashReports_CompanyName</key>
 	<string>Notational.net</string>
+	<key>LSUIElement</key>
+	<false/>
 	<key>SmartCrashReports_EmailTicket</key>
 	<string>SCR-51ED0F7B2A</string>
 </dict>
