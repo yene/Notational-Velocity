@@ -63,6 +63,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 @synthesize activeParagraph;
 @synthesize activeParagraphBeforeCursor;
 @synthesize activeParagraphPastCursor;
+@synthesize managesTextWidth;
 
 CGFloat _perceptualDarkness(NSColor*a);
 
@@ -82,19 +83,17 @@ CGFloat _perceptualDarkness(NSColor*a);
 	 @selector(setNoteBodyFont:sender:),
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:),
-	 @selector(setShouldHighlightSearchTerms:sender:),
-     @selector(setMaxNoteBodyWidth:sender:),
-     @selector(setManagesTextWidthInWindow:sender:), nil];	
-	// @selector(setBackgroundTextColor:sender:),
-	// @selector(setForegroundTextColor:sender:),
-	
+	 @selector(setShouldHighlightSearchTerms:sender:), nil];
 	[self setTextContainerInset:NSMakeSize(kDefaultTextInsetWidth, kDefaultTextInsetHeight)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:NO];
     
-    
+     
+     // @selector(setBackgroundTextColor:sender:),
+     // @selector(setForegroundTextColor:sender:),
+     
     [self prepareTextFinder];
     
 	[self updateTextColors];
@@ -112,7 +111,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidResignMainNotification object:[self window]];
     
 	//[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
-//	NoMods = YES;
+    //	NoMods = YES;
+    self.managesTextWidth=[prefsController managesTextWidthInWindow];
     [self setInsetForFrame:[self frame]];
 	outletObjectAwoke(self);
 }
@@ -135,12 +135,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 	} else if ([selectorString isEqualToString:SEL_STR(setMakeURLsClickable:sender:)]) {
 		
 		[self setLinkTextAttributes:[self preferredLinkAttributes]];
-    } else if (([selectorString isEqualToString:SEL_STR(setManagesTextWidthInWindow:sender:)])||([selectorString isEqualToString:SEL_STR(setMaxNoteBodyWidth:sender:)])) {
-		[self setInsetForFrame:[self frame]];
-//		[self setLinkTextAttributes:[self preferredLinkAttributes]];
-		
-//        @selector(setMaxNoteBodyWidth:sender:),
-//        @selector(setManagesTextWidthInWindow:sender:), nil];	
+    
 	//} else if ([selectorString isEqualToString:SEL_STR(setBackgroundTextColor:sender:)]) {
 		
 		//link-color is derived both from foreground and background colors
@@ -164,25 +159,29 @@ CGFloat _perceptualDarkness(NSColor*a);
 	}
 }
 
+- (void)updateInset{
+    [self setInsetForFrame:[self frame]];
+}
+
 - (BOOL)setInsetForFrame:(NSRect)frameRect{
     CGFloat insX=kDefaultTextInsetWidth;
     CGFloat insY=kDefaultTextInsetHeight;
-    if (([[NSApp delegate]isInFullScreen])||([prefsController managesTextWidthInWindow])) {
+    if (managesTextWidth||([[NSApp delegate]isInFullScreen])) {
         if (frameRect.size.width>[prefsController maxNoteBodyWidth]) {
             insX=kTextMargins;
-            insY=40.0;
+            insY=16.0;
             CGFloat theMin=[prefsController maxNoteBodyWidth]+(insX*1.9);
             if (frameRect.size.width<theMin) {
                 CGFloat diff=theMin-frameRect.size.width;
                 diff=round(diff/2);
                 
                 insX=insX-diff;
-                if (insX<3.0) {
-                    insX=3.0;
+                if (insX<kDefaultTextInsetWidth) {
+                    insX=kDefaultTextInsetWidth;
                 }
                 insY=(insX/kTextMargins)*insY;
-                if (insY<8.0) {
-                    insY=8.0;
+                if (insY<kDefaultTextInsetHeight) {
+                    insY=kDefaultTextInsetHeight;
                 }
             }
         }
@@ -192,7 +191,7 @@ CGFloat _perceptualDarkness(NSColor*a);
         [self setTextContainerInset:NSMakeSize(insX, insY)];
         return YES;
     }
-
+    
     return NO;
 }
 
@@ -437,24 +436,26 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 												 @selector(initWithHTML:documentAttributes:) : @selector(initWithRTF:documentAttributes:) 
 																						withObject:[pboard dataForType:type] withObject:nil] autorelease];
 		if ([newString length]) {
-			NSRange selectedRange = [self rangeForUserTextChange];
-			if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
-				
-				if (![type isEqualToString:NVPTFPboardType]) {
-					//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
-					//and we only want real URLs to be linked
-					[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
-					[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
-				}
-				
-				[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
-																	  NSMakeRange(0, [newString length]) documentAttributes:nil]];
-			
-				//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
-				//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
-				[self didChangeText];
-				return YES;
-			}
+			if (![type isEqualToString:NVPTFPboardType]) {
+							//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
+							//and we only want real URLs to be linked
+							[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
+							[newString indentTextLists];
+							[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
+						}
+
+						NSRange selectedRange = [self rangeForUserTextChange];
+						if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
+
+							[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
+																				  NSMakeRange(0, [newString length]) documentAttributes:nil]];
+
+							//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
+							//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
+							[self didChangeText];
+
+							return YES;
+						}
 		}
 	}
 	
@@ -1062,8 +1063,7 @@ copyRTFType:
             return;
         }      
     }
-	BOOL wasAutomatic = NO;
-	[self selectedRangeWasAutomatic:&wasAutomatic];
+	BOOL wasAutomatic = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
 	
 	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length] || didChangeIntoAutomaticRange)) {
 		[self insertTabIgnoringFieldEditor:sender];
@@ -1706,7 +1706,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 }
 
 - (void)insertNewline:(id)sender {
-//	NSLog(@"insertion2");
 	//reset custom styles after each line
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
 	
@@ -1943,26 +1942,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     
 } 
 
-//- (void)mouseUp:(NSEvent *)theEvent{
-////    [[NSApp delegate] resetModTimers];
-//    NSLog(@"linking ed mouseup");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    [super mouseUp:theEvent];
-//}
-//
-//- (void)mouseDown:(NSEvent *)theEvent{
-//    //    [[NSApp delegate] resetModTimers];
-//    NSLog(@"linking ed mousedown");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    [[NSApp delegate] setIsEditing:NO];
-//    
-//    [super mouseDown:theEvent];
-//}
-//
-//- (NSMenu *)menu{
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    return [super menu];
-//}
 
 
 #pragma mark Pairing
@@ -2005,21 +1984,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     return NO;
 }
 
-
-//- (BOOL)isAlreadyNearMarkdownLink{
-//    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ]"]];
-//    NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ["]];
-//    NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*",@"*[*]"];
-//    NSPredicate *aftaRefPred=[NSPredicate predicateWithFormat:@"SELF BEGINSWITH[cd] %@ OR SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@":",@"[*]*",@"(*)*"];
-////    BOOL bifoBool=[bifoRefPred evaluateWithObject:bifoString];
-////    BOOL aftaBool=[aftaRefPred evaluateWithObject:aftaString];
-////     NSLog(@"bifoBool:%d forString :>%@<\naftaBool:%d forString:>%@<",bifoBool,bifoString,aftaBool,aftaString);
-//    if(([bifoRefPred evaluateWithObject:bifoString])||([aftaRefPred evaluateWithObject:aftaString]))
-//        return YES;
-//    
-//    
-//    return NO;
-//}
 
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter{
     if (![closingCharacter isEqualToString:@"]"])
@@ -2165,7 +2129,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     }
     afterString=[[self string] substringFromIndex:[self selectedRange].location];
     if (!afterString) {
-//        NSLog(@"afterstring is null");
         afterString=@"";
     }
     return afterString;
@@ -2180,7 +2143,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     }
     beforeString=[[self string] substringToIndex:selRange.location];
     if (!beforeString) {
-//        NSLog(@"beforeString is null");
         return @"";
     }
     return beforeString;
@@ -2200,8 +2162,11 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         
         [textFinder setIncrementalSearchingEnabled:YES];
 //        [textFinder setIncrementalSearchingShouldDimContentView:NO];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textFinderShouldUpdateContext:) name:@"TextFindContextDidChange" object:nil];
-         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hideTextFinderIfNecessary:) name:@"TextFinderShouldHide" object:nil];
+        NSNotificationCenter *dc=[NSNotificationCenter defaultCenter];
+        [dc addObserver:self selector:@selector(textFinderShouldUpdateContext:) name:@"TextFindContextShouldUpdate" object:nil];
+        [dc addObserver:self selector:@selector(textFinderShouldNoteChanges:) name:@"TextFindContextShouldNoteChanges" object:nil];
+        [dc addObserver:self selector:@selector(textFinderShouldResetContext:) name:@"TextFindContextShouldReset" object:nil];
+         [dc addObserver:self selector:@selector(hideTextFinderIfNecessary:) name:@"TextFinderShouldHide" object:nil];
         return;       
     }
 #endif
@@ -2227,9 +2192,23 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)textFinderShouldResetContext:(NSNotification *)aNotification{
+    
+    if (IsLionOrLater){
+        [textFinder cancelFindIndicator];
+        [textFinder noteClientStringWillChange];
+    }
+}
+
+- (void)textFinderShouldNoteChanges:(NSNotification *)aNotification{
+    if (IsLionOrLater){
+        [textFinder noteClientStringWillChange];
+    }
+}
+
 - (void)textFinderShouldUpdateContext:(NSNotification *)aNotification{
     
-    if (IsLionOrLater){        
+    if (IsLionOrLater){
         [textFinder setFindIndicatorNeedsUpdate:YES];
     }
 }
@@ -2240,7 +2219,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
             [textFinder setFindIndicatorNeedsUpdate:YES];
             [textFinder cancelFindIndicator];
             [textFinder performAction:NSTextFinderActionHideFindInterface];
-            //                [[NSNotificationCenter defaultCenter] removeObserver:self name:@"TextFindContextDidChange" object:nil];
         }
     }
 }
@@ -2287,8 +2265,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
                  lastImportedFindString = [typedString retain];
              }
          }       
-        
-//        NSLog(@"aqui typedSTring:|%@|",typedString);
+    
     }
     if ([[self window] firstResponder]!=self) {
         [[self window]makeFirstResponder:self];
@@ -2314,7 +2291,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         }else if (findTag==6) {
             findTag=NSTextFinderActionReplaceAndFind;
         }else if (findTag==7) {
-//            NSLog(@"aqui2");
             findTag=(NSTextFinderActionSetSearchString);
         }else if (findTag==9) {
             findTag=NSTextFinderActionSelectAll;
@@ -2416,7 +2392,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
             }
         }
     }
-    //    NSLog(@"pasting non link");
     [super paste:sender];
     
 }

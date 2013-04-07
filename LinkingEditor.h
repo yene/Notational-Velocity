@@ -46,7 +46,7 @@
 	
 	IMP defaultIBeamCursorIMP, whiteIBeamCursorIMP;
     
-    
+    BOOL managesTextWidth;
 	NSString *beforeString;
 	NSString *afterString;
     NSString *activeParagraph;
@@ -60,6 +60,7 @@
 @property (readonly) NSString *beforeString;
 @property (readonly) NSString *afterString;
 @property (readonly) NSString *activeParagraph;
+@property (readwrite) BOOL managesTextWidth;
 //@property (readonly) BOOL clipboardHasLink;
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
@@ -94,6 +95,7 @@
 #pragma mark ElasticThreads additions
 - (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit;
 - (BOOL)isAlreadyNearMarkdownLink;
+- (void)updateInset;
 - (BOOL)setInsetForFrame:(NSRect)frameRect;
 - (BOOL)deleteEmptyPairsInRange:(NSRange)charRange;
 - (void)selectRangeAndRegisterUndo:(NSRange)selRange;
@@ -115,6 +117,9 @@
 - (void)removeStringAtStartOfSelectedParagraphs:(NSString *)removeString;
 - (BOOL)clipboardHasLink;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)textFinderShouldResetContext:(NSNotification *)aNotification;
+- (void)textFinderShouldUpdateContext:(NSNotification *)aNotification;
+- (void)textFinderShouldNoteChanges:(NSNotification *)aNotification;
 - (void)hideTextFinderIfNecessary:(NSNotification *)aNotification;
 - (IBAction)toggleLayoutOrientation:(id)sender;
 #endif

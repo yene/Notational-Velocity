@@ -376,9 +376,9 @@ errorReturn:
 		
 		[theMenuItem setRepresentedObject:ed];
 //		
-//		if ([ed iconImage])
-//			[theMenuItem setImage:[ed iconImage]];
-//		
+		if ([ed iconImage])
+			[theMenuItem setImage:[ed iconImage]];
+//
 		[theMenu addItem:theMenuItem];
 		didAddItem = YES;
 	}

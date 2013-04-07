@@ -121,41 +121,6 @@
 	}	
 }
 
-//- (void)mouseDown:(NSEvent*)anEvent {
-//    
-//    NSLog(@"dfc mouse down");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//   
-//	
-//	[super mouseDown:anEvent];
-//    
-//}
-//
-//- (NSMenu *)menuForEvent:(NSEvent *)theEvent{
-//    NSLog(@"dfc menuForEvent");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    
-//	
-//	return [super menuForEvent:theEvent];
-//
-//}
-//
-//- (void)mouseUp:(NSEvent*)anEvent {
-//    
-//    NSLog(@"dfc mouse up");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    
-//	
-//	[super mouseUp:anEvent];
-//    
-//}
-
-//- (NSMenu *)menu{
-//    NSLog(@"dfc menu");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    return [super menu];
-//}
-
 - (BOOL)handleMouseDown:(NSEvent *)theEvent {
 	DualField *controlView = (DualField *)[self controlView];
 	
@@ -525,29 +490,7 @@
 
 //elasticwork
 
-//- (NSMenu *)menuForEvent:(NSEvent *)theEvent{
-//    NSLog(@"df menuForEvent");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    
-//	
-//	return [super menuForEvent:theEvent];
-//    
-//}
-//
-//- (void)mouseUp:(NSEvent*)anEvent {
-//    
-//    NSLog(@"df mouse up");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    
-//	[super mouseUp:anEvent];
-//    
-//}
-//
-//- (NSMenu *)menu{
-//    NSLog(@"df menu");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    return [super menu];
-//}
+
 
 - (void)mouseDown:(NSEvent*)anEvent {
     

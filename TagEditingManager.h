@@ -16,7 +16,6 @@
 }
 
 - (void)awakeFromNib;
-- (void)controlTextDidChange:(NSNotification *)aNotification;
 - (NSString *)newMultinoteLabels;
 - (void)setTF:(NSString *)inString;
 - (void)popTP:(id)sender;

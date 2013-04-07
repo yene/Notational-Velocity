@@ -12,10 +12,6 @@
 
 @implementation ETScrollView
 
-//+ (void)initialize{
-//    
-////    NSLog(@"etscroll initialize");
-//}
 
 - (NSView *)hitTest:(NSPoint)aPoint{
     if([[[self documentView]className] isEqualToString:@"LinkingEditor"]){
@@ -39,20 +35,7 @@
     }
     return [super hitTest:aPoint];
 }
-//
-//- (void)mouseDown:(NSEvent *)theEvent{
-//    //    [[NSApp delegate] resetModTimers];
-//    NSLog(@"etscroll mousedown");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    [super mouseDown:theEvent];
-//}
-//
-//- (void)mouseUp:(NSEvent *)theEvent{
-//    //    [[NSApp delegate] resetModTimers];
-//    NSLog(@"etscroll mouseup");
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-//    [super mouseUp:theEvent];
-//}
+
 
 //- (void)setScrollerClassWithString:(NSString *)scrollerClassName{
 //    scrollerClass=NSClassFromString(scrollerClassName);

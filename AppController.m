@@ -65,9 +65,11 @@ NSWindow *normalWindow;
 int ModFlagger;
 int popped;
 BOOL splitViewAwoke;
-BOOL isEd;
+
 
 @implementation AppController
+
+@synthesize isEditing;
 
 //an instance of this class is designated in the nib as the delegate of the window, nstextfield and two nstextviews
 /*
@@ -137,12 +139,12 @@ BOOL isEd;
         dividerShader = [[[LinearDividerShader alloc] initWithBaseColors:self] retain];
         isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
         typedString = @"";
+        self.isEditing=NO;
     }
     return self;
 }
 
 - (void)awakeFromNib {
-    //    NSLog(@"awake");
     theFieldEditor = [[[NSTextView alloc]initWithFrame:[window frame]] retain];
 	[theFieldEditor setFieldEditor:YES];
     // [theFieldEditor setDelegate:self];
@@ -241,7 +243,6 @@ BOOL isEd;
 //really need make AppController a subclass of NSWindowController and stick this junk in windowDidLoad
 - (void)setupViewsAfterAppAwakened {
 	static BOOL awakenedViews = NO;
-    isEd = NO;
 	if (!awakenedViews) {
 		//NSLog(@"all (hopefully relevant) views awakend!");
 		[self _configureDividerForCurrentLayout];
@@ -398,21 +399,17 @@ void outletObjectAwoke(id sender) {
         
     }
     
+//    self.isEditing=NO;
     
     
-    //       NSLog(@"hia");
     //    [NSApp activateIgnoringOtherApps:NO];
     //    [window makeKeyAndOrderFront:self];
 }
 
-
-- (void)applicationWillFinishLaunching:(NSNotification *)aNotification{
-    
-    
-    //    NSLog(@"will finish");
-    
-    //    NSLog(@"will finish :>%@<  withObjecT",[[aNotification object] description]);
-}
+//
+//- (void)applicationWillFinishLaunching:(NSNotification *)aNotification{
+//  
+//}
 
 
 - (void)applicationDidFinishLaunching:(NSNotification*)aNote {
@@ -534,13 +531,9 @@ terminateApp:
 	
     if (newNotation) {
 		if (notationController) {
-			[notationController endDeletionManagerIfNecessary];
-			[notationController stopSyncServices];
+			[notationController closeAllResources];
 			[[NSNotificationCenter defaultCenter] removeObserver:self name:SyncSessionsChangedVisibleStatusNotification
 														  object:[notationController syncSessionController]];
-			[notationController stopFileNotifications];
-			if ([notationController flushAllNoteChanges])
-				[notationController closeJournal];
 		}
 		
 		NotationController *oldNotation = notationController;
@@ -748,7 +741,7 @@ terminateApp:
 
 - (void)_configureDividerForCurrentLayout {
     
-    isEd = NO;
+    self.isEditing = NO;
 	BOOL horiz = [prefsController horizontalLayout];
 	if ([notesSubview isCollapsed]) {
 		[notesSubview expand];
@@ -817,7 +810,7 @@ terminateApp:
         [self toggleCollapse:sender];
     }
     //edit the first selected note
-    isEd = YES;
+    self.isEditing = YES;
     
 	[notesTableView editRowAtColumnWithIdentifier:NoteTitleColumnString];
 }
@@ -964,7 +957,7 @@ terminateApp:
 			NSLog(@"multitag excep this: %@",[e name]);
 		}
 	} else if ([indexes count] == 1) {
-        isEd = YES;
+        self.isEditing = YES;
 		[notesTableView editRowAtColumnWithIdentifier:NoteLabelsColumnString];
 	}
 }
@@ -1046,7 +1039,7 @@ terminateApp:
 		
 		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
-		//[notationController invalidateAllLabelPreviewImages];
+		[[notationController labelsListDataSource] invalidateCachedLabelImages];
 		[self _forceRegeneratePreviewsForTitleColumn];
         
 		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];
@@ -1069,7 +1062,6 @@ terminateApp:
 }
 
 - (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn {
-    //    NSLog(@"dickclicktablecol");
     if (tableView == notesTableView) {
 		//this sets global prefs options, which ultimately calls back to us
 		[notesTableView setStatusForSortedColumn:tableColumn];
@@ -1153,7 +1145,6 @@ terminateApp:
 	//sync note files when switching apps so user doesn't have to guess when they'll be updated
 	[notationController synchronizeNoteChanges:nil];
 	[cView setInactiveIcon:self];
-    //	[self resetModTimers];
     [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     
 }
@@ -1197,16 +1188,12 @@ terminateApp:
 	}
 }
 
-//- (BOOL)textView:(NSTextView *)aTextView doCommandBySelector:(SEL)aSelector{
-//    NSLog(@"AtextView:%@ doCommand:%@",[aTextView description],NSStringFromSelector(aSelector));
-//    return NO;
-//}
+
 
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
-    //    NSLog(@"BtextView:%@ doCommand:%@",[aTextView description],NSStringFromSelector(command));
 	if (control == (NSControl*)field) {
 		
-        isEd=NO;
+        self.isEditing=NO;
 		//backwards-searching is slow enough as it is, so why not just check this first?
 		if (command == @selector(deleteBackward:))
 			return NO;
@@ -1300,8 +1287,7 @@ terminateApp:
 		
 		if (command == @selector(insertNewline:)) {
 			//hit return in cell
-            //NSLog(@"herehere");
-            isEd=NO;
+            self.isEditing=NO;
 			[window makeFirstResponder:textView];
 			return YES;
 		}
@@ -1336,7 +1322,7 @@ terminateApp:
 	} else{
         
 		NSLog(@"%@/%@ got %@", [control description], [aTextView description], NSStringFromSelector(command));
-        isEd=NO;
+        self.isEditing=NO;
     }
 	
 	return NO;
@@ -1489,7 +1475,9 @@ terminateApp:
 
 - (void)tableViewSelectionIsChanging:(NSNotification *)aNotification {
 	
-    
+    if (IsLionOrLater) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextShouldReset" object:self];
+    }
 	BOOL allowMultipleSelection = NO;
 	NSEvent *event = [window currentEvent];
     
@@ -1530,9 +1518,9 @@ terminateApp:
 
 - (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
     if (IsLionOrLater) {
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:self];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextShouldUpdate" object:self];
     }
-    isEd = NO;
+    self.isEditing = NO;
 	NSEventType type = [[window currentEvent] type];
 	if (type != NSKeyDown && type != NSKeyUp) {
 		[self performSelector:@selector(setTableAllowsMultipleSelection) withObject:nil afterDelay:0];
@@ -1731,10 +1719,12 @@ terminateApp:
 		[currentNote setContentString:[textView textStorage]];
 		[self postTextUpdate];
 		[self updateWordCount:(![prefsController showWordCount])];
+        if (IsLionOrLater) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextShouldUpdate" object:self];
+        }
 	}
-    if (IsLionOrLater) {
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:self];
-    }
+    
+    
 }
 
 - (void)textDidBeginEditing:(NSNotification *)aNotification {
@@ -1746,17 +1736,25 @@ terminateApp:
       }*/
 }
 
+- (BOOL)textShouldBeginEditing:(NSText *)aTextObject {
+    if (IsLionOrLater) {
+        if (aTextObject==textView) {
+            [[NSNotificationCenter defaultCenter]postNotificationName:@"TextFindContextShouldNoteChanges" object:nil];
+            
+        }else{
+            
+            NSLog(@"not textview should begin with to:%@",[aTextObject description]);
+        }
+    }
+    return YES;
+    
+}
+
 /*
  - (void)controlTextDidBeginEditing:(NSNotification *)aNotification{
  NSLog(@"controltextdidbegin");
  }
- 
- - (void)textShouldBeginEditing:(NSNotification *)aNotification {
- 
- NSLog(@"ntv textshould2");
- 
- } */
-
+*/
 - (void)textDidEndEditing:(NSNotification *)aNotification {
 	if ([aNotification object] == textView) {
 		//save last selection range for currentNote?
@@ -2331,7 +2329,7 @@ terminateApp:
         }
 	}
 	[self setEmptyViewState:currentNote == nil];
-    isEd = NO;
+    self.isEditing = NO;
     
     
 }
@@ -2351,15 +2349,12 @@ terminateApp:
 
 
 
-- (void)setIsEditing:(BOOL)inBool{
-    isEd = inBool;
-}
 
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
 	//NSUInteger rowInt =  rowIndex;
     
 	if ([[notesTableView selectedRowIndexes] containsIndex:rowIndex]) {
-        if (isEd) {
+        if (self.isEditing) {
             [aCell setTextColor:foregrndColor];
         }else{
             [aCell setTextColor:[NSColor whiteColor]];
@@ -2545,7 +2540,6 @@ terminateApp:
 }
 
 - (void)setDualFieldIsVisible:(BOOL)isVis{
-    //    NSLog(@"settin' df vis:%d",isVis);
     if (isVis) {
 		[window setTitle:@"nvALT"];
 		if (currentNote)
@@ -2710,7 +2704,7 @@ terminateApp:
 #endif
             //@try {
             
-            isEd = NO;
+            self.isEditing = NO;
             NSResponder *currentResponder = [window firstResponder];
             NSDictionary* options;
             if (([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"])&&(IsSnowLeopardOrLater)) {
@@ -2983,7 +2977,7 @@ terminateApp:
         }
         fieldAttributes = [[NSDictionary dictionaryWithObject:[textView _selectionColorForForegroundColor:foregrndColor backgroundColor:backgrndColor] forKey:NSBackgroundColorAttributeName] retain];
         
-        if (isEd) {
+        if (self.isEditing) {
             [theFieldEditor setDrawsBackground:NO];
             // [theFieldEditor setBackgroundColor:backgrndColor];
             [theFieldEditor setSelectedTextAttributes:fieldAttributes];
@@ -3069,32 +3063,10 @@ terminateApp:
     }
     
     - (void)updateWordCount:(BOOL)doIt{
-        //NSLog(@"updating wordcount");
-        if (doIt) {
-            /*  NSArray *selRange = [textView selectedRanges];
-             // NSLog(@"selRange is :%@",[selRange description]);
-             int theCount = 0;
-             if (([selRange count]>1)||([[selRange objectAtIndex:0] rangeValue].length>0)) {
-             for (id aRange in selRange) {
-             NSRange bRange = [aRange rangeValue];
-             NSString *aStr = [[textView string] substringWithRange: bRange];
-             if ([aStr length]>0) {
-             aStr = [aStr stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-             if ([aStr length]>0) {
-             for (id bStr in [aStr componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]) {
-             if ([bStr length]>0) {
-             theCount += 1;
-             }
-             }
-             }
-             }
-             }
-             }else{*/
-            
+        if (doIt) {            
             NSTextStorage *noteStorage = [textView textStorage];
-            int theCount = [[noteStorage words] count];
-            
-            // }
+            NSUInteger theCount = [[noteStorage words] count];
+
             if (theCount > 0) {
                 [wordCounter setStringValue:[[NSString stringWithFormat:@"%d", theCount] stringByAppendingString:@" words"]];
             }else {
@@ -3104,7 +3076,6 @@ terminateApp:
     }
     
     - (void)popWordCount:(BOOL)showIt{
-        //    NSUInteger testInt=NSFlagsChanged|NSMouseMoved|NSMouseEntered|NSMouseExited|NSScrollWheel;
         NSUInteger curEv=[[NSApp currentEvent] type];
         if ((curEv==NSFlagsChanged)||(curEv==NSMouseMoved)||(curEv==NSMouseEntered)||(curEv==NSMouseExited)||(curEv==NSScrollWheel)){
             if (showIt) {
@@ -3121,9 +3092,6 @@ terminateApp:
                 }
             }
         }
-        //    else{
-        //    NSLog(@"not flagschanged on popWord:%lu",[[NSApp currentEvent] type]);
-        //    }
     }
     
     - (IBAction)toggleWordCount:(id)sender{
@@ -3149,8 +3117,6 @@ terminateApp:
     
     - (void)flagsChanged:(NSEvent *)theEvent{
         
-        //	if (ModFlagger>=0) {
-        // NSLog(@"flagschanged :>%@<",theEvent);
         if ((ModFlagger==0)&&(popped==0)&&([theEvent modifierFlags]&NSAlternateKeyMask)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) { //option down&NSKeyDownMask
             ModFlagger = 1;
             modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:1.2
@@ -3174,7 +3140,6 @@ terminateApp:
     
     - (void)updateModifier:(NSTimer*)theTimer{
         if ([theTimer isValid]) {
-            // NSLog(@"updatemod modflag :>%d< popped:%d",ModFlagger,popped);
             if((ModFlagger>0)&&(popped==0)){
                 if ([[theTimer userInfo] isEqualToString:@"option"]) {
                     [self popWordCount:YES];
@@ -3212,7 +3177,6 @@ terminateApp:
     
 #pragma mark Preview-related and to be extracted into separate files
     - (void)popPreview:(BOOL)showIt{
-        //    NSLog(@"current event is :%@",[[NSApp currentEvent] description]);
         NSUInteger curEv=[[NSApp currentEvent] type];
         if((curEv==NSFlagsChanged)||(curEv==NSMouseMoved)||(curEv==NSMouseEntered)||(curEv==NSMouseExited)||(curEv==NSScrollWheel)){
             if ([previewToggler state]==0) {
@@ -3229,10 +3193,6 @@ terminateApp:
                 }
             }
         }
-        //    else{
-        //
-        //        NSLog(@"not flagschanged on popPre:%lu",[[NSApp currentEvent] type]);
-        //    }
     }
     
     
@@ -3312,8 +3272,7 @@ terminateApp:
     
     - (id)windowWillReturnFieldEditor:(NSWindow *)sender toObject:(id)client{
         
-        if (isEd) {
-            // NSLog(@"window will return client is :%@",client);
+        if (self.isEditing) {
             
             if (!fieldAttributes) {
                 [self updateFieldAttributes];
@@ -3359,12 +3318,7 @@ terminateApp:
         [notesTableView setNeedsDisplay:YES];
     }
     
-    - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
-        NSLog(@"perform key AC");
-        //    [self resetModTimers];
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-        return [super performKeyEquivalent:theEvent];
-    }
+    
     
 #pragma mark toggleDock
     - (void)togDockIcon:(NSNotification *)notification{
@@ -3454,7 +3408,7 @@ terminateApp:
     
     
 #pragma mark NSPREDICATE TO FIND MARKDOWN REFERENCE LINKS
-    - (IBAction)testThing:(id)sender{
+//    - (IBAction)testThing:(id)sender{
         //    NSString *testString=@"not []http://sdfas as\n\not [][]\n not [](http://)\n     a   [a ref]: http://nytimes.com \n squirels [another ref]: http://google.com    \n http://squarshit \n how's tthat http his lorem ipsum";
         //    
         //    NSArray *foundLinks=[self referenceLinksInString:testString];
@@ -3463,7 +3417,7 @@ terminateApp:
         //    }else{
         //        NSLog(@"didn't find shit");
         //    }
-    }
+//    }
     
     - (NSArray *)referenceLinksInString:(NSString *)contentString{    
         NSString *wildString = @"*[*]:*http*"; //This is where you define your match string.    
