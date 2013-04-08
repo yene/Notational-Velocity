@@ -193,6 +193,9 @@ typedef struct _NoteCatalogEntry {
 
 - (void)dealloc;
 
+#pragma mark nvALT stuff
+- (NSString *)createCachesFolderString;
+
 @end
 
 

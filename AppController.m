@@ -87,14 +87,22 @@ BOOL splitViewAwoke;
         hasLaunched=NO;
         
         if (![[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]){
-            ProcessSerialNumber psn = { 0, kCurrentProcess };
-            OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToUIElementApplication);
-            if( returnCode != 0) {
-                NSLog(@"Could not bring the application to front. Error %d", returnCode);
+            if (IsLionOrLater) {
+                ProcessSerialNumber psn = { 0, kCurrentProcess };
+                OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToUIElementApplication);
+                if( returnCode != 0) {
+                    NSLog(@"Could not bring the application to front. Error %d", returnCode);
+                }                
             }
             if (![[NSUserDefaults standardUserDefaults] boolForKey:@"StatusBarItem"]) {
                 [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"StatusBarItem"];
             }
+        }else{
+            if (!IsLionOrLater) {
+                enum {NSApplicationActivationPolicyRegular};
+                [[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
+            }
+        
         }
         
         splitViewAwoke = NO;
@@ -1109,7 +1117,10 @@ terminateApp:
 	
 	if (IsLeopardOrLater) {
 		SpaceSwitchingContext thisSpaceSwitchCtx;
-		CurrentContextForWindowNumber([window windowNumber], &thisSpaceSwitchCtx);
+        if ([window windowNumber]!=-1) {
+            CurrentContextForWindowNumber([window windowNumber], &thisSpaceSwitchCtx);
+            
+        }
 		//what if the app is switched-to in another way? then the last-stored spaceSwitchCtx will cause us to return to the wrong app
 		//unfortunately this notification occurs only after NV has become the front process, but we can still verify the space number
 		
@@ -2270,13 +2281,14 @@ terminateApp:
 }
 
 - (IBAction)toggleNVActivation:(id)sender {
-	
-	if ([NSApp isActive] && [window isMainWindow]) {
-		
+    
+	if ([NSApp isActive] && [window isMainWindow]&&[window isVisible]) {
+        
 		SpaceSwitchingContext laterSpaceSwitchCtx;
-		if (IsLeopardOrLater)
+		if (IsLeopardOrLater){
 			CurrentContextForWindowNumber([window windowNumber], &laterSpaceSwitchCtx);
-		
+            
+        }
 		if (!IsLeopardOrLater || !CompareContextsAndSwitch(&spaceSwitchCtx, &laterSpaceSwitchCtx)) {
 			//hide only if we didn't need to or weren't able to switch spaces
 			[NSApp hide:sender];
@@ -2301,12 +2313,21 @@ terminateApp:
     
 	[field selectText:sender];
     
-	if (shouldActivate&&(![NSApp isActive])) {
-		CurrentContextForWindowNumber([window windowNumber], &spaceSwitchCtx);
-		[NSApp activateIgnoringOtherApps:YES];
+	if (!shouldActivate) {
+        [window makeKeyAndOrderFront:sender];
+        [window makeMainWindow];
+        if (![NSApp isActive]) {
+            CurrentContextForWindowNumber([window windowNumber], &spaceSwitchCtx);
+        }
+    }else{
+        if (![NSApp isActive]) {
+            CurrentContextForWindowNumber([window windowNumber], &spaceSwitchCtx);
+            [NSApp activateIgnoringOtherApps:YES];
+        }
+        if (![window isMainWindow]||![window isVisible]){
+            [window makeKeyAndOrderFront:sender];
+        }
 	}
-    if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];
-	
 	[self setEmptyViewState:currentNote == nil];
     self.isEditing = NO;
     
@@ -2349,18 +2370,7 @@ terminateApp:
 
 - (void)toggleAttachedWindow:(NSNotification *)aNotification
 {
-	if (![window isKeyWindow]) {
-        //	[self focusOnCtrlFld:self];
-        if (![window isMainWindow]) [window makeKeyAndOrderFront:self];
-        
-        if (![NSApp isActive]) {
-            [NSApp activateIgnoringOtherApps:YES];
-        }
-	}else {
-		[NSApp hide:[aNotification object]];
-        //	[statusItem popUpStatusItemMenu:statBarMenu];
-        //	return YES;
-	}
+	[self toggleNVActivation:[aNotification object]];
 }
 
 - (void)toggleAttachedMenu:(NSNotification *)aNotification
@@ -3316,16 +3326,61 @@ terminateApp:
         [NSApp hide:self];
         BOOL showIt=[[notification object]boolValue];
         if (showIt) {
-            [self performSelectorOnMainThread:@selector(reactivateAfterDelay) withObject:nil waitUntilDone:NO];
+            [self performSelectorOnMainThread:@selector(showDockIcon) withObject:nil waitUntilDone:NO];
         }else {
-            [self performSelectorOnMainThread:@selector(relaunchAfterDelay) withObject:nil waitUntilDone:NO];
+            [self performSelectorOnMainThread:@selector(hideDockIconAfterDelay) withObject:nil waitUntilDone:NO];
             
         }
     }
     
-    - (void)relaunchAfterDelay{
+    - (void)showDockIcon{
+        if (IsLionOrLater) {
+            ProcessSerialNumber psn = { 0, kCurrentProcess };
+            OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+            if( returnCode != 0) {
+                NSLog(@"Could not bring the application to front. Error %d", returnCode);
+            }
+
+        }else{
+            enum {NSApplicationActivationPolicyRegular};
+            [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+        }
+              [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.16];
+    }
+
+    - (void)hideDockIcon{
+        //    id fullPath = [[NSBundle mainBundle] executablePath];
+        //    NSArray *arg = [NSArray arrayWithObjects:nil];
+        //    [NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
+        //    [NSApp terminate:sender];
+        if (IsLionOrLater) {
+            ProcessSerialNumber psn = { 0, kCurrentProcess };
+            OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToUIElementApplication);
+            if( returnCode != 0) {
+                NSLog(@"Could not bring the application to front. Error %d", returnCode);
+            }
+            if (!statusItem) {
+                [self setUpStatusBarItem];
+            }
+            
+            [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.36];
+        }else{
+            NSLog(@"hiding dock incon in snow leopard");
+            id fullPath = [[NSBundle mainBundle] executablePath];
+            NSArray *arg = [NSArray arrayWithObjects:nil];
+            [NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
+            [NSApp terminate:self];
+        }
         
-        [self performSelector:@selector(relaunchNV:) withObject:self afterDelay:0.22];
+    }
+    
+    - (void)reActivate:(id)sender{
+        [NSApp activateIgnoringOtherApps:YES];
+    }
+    
+    - (void)hideDockIconAfterDelay{
+        
+        [self performSelector:@selector(hideDockIcon) withObject:nil afterDelay:0.22];
     }
     
     - (void)setUpStatusBarItem{
@@ -3347,38 +3402,10 @@ terminateApp:
         }
     }
     
-    - (void)relaunchNV:(id)sender{
-        //    id fullPath = [[NSBundle mainBundle] executablePath];
-        //    NSArray *arg = [NSArray arrayWithObjects:nil];    
-        //    [NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
-        //    [NSApp terminate:sender];
-        
-        ProcessSerialNumber psn = { 0, kCurrentProcess };
-        OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToUIElementApplication);
-        if( returnCode != 0) {
-            NSLog(@"Could not bring the application to front. Error %d", returnCode);
-        }
-        if (!statusItem) {
-            [self setUpStatusBarItem];
-        }
-        
-        
-        [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.36];
-    }
+  
     
-    - (void)reactivateAfterDelay{
-        
-        ProcessSerialNumber psn = { 0, kCurrentProcess };
-        OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-        if( returnCode != 0) {
-            NSLog(@"Could not bring the application to front. Error %d", returnCode);
-        }
-        [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.16];
-    }
+       
     
-    - (void)reActivate:(id)sender{
-        [NSApp activateIgnoringOtherApps:YES];    
-    }
     
 #pragma mark NSPREDICATE TO FIND MARKDOWN REFERENCE LINKS
 //    - (IBAction)testThing:(id)sender{
