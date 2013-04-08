@@ -35,7 +35,7 @@
 	NSSavePanel *panel = (NSSavePanel *)[sender window];
 	
 	int storageFormat = [[formatSelectorPopup selectedItem] tag];
-	[panel setRequiredFileType:[NotationPrefs pathExtensionForFormat:storageFormat]];
+//	[panel setRequiredFileType:[NotationPrefs pathExtensionForFormat:storageFormat]];
 }
 
 - (void)exportPanelDidEnd:(NSSavePanel *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
