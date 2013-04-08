@@ -165,30 +165,32 @@ CGFloat _perceptualDarkness(NSColor*a);
 
 - (BOOL)setInsetForFrame:(NSRect)frameRect{
     CGFloat insX=kDefaultTextInsetWidth;
-    CGFloat insY=kDefaultTextInsetHeight;
+    //    CGFloat insY=kDefaultTextInsetHeight;
     if (managesTextWidth||([[NSApp delegate]isInFullScreen])) {
-        if (frameRect.size.width>[prefsController maxNoteBodyWidth]) {
+        CGFloat maxWidth=[prefsController maxNoteBodyWidth];
+        if (frameRect.size.width>maxWidth) {
             insX=kTextMargins;
-            insY=16.0;
-            CGFloat theMin=[prefsController maxNoteBodyWidth]+(insX*1.9);
-            if (frameRect.size.width<theMin) {
+            //            insY=16.0;
+            CGFloat theMin=(maxWidth+(insX*1.9));
+            if (frameRect.size.width<=theMin) {
                 CGFloat diff=theMin-frameRect.size.width;
-                diff=round(diff/2);
+                diff=diff/2;
                 
-                insX=insX-diff;
+                insX=roundf(insX-diff);
                 if (insX<kDefaultTextInsetWidth) {
                     insX=kDefaultTextInsetWidth;
                 }
-                insY=(insX/kTextMargins)*insY;
-                if (insY<kDefaultTextInsetHeight) {
-                    insY=kDefaultTextInsetHeight;
-                }
+                //                insY=(insX/kTextMargins)*insY;
+                //                if (insY<kDefaultTextInsetHeight) {
+                //                    insY=kDefaultTextInsetHeight;
+                //                }
             }
         }
         
     }
-    if (([self textContainerInset].width!=insX)||([self textContainerInset].height!=insY)) {
-        [self setTextContainerInset:NSMakeSize(insX, insY)];
+    //    NSSize newSize=NSMakeSize(insX, kDefaultTextInsetHeight);
+    if ([self textContainerInset].width!=insX) {
+        [self setTextContainerInset:NSMakeSize(insX, kDefaultTextInsetHeight)];
         return YES;
     }
     

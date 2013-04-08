@@ -69,7 +69,8 @@
 #endif    
     if (!IsLionOrLater||([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion])) {
         NSRect vsRect=[[self verticalScroller]frame];
-        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+//        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+         id theScroller=[[scrollerClass alloc]init];
         [theScroller setFillBackground:fillIt];
         [self setVerticalScroller:theScroller];
         [theScroller release];
@@ -87,7 +88,8 @@
 - (void)changeUseETScrollbarsOnLion{
     if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {       
         NSRect vsRect=[[self verticalScroller]frame];
-        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+//        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+         id theScroller=[[scrollerClass alloc]init];
         [self setVerticalScroller:theScroller];
         [theScroller release];
         
