@@ -1,6 +1,6 @@
 //
-//  TestClipView.h
-//  TestTextViewApp
+//  ETClipView.m
+//  nvALT
 //
 //  Created by elasticthreads on 8/15/11.
 //

@@ -523,7 +523,7 @@ terminateApp:
 		if (![self interpretNVURL:fullURL])
 			NSBeep();
 	} else {
-		URLToInterpretOnLaunch = [fullURL retain];
+		URLToInterpretOnLaunch = [[fullURL path]retain];
 	}
 }
 
@@ -2946,7 +2946,7 @@ terminateApp:
             }
             [mainView setBackgroundColor:backgrndColor];
             [notesTableView setBackgroundColor:backgrndColor];
-            
+            [textView setBackgroundColor:backgrndColor];
             [self updateFieldAttributes];
             [NotesTableHeaderCell setForegroundColor:foregrndColor];
             //[editorStatusView setBackgroundColor:backgrndColor];

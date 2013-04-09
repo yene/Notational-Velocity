@@ -84,19 +84,16 @@ CGFloat _perceptualDarkness(NSColor*a);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:),
 	 @selector(setShouldHighlightSearchTerms:sender:), nil];
-	[self setTextContainerInset:NSMakeSize(kDefaultTextInsetWidth, kDefaultTextInsetHeight)];
+	
+    self.managesTextWidth=[prefsController managesTextWidthInWindow];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
-	[self setDrawsBackground:NO];
-    
-     
-     // @selector(setBackgroundTextColor:sender:),
-     // @selector(setForegroundTextColor:sender:),
-     
+	[self setDrawsBackground:YES];
+	[self updateTextColors];
+    [self updateInsetAndForceLayout:YES];
     [self prepareTextFinder];
     
-	[self updateTextColors];
 	[[self window] setAcceptsMouseMovedEvents:YES];
 	if (IsLeopardOrLater) {
 		defaultIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
@@ -112,8 +109,7 @@ CGFloat _perceptualDarkness(NSColor*a);
     
 	//[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
     //	NoMods = YES;
-    self.managesTextWidth=[prefsController managesTextWidthInWindow];
-    [self setInsetForFrame:[self frame]];
+   
 	outletObjectAwoke(self);
 }
 
@@ -159,46 +155,53 @@ CGFloat _perceptualDarkness(NSColor*a);
 	}
 }
 
-- (void)updateInset{
-    [self setInsetForFrame:[self frame]];
+- (void)resetInset{    
+    if ([self textContainerInset].width!=kDefaultTextInsetWidth) {
+        [self setTextContainerInset:NSMakeSize(kDefaultTextInsetWidth, kDefaultTextInsetHeight)];
+    }//||didRenderFully
+//    else if (didRenderFully) {
+//        NSLog(@"resetting but not");
+//    }
 }
 
-- (BOOL)setInsetForFrame:(NSRect)frameRect{
-    CGFloat insX=kDefaultTextInsetWidth;
-    //    CGFloat insY=kDefaultTextInsetHeight;
+
+- (void)updateInsetAndForceLayout:(BOOL)force{
+    [self updateInsetForFrame:[self frame] andForceLayout:force];
+}
+
+- (void)updateInsetForFrame:(NSRect)frameRect andForceLayout:(BOOL)force{
     if (managesTextWidth||([[NSApp delegate]isInFullScreen])) {
-        CGFloat maxWidth=[prefsController maxNoteBodyWidth];
-        if (frameRect.size.width>maxWidth) {
-            insX=kTextMargins;
-            //            insY=16.0;
-            CGFloat theMin=(maxWidth+(insX*1.9));
-            if (frameRect.size.width<=theMin) {
-                CGFloat diff=theMin-frameRect.size.width;
-                diff=diff/2;
-                
-                insX=roundf(insX-diff);
-                if (insX<kDefaultTextInsetWidth) {
-                    insX=kDefaultTextInsetWidth;
-                }
-                //                insY=(insX/kTextMargins)*insY;
-                //                if (insY<kDefaultTextInsetHeight) {
-                //                    insY=kDefaultTextInsetHeight;
-                //                }
+        [self setInsetForFrame:frameRect alwaysSet:force];        
+    }else{
+        [self resetInset];
+    }
+}
+
+- (BOOL)setInsetForFrame:(NSRect)frameRect alwaysSet:(BOOL)always{
+    CGFloat insX=kDefaultTextInsetWidth;
+    CGFloat maxWidth=[prefsController maxNoteBodyWidth];
+    if (frameRect.size.width>maxWidth) {
+        insX=kTextMargins;
+        CGFloat theMin=(maxWidth+(insX*1.9));
+        if (frameRect.size.width<=theMin) {
+            CGFloat diff=theMin-frameRect.size.width;
+            diff=diff/2;                
+            insX=roundf(insX-diff);
+            if (insX<kDefaultTextInsetWidth) {
+                insX=kDefaultTextInsetWidth;
             }
         }
-        
-    }
-    //    NSSize newSize=NSMakeSize(insX, kDefaultTextInsetHeight);
-    if ([self textContainerInset].width!=insX) {
+    }    
+    if (always||([self textContainerInset].width!=insX)) {
         [self setTextContainerInset:NSMakeSize(insX, kDefaultTextInsetHeight)];
         return YES;
     }
-    
     return NO;
 }
 
+
 - (void)setFrame:(NSRect)frameRect{
-    [self setInsetForFrame:frameRect];
+    [self updateInsetForFrame:frameRect andForceLayout:NO];
     [super setFrame:frameRect];
 }
 
@@ -241,26 +244,35 @@ CGFloat _perceptualDarkness(NSColor*a);
 	return;
 }
 
-//- (void)setBackgroundColor:(NSColor*)aColor {
-////	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
-////	[super setBackgroundColor:aColor];
-//}
+- (void)setBackgroundColor:(NSColor*)aColor {
+	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
+    [self fixCursorForBackgroundUpdatingMouseInside:YES];
+	[super setBackgroundColor:aColor];
+}
+
+- (BOOL)isOpaque{
+    return YES;
+}
 
 - (void)updateTextColors {
 	NSColor *fgColor = [[NSApp delegate] foregrndColor];
-	NSColor *bgColor = [[NSApp delegate] backgrndColor];
+	NSColor *bgColor = [self backgroundColor];
+    if (bgColor!=[[NSApp delegate]backgrndColor]) {
+        bgColor=[[NSApp delegate]backgrndColor];
+        [self setBackgroundColor:bgColor];
+    }
 	//[self setBackgroundColor:bgColor];
 	//[nvTextScroller setBackgroundColor:bgColor];
 	//[[self enclosingScrollView] setNeedsDisplay:YES];
     
-//    [self setBackgroundColor:bgColor];
 	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:fgColor backgroundColor:bgColor]];
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
 	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 
 																forKey:NSBackgroundColorAttributeName]];
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
     [[self enclosingScrollView]setNeedsDisplay:YES];
-    [[[self enclosingScrollView]contentView]setNeedsDisplay:YES];
+//    [[[self enclosingScrollView]contentView]setNeedsDisplay:YES];
+    [self setNeedsDisplay:YES];
 }
 
 #define _CM(__ch) ((__ch) * 255.0)
@@ -1287,12 +1299,12 @@ copyRTFType:
 		[self insertText:insertString];
 	}	
 }
-
 */
 
 - (void)mouseEntered:(NSEvent*)anEvent {
 	mouseInside = YES;
 	[self fixCursorForBackgroundUpdatingMouseInside:NO];
+    [super mouseEntered:anEvent];
 }
 - (void)mouseExited:(NSEvent*)anEvent {
 	mouseInside = NO;
@@ -1306,12 +1318,26 @@ copyRTFType:
 	[self fixCursorForBackgroundUpdatingMouseInside:[num boolValue]];
 }
 
+- (void)setMouseInside:(BOOL)inside{
+    mouseInside=inside;
+    [self fixCursorForBackgroundUpdatingMouseInside:NO];
+}
+
 - (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside {
 	
 	if (IsLeopardOrLater && whiteIBeamCursorIMP && defaultIBeamCursorIMP) {
-		if (setMouseInside)
-			mouseInside = [self mouse:[self convertPoint:[[self window] mouseLocationOutsideOfEventStream] fromView:nil] inRect:[self bounds]];
-		
+        NSRect aRect=NSZeroRect;
+        aRect.origin=[NSEvent mouseLocation];
+        aRect=[[self window] convertRectFromScreen:aRect];
+        NSPoint local_point = [self convertPoint:aRect.origin fromView:nil];
+        NSRect bnds=[self visibleRect];
+        if ([self textFinderIsVisible]&&(local_point.y<3.0)) {
+            mouseInside=NO;
+        }else if (setMouseInside){            
+			mouseInside = [self mouse:local_point inRect:bnds];
+        }
+        
+//          NSLog(@"mouseInside :>%d<",mouseInside);
 		BOOL shouldBeWhite = mouseInside && backgroundIsDark && ![self isHidden];
 		Class class = [NSCursor class];
 		

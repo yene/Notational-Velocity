@@ -1,6 +1,6 @@
 //
-//  TestClipView.m
-//  TestTextViewApp
+//  ETClipView.m
+//  nvALT
 //
 //  Created by elasticthreads on 8/15/11.
 //
@@ -12,6 +12,8 @@
 
 
 @implementation ETClipView
+
+
 
 - (id)initWithFrame:(NSRect)frameRect{
     self = [super initWithFrame:frameRect];
@@ -60,15 +62,24 @@
 
 - (BOOL)clipWidthSettingChanged:(NSRect)frameRect{
     NSRect clipRect;
+    NSRect docRect = [[self documentView] frame];
     if ([self clipRect:&clipRect forFrameRect:frameRect]) {
         frameRect=clipRect;
-        NSRect docRect = [[self documentView] frame];
-        //        docRect.origin.x=0.0;
         docRect.size.width=frameRect.size.width;
         [[self documentView] setConstrainedFrameSize:docRect.size];
-        //        [[self documentView] setFrame:docRect];
         [super setFrame:frameRect];
         return YES;
+    }else{
+        NSScrollView *scrollV=[[self documentView] enclosingScrollView];
+        CGFloat numba=scrollV.frame.size.width;
+        if (![[scrollV verticalScroller] isHidden]) {
+            numba-=[[scrollV verticalScroller]frame].size.width;
+        }
+        if (numba>frameRect.size.width) {
+            frameRect.size.width=numba;
+            [self setFrame:frameRect];
+            return YES;
+        }   
     }
     return NO;
 }
@@ -79,8 +90,10 @@
             managesTextWidth=[[GlobalPrefs defaultPrefs] managesTextWidthInWindow];
             [[self documentView] setManagesTextWidth:managesTextWidth];
         }
-        if (!managesTextWidth||![self clipWidthSettingChanged:[self frame]]) {
-            [[self documentView]updateInset];
+        if (!managesTextWidth){
+            [[self documentView]resetInset];
+        }else if(![self clipWidthSettingChanged:[self frame]]) {
+            [[self documentView]updateInsetAndForceLayout:YES];
         }
     }
 }

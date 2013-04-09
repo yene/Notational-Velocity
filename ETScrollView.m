@@ -9,29 +9,31 @@
 #import "ETTransparentScroller.h"
 #import "ETOverlayScroller.h"
 #import "GlobalPrefs.h"
+#import "LinkingEditor.h"
 
 @implementation ETScrollView
 
 
 - (NSView *)hitTest:(NSPoint)aPoint{
     if([[[self documentView]className] isEqualToString:@"LinkingEditor"]){
-    NSRect vsRect=[[self verticalScroller] frame];
-    vsRect.origin.x-=6.0;
-    vsRect.size.width+=8.0;
-   
-    if (NSPointInRect (aPoint,vsRect)) {
-        return [self verticalScroller];
-    }else if (IsLionOrLater){
+        NSRect vsRect=[[self verticalScroller] frame];
+        vsRect.origin.x-=4.0;
+        vsRect.size.width+=4.0;
+        
+        if (NSPointInRect (aPoint,vsRect)) {
+            return [self verticalScroller];
+        }else if (IsLionOrLater){
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
-        if([[self subviews]containsObject:[self findBarView]]) {
-            NSView *tView=[super hitTest:aPoint];
-            if ([tView superview]==[self findBarView]) {
-                return tView;
+            if([[self subviews]containsObject:[self findBarView]]) {
+                NSView *tView=[super hitTest:aPoint];
+                if ([tView superview]==[self findBarView]) {
+                    return tView;
+                }
             }
-        }
 #endif
-    }
-    return [self documentView];
+        }
+        [[self documentView]setMouseInside:YES];
+        return [self documentView];
     }
     return [super hitTest:aPoint];
 }
@@ -68,7 +70,7 @@
     }
 #endif    
     if (!IsLionOrLater||([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion])) {
-        NSRect vsRect=[[self verticalScroller]frame];
+//        NSRect vsRect=[[self verticalScroller]frame];
 //        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
          id theScroller=[[scrollerClass alloc]init];
         [theScroller setFillBackground:fillIt];
@@ -87,7 +89,7 @@
 
 - (void)changeUseETScrollbarsOnLion{
     if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {       
-        NSRect vsRect=[[self verticalScroller]frame];
+//        NSRect vsRect=[[self verticalScroller]frame];
 //        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
          id theScroller=[[scrollerClass alloc]init];
         [self setVerticalScroller:theScroller];

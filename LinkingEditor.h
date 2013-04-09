@@ -63,6 +63,8 @@
 @property (readwrite) BOOL managesTextWidth;
 //@property (readonly) BOOL clipboardHasLink;
 
+
+- (void)setMouseInside:(BOOL)inside;
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
@@ -94,9 +96,11 @@
 
 #pragma mark ElasticThreads additions
 - (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit;
-- (BOOL)isAlreadyNearMarkdownLink;
-- (void)updateInset;
-- (BOOL)setInsetForFrame:(NSRect)frameRect;
+//- (BOOL)isAlreadyNearMarkdownLink;
+- (void)resetInset;
+- (void)updateInsetAndForceLayout:(BOOL)force;
+- (void)updateInsetForFrame:(NSRect)frameRect andForceLayout:(BOOL)force;
+- (BOOL)setInsetForFrame:(NSRect)frameRect alwaysSet:(BOOL)always;
 - (BOOL)deleteEmptyPairsInRange:(NSRange)charRange;
 - (void)selectRangeAndRegisterUndo:(NSRange)selRange;
 - (BOOL)cursorIsBetweenEmptyPairs;
