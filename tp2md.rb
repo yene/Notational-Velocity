@@ -16,7 +16,7 @@ begin
           output += "\n## #{project} ##\n\n"
           prevlevel = 0
         else
-          output += "#{tabs.gsub(/^\t/,'')}* **#{project}**\n"
+          output += "#{tabs.gsub(/^\t/,"")}* **#{project.gsub(/^\s*-\s*/,'')}**\n"
           prevlevel = tabs.length
         end
       elsif line =~ /^(\t+)?\- (.*)$/
@@ -34,7 +34,7 @@ begin
         next if line =~ /^\s*$/
         tabs = ""
         prevlevel-1.times {|i| tabs += "\t"}
-        output += "#{tabs}> #{line.strip}\n\n"
+        output += "\n#{tabs}*#{line.strip}*\n"
       end
     }
 rescue => err
