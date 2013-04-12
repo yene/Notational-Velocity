@@ -129,6 +129,11 @@
 	}
 
 	NSFont *font = [prefsController noteBodyFont];
+    CGFloat lh=[font pointSize];
+    if (lh<27.0) {
+        lh=floorf(27.0-((27.0-lh)/2));
+    }
+    [centerStyle setMaximumLineHeight:lh];
 	NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:font ? font : [NSFont systemFontOfSize:12.0],
 		NSFontAttributeName, [NSColor blackColor], NSForegroundColorAttributeName, centerStyle, NSParagraphStyleAttributeName, nil];
 
