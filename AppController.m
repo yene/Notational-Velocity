@@ -2127,8 +2127,16 @@ terminateApp:
 
 - (void)contentsUpdatedForNote:(NoteObject*)aNoteObject {
 	if (aNoteObject == currentNote) {
-		
+		NSArray *selRanges=[textView selectedRanges];
 		[[textView textStorage] setAttributedString:[aNoteObject contentString]];
+        if (![selRanges isEqualToArray:[textView selectedRanges]]) {
+            NSRange testEnd=[[selRanges lastObject] rangeValue];
+            NSUInteger test=testEnd.location+testEnd.length;
+            
+            if (test<=[textView string].length) {
+                [textView setSelectedRanges:selRanges];
+            }
+        }
 		[self postTextUpdate];
 		[self updateWordCount:(![prefsController showWordCount])];
 	}

@@ -29,7 +29,7 @@
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-    [super drawRect:dirtyRect];
+//    [super drawRect:dirtyRect];
     if (!backColor) {
         backColor = [[[NSApp delegate] backgrndColor] retain];
     }

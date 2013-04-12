@@ -18,10 +18,12 @@
 
 - (id)initWithFrame:(NSRect)frameRect{
 	if ((self=[super initWithFrame:frameRect])) {	
-        verticalPaddingLeft = 5.25f;
-        verticalPaddingRight = 1.5f;
-        knobAlpha=0.7f;
-        slotAlpha=0.55f;		
+        verticalPaddingLeft = 5.0f;
+        verticalPaddingRight = 2.5f;
+        knobAlpha=0.6f;
+        slotAlpha=0.55f;
+        fillBackground=NO;
+        isOverlay=YES;
 	}
 	return self;
 }

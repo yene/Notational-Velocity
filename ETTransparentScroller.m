@@ -30,8 +30,8 @@
         slotTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotTop.tif"]];
         slotVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotVerticalFill.tif"]];
         slotBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotBottom.tif"]];
-       verticalPaddingLeft = 3.0f;
-       verticalPaddingRight = 3.75f;
+       verticalPaddingLeft = 4.0f;
+       verticalPaddingRight = 3.0f;
        verticalPaddingTop =3.75f;
        verticalPaddingBottom = 4.25f;
        minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 20.0;
@@ -93,12 +93,19 @@
     if (IsLionOrLater) {
         [super drawRect:aRect];
     }else{
-        if (fillBackground) {
-            [[[[self window] contentView] backgroundColor] setFill];
-            NSRectFill([self bounds]);
-        }
-        if (([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom + 1) > minKnobHeight)
-        {
+        if (([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom + 1) > minKnobHeight){
+//	        if (fillBackground) {
+//	            [[[[self window] contentView] backgroundColor] setFill];
+//	            NSRectFill([self bounds]);
+//	        }
+//            else if (isOverlay){
+//                [[NSColor clearColor] setFill];
+//                NSRectFill([self bounds]);                
+//            }
+            if (fillBackground) {                
+                [[[[self window] contentView] backgroundColor] setFill];
+                NSRectFill([self bounds]);
+            }
             [self drawKnobSlotInRect:[self rectForPart:NSScrollerKnobSlot] highlight:NO];
             
             if ([self knobProportion] > 0.0)	
@@ -120,13 +127,16 @@
 //    }else{
 //        NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
 //    }
+   
+   
     NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
+   
 }
 
 - (void)drawKnob;
 {
 	NSRect knobRect = [self rectForPart:NSScrollerKnob];
-    
+
 	NSDrawThreePartImage(knobRect, knobTop, knobVerticalFill, knobBottom, YES, NSCompositeSourceOver, knobAlpha, NO);
    
 }
@@ -160,32 +170,41 @@
 		}
         case NSScrollerKnob:
 		{
-			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
 			NSRect knobRect=[super rectForPart:NSScrollerKnob];
-			
-			float knobHeight = roundf(slotRect.size.height * [self knobProportion]);
-			if (knobHeight < minKnobHeight){
-                if (minKnobHeight>slotRect.size.height) {
-                    knobHeight=knobRect.size.height;
-                }else{
-                    knobHeight = minKnobHeight;
-                }
+//			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
+//			float knobHeight = roundf(slotRect.size.height * [self knobProportion]);
+//			if (knobHeight < minKnobHeight){
+//                if (minKnobHeight>slotRect.size.height) {
+//                    knobHeight=knobRect.size.height;
+//                }else{
+//                    knobHeight = minKnobHeight;
+//                }
+//            }
+            CGFloat slotY=roundf(verticalPaddingTop);
+            CGFloat knobY=knobRect.origin.y;
+            CGFloat slotHt=roundf([self bounds].size.height-(verticalPaddingTop+verticalPaddingBottom));
+            if (knobY<slotY) {
+                knobY=slotY;
             }
-			
-			float knobY = slotRect.origin.y + roundf((slotRect.size.height - knobHeight) * [self floatValue]);
-			knobRect = NSMakeRect(verticalPaddingLeft, knobY, slotRect.size.width, knobHeight);
-            
+            else if ((knobY+knobRect.size.height)>(slotHt+slotY)){
+                knobY=slotHt+slotY-knobRect.size.height;
+
+            }
+//			knobRect = NSMakeRect(verticalPaddingLeft, knobY, slotRect.size.width, knobHeight);
+            knobRect.origin.x=roundf(verticalPaddingLeft);
+            knobRect.origin.y=roundf(knobY);
+            knobRect.size.width=roundf([self bounds].size.width - verticalPaddingLeft - verticalPaddingRight);
 			
 			return knobRect;
 		}
 			break;	
 		case NSScrollerKnobSlot:
 		{
-			NSRect slotRect=[super rectForPart:NSScrollerKnobSlot];
+			NSRect slotRect=[self bounds];
 			slotRect.origin.x=roundf(verticalPaddingLeft);
-            slotRect.size.width=roundf([self bounds].size.width - verticalPaddingLeft - verticalPaddingRight);
+            slotRect.size.width=roundf(slotRect.size.width - verticalPaddingLeft - verticalPaddingRight);
             slotRect.origin.y=roundf(verticalPaddingTop);
-            slotRect.size.height=roundf(slotRect.size.height-verticalPaddingTop-verticalPaddingBottom);
+            slotRect.size.height=roundf(slotRect.size.height-(verticalPaddingTop+verticalPaddingBottom));
 			return slotRect;
 		}
 			break;
@@ -199,11 +218,12 @@
 		{
 			NSRect incrementPageRect;
 			NSRect knobRect = [self rectForPart:NSScrollerKnob];
-			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
-			NSRect decPageRect = [self rectForPart:NSScrollerDecrementPage];
-            
-			float knobY = knobRect.origin.y + knobRect.size.height;	
-			incrementPageRect = NSMakeRect(verticalPaddingLeft, knobY, knobRect.size.width, slotRect.size.height - knobRect.size.height - decPageRect.size.height);
+//			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
+//			NSRect decPageRect = [self rectForPart:NSScrollerDecrementPage];
+            CGFloat slotHt=roundf([self bounds].size.height-(verticalPaddingTop+verticalPaddingBottom));
+			CGFloat knobY = roundf(knobRect.origin.y + knobRect.size.height);
+            CGFloat knobHt=roundf(slotHt - knobRect.size.height - knobRect.origin.y - verticalPaddingTop);
+			incrementPageRect = NSMakeRect(roundf(verticalPaddingLeft), knobY, knobRect.size.width, knobHt);
             
 			return incrementPageRect;
 		}
@@ -214,7 +234,7 @@
 			NSRect knobRect = [self rectForPart:NSScrollerKnob];
 			
             
-			decrementPageRect = NSMakeRect(verticalPaddingLeft, verticalPaddingTop, knobRect.size.width, knobRect.origin.y - verticalPaddingTop);
+			decrementPageRect = NSMakeRect(roundf(verticalPaddingLeft), roundf(verticalPaddingTop), knobRect.size.width, roundf(knobRect.origin.y - verticalPaddingTop));
             
 			return decrementPageRect;
 		}

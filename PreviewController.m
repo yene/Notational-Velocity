@@ -161,10 +161,12 @@
 	lastNote = [[NSApp delegate] selectedNoteObject];
     [sourceView setTextContainerInset:NSMakeSize(10.0,12.0)];
     NSScrollView *scrlView=[sourceView enclosingScrollView];
+    if (!IsLionOrLater) {
     NSRect vsRect=[[scrlView verticalScroller]frame];
     BTTransparentScroller *theScroller=[[BTTransparentScroller alloc]initWithFrame:vsRect];
     [scrlView setVerticalScroller:theScroller];
     [theScroller release];
+    }
     [scrlView setScrollsDynamically:YES];
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
     if (IsLionOrLater) {

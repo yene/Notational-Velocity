@@ -1326,10 +1326,15 @@ copyRTFType:
 - (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside {
 	
 	if (IsLeopardOrLater && whiteIBeamCursorIMP && defaultIBeamCursorIMP) {
-        NSRect aRect=NSZeroRect;
-        aRect.origin=[NSEvent mouseLocation];
-        aRect=[[self window] convertRectFromScreen:aRect];
-        NSPoint local_point = [self convertPoint:aRect.origin fromView:nil];
+        NSPoint local_point;
+        if (IsLionOrLater) {
+            NSRect aRect=NSZeroRect;
+            aRect.origin=[NSEvent mouseLocation];
+            aRect=[[self window] convertRectFromScreen:aRect];
+            local_point = [self convertPoint:aRect.origin fromView:nil];
+        }else{
+            local_point=[[self window]convertScreenToBase:[NSEvent mouseLocation]];
+        }
         NSRect bnds=[self visibleRect];
         if ([self textFinderIsVisible]&&(local_point.y<3.0)) {
             mouseInside=NO;
