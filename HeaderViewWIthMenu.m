@@ -16,7 +16,7 @@
 @implementation HeaderViewWithMenu
 
 - (id)init {
-	if ([super init]) {
+	if (self=[super init]) {
 		isReloading = NO;
 	}
 	return self;

@@ -58,8 +58,8 @@ NSString *imageName = @"nvMenuDark";
 {
 	clicked = YES;
 	[self setNeedsDisplay:YES];
-    NSUInteger modFlags=[event modifierFlags];
-    if ((modFlags&NSControlKeyMask)&&!((modFlags&NSCommandKeyMask)||(modFlags&NSAlternateKeyMask)||(modFlags&NSShiftKeyMask))) {
+    NSUInteger flags=[event modifierFlags];   
+    if (((flags&NSDeviceIndependentModifierFlagsMask)==(flags&NSControlKeyMask))&&((flags&NSDeviceIndependentModifierFlagsMask)>0)) {
         [[NSNotificationCenter defaultCenter]postNotificationName:@"StatusItemMenuShouldDrop" object:nil];
         clicked = NO;
         [self setNeedsDisplay:YES];

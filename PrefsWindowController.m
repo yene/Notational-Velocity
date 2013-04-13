@@ -27,7 +27,7 @@
 @implementation PrefsWindowController
 
 - (id)init {
-    if ([super init]) {
+    if (self=[super init]) {
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
       // remove opacity slider from color pickers -bt

@@ -223,6 +223,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (BOOL)contentsWere7Bit;
 - (void)addPrefixParentNote:(NoteObject*)aNote;
 - (void)removeAllPrefixParentNotes;
+- (void)previewUsingMarked;
 
 - (NSUndoManager*)undoManager;
 - (void)_undoManagerDidChange:(NSNotification *)notification;

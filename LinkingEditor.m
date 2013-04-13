@@ -578,13 +578,16 @@ copyRTFType:
 #define OBLIQUENESS_FOR_ITALIC (0.20)
 
 - (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit{
-    NSUInteger syntaxLength=syntaxBit.length;    
-    NSRange selRange=[self selectedRange];    
+    NSUInteger syntaxLength=syntaxBit.length;
+    NSRange selRange=[self selectedRange];
     NSString *bifoString=[NSString stringWithString:self.activeParagraphBeforeCursor];
     NSString *aftaString=[NSString stringWithString:self.activeParagraphPastCursor];
-      
+    NSString *matchingPair=syntaxBit;
+    if ([matchingPair isEqualToString:@"[["]) {
+        matchingPair=@"]]";
+    }
     if (selRange.length==0){
-        if([[aftaString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]hasPrefix:syntaxBit]){
+        if([[aftaString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]hasPrefix:matchingPair]){
             NSString *trimmedBefore=[bifoString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
             if ([trimmedBefore hasSuffix:syntaxBit]) {
                 selRange.location-=syntaxLength;
@@ -603,7 +606,7 @@ copyRTFType:
                 selRange.length=diff;
                 [self insertText:@"" replacementRange:selRange];
             }else{
-                selRange.location+=([aftaString rangeOfString:syntaxBit].location+syntaxLength);
+                selRange.location+=([aftaString rangeOfString:matchingPair].location+syntaxLength);
                 selRange.length=0;
                 [self setSelectedRange:selRange];
             }
@@ -616,15 +619,15 @@ copyRTFType:
         NSRange beforeSyntax=NSMakeRange(NSNotFound, 0);
         NSRange afterSyntax=NSMakeRange(NSNotFound, 0);
         
-        if ([aftaString hasPrefix:syntaxBit]) {
+        if ([aftaString hasPrefix:matchingPair]) {
             if([bifoString hasSuffix:syntaxBit]){
                 beforeSyntax=selRange;
                 beforeSyntax.length=syntaxLength;
                 afterSyntax=beforeSyntax;
-                beforeSyntax.location-=syntaxLength; 
+                beforeSyntax.location-=syntaxLength;
                 afterSyntax.location+=selRange.length;
                 selRange.location=NSNotFound;
-            }else{                
+            }else{
                 afterSyntax.location=NSMaxRange(selRange);
                 afterSyntax.length=syntaxLength;
                 [super insertText:@"" replacementRange:afterSyntax];
@@ -640,18 +643,18 @@ copyRTFType:
             selRange.location=NSMaxRange(selRange);
             selRange.location-=syntaxLength;
             selRange.length=0;
-            [super insertText:syntaxBit replacementRange:selRange];
+            [super insertText:matchingPair replacementRange:selRange];
             return YES;
             
-        } else if(([selString hasPrefix:syntaxBit])&&([selString hasSuffix:syntaxBit])){
+        } else if(([selString hasPrefix:syntaxBit])&&([selString hasSuffix:matchingPair])){
             afterSyntax=selRange;
             afterSyntax.location+=(selRange.length-syntaxLength);
             afterSyntax.length=syntaxLength;
             beforeSyntax=selRange;
             beforeSyntax.length=syntaxLength;
-            selRange.length-=(syntaxLength*2); 
-        }else if([selString rangeOfString:syntaxBit].location!=NSNotFound){
-            NSUInteger syntCt=[selString componentsSeparatedByString:syntaxBit];
+            selRange.length-=(syntaxLength*2);
+        }else if(([selString rangeOfString:syntaxBit].location!=NSNotFound)||([selString rangeOfString:matchingPair].location!=NSNotFound)){
+            NSUInteger syntCt=[[selString componentsSeparatedByString:syntaxBit] count];
             if ((syntCt % 2)==0) {//odd number of syntaxBits
                 
                 NSRange insertRange=selRange;
@@ -667,31 +670,31 @@ copyRTFType:
                 [self setSelectedRange:selRange];
                 return YES;
             }else{
-            NSLog(@"trying to add markdown syntax, but selection string contains an even# of the syntax. haven't dealt with this condition yet");
+                NSLog(@"trying to add markdown syntax, but selection string contains an even# of the syntax. haven't dealt with this condition yet");
             }
         }
         
-        if (beforeSyntax.location!=NSNotFound&&afterSyntax.location!=NSNotFound) {    
+        if (beforeSyntax.location!=NSNotFound&&afterSyntax.location!=NSNotFound) {
             [super insertText:@"" replacementRange:afterSyntax];
             [super insertText:@"" replacementRange:beforeSyntax];
             if (selRange.location!=NSNotFound) {
                 [self setSelectedRange:selRange];
             }
-            return YES;            
+            return YES;
         }
-    }   
+    }
     if (selRange.length>0) {
         NSRange insertRange=selRange;
         insertRange.length=0;
         [super insertText:syntaxBit replacementRange:insertRange];
         insertRange.location+=(selRange.length+syntaxLength);
-        [super insertText:syntaxBit replacementRange:insertRange];
+        [super insertText:matchingPair replacementRange:insertRange];
         insertRange.location+=syntaxLength;
         selRange.location+=syntaxLength;
         [self setSelectedRange:selRange];
         return YES;
     }else{
-        NSString *doubleString=[syntaxBit stringByAppendingString:syntaxBit];
+        NSString *doubleString=[syntaxBit stringByAppendingString:matchingPair];
         [super insertText:doubleString];
         selRange.location+=syntaxLength;
         [self setSelectedRange:selRange];
@@ -957,7 +960,7 @@ copyRTFType:
 				[self doCommandBySelector:@selector(deleteToBeginningOfLine:)];
 				return YES;
 			}
-		}else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(modFlags&NSCommandKeyMask)&&!(modFlags&NSControlKeyMask)&&!(modFlags&NSAlternateKeyMask)){        
+		}else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(((modFlags&NSDeviceIndependentModifierFlagsMask)==(modFlags&NSCommandKeyMask))&&((modFlags&NSDeviceIndependentModifierFlagsMask)>0))){        
             NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1]; 
             if ([firstChar isEqualToString:@"<"]) {
                 [self removeStringAtStartOfSelectedParagraphs:@">"];
@@ -1508,11 +1511,12 @@ copyRTFType:
 		return;
 	}
 	
-	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nv"]) {
-        if (([currentEvent type]==10)&&((([currentEvent modifierFlags] & NSAlternateKeyMask)&&([currentEvent modifierFlags] & NSCommandKeyMask))&&!(([currentEvent modifierFlags] & NSControlKeyMask)))) {
+	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nvalt"]) {
+        NSUInteger flags=[currentEvent modifierFlags];
+        if (((flags&NSDeviceIndependentModifierFlagsMask)==(flags&NSCommandKeyMask))&&((flags&NSDeviceIndependentModifierFlagsMask)>0)) {
             NSString *newURLString=[[aLink lastPathComponent]stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
             NSString *txtString=[[NSString stringWithFormat:@"[[%@]]",[aLink lastPathComponent]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
-            newURLString=[NSString stringWithFormat:@"nv://make/?title=%@&txt=%@",newURLString,txtString];
+            newURLString=[NSString stringWithFormat:@"nvalt://make/?title=%@&txt=%@",newURLString,txtString];
 //            NSLog(@"newurlstring:%@",newURLString);
             NSURL *newURL=[NSURL URLWithString:newURLString];
 //            NSLog(@"interpret from cmd-keydown OLD URL:||%@||  AND NEW URL:|%@|",[aLink absoluteString],[newURL absoluteString]);
@@ -1962,16 +1966,18 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     if ([[self window] firstResponder]!=self) {
         [[self window] makeFirstResponder:self];
     }
-    NSRange selRange = [self selectedRange];
-    if (selRange.length>0) {
-        NSString *selString = [[self string] substringWithRange:selRange];
-        selString = [NSString stringWithFormat:@"[[%@]]",selString];
-        [super insertText:selString];
-        
-    }else{
-        [super insertText:@"[[]]"];
-        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
-    }
+    
+    [self changeMarkdownAttribute:@"[["];
+//    NSRange selRange = [self selectedRange];
+//    if (selRange.length>0) {
+//        NSString *selString = [[self string] substringWithRange:selRange];
+//        selString = [NSString stringWithFormat:@"[[%@]]",selString];
+//        [super insertText:selString];
+//        
+//    }else{
+//        [super insertText:@"[[]]"];
+//        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
+//    }
     
 } 
 

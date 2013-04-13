@@ -96,10 +96,10 @@ NSGradient *gradient;
 				[thePath lineToPoint:inFrame.origin];
 			}
 			
-			[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
-			[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];	
+//			[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
+//			[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];
 			
-			[thePath setLineWidth:1.0];
+			[thePath setLineWidth:1.4];
 			 [thePath stroke];
 		}
 		@catch (NSException * e) {
@@ -143,8 +143,8 @@ NSGradient *gradient;
 				if (inFrame.origin.x>5) {
 					[thePath lineToPoint:inFrame.origin];
 				}
-				[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
-				[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];	
+//				[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
+//				[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];
 				//[thePath setLineWidth:2.0]; // Has no effect.
 				[thePath setLineWidth:1.4];
 				[thePath stroke];

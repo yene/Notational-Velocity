@@ -13,7 +13,7 @@
 
 - (id)init
 {
-	if ([super init]) {
+	if ((self=[super init])) {
 		if (![NSBundle loadNibNamed:@"TagEditingManager" owner:self])  {
 			NSLog(@"Failed to load TagEditer.nib");
 		}
