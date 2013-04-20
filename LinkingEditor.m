@@ -332,7 +332,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 - (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
 	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
 	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
-
+    
 	NSColor *proposedBlend = [fgColor blendedColorWithFraction:0.5 ofColor:bgColor];
 	NSColor *defaultColor = [[NSColor selectedTextBackgroundColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
 	
@@ -343,12 +343,11 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	//but the selection-color-difference from the foreground text needs to be great enough as well,
 	//and the proposed-color-difference from the foreground can't be too poor
 	//this heuristic chooses all the system-highlight colors in default fg/bg combinations and fg/bg blends in all others
-	
-//	NSLog(@"fg diff of proposed: %g fg diff of sel: %g", fgDiff, fgSelDiff);
-	if ((_perceptualDarkness(fgColor) > _perceptualDarkness(defaultColor) && 
-		 _perceptualDarkness(defaultColor) > _perceptualDarkness(bgColor) && fgSelDiff > 300.0) || fgDiff < 170.0)
+    
+	if ((_perceptualDarkness(fgColor) > _perceptualDarkness(defaultColor) &&
+		 _perceptualDarkness(defaultColor) > (_perceptualDarkness(bgColor)+0.22) && fgSelDiff > 300.0) || fgDiff < 160.0){
 		return defaultColor;
-	
+	}
 	//amplify the background balance after testing
 	return [fgColor blendedColorWithFraction:0.69 ofColor:bgColor];
 }

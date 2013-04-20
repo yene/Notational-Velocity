@@ -7,92 +7,78 @@
 //
 
 #import "StatusItemView.h"
-#import "AppController.h"
 
 NSString *imageName = @"nvMenuDark";
+static NSRect itemRect;
+
 
 @implementation StatusItemView
 
+@synthesize sbIconType;
 
-- (id)initWithFrame:(NSRect)frame controller:(AppController *)ctrlr
-{
-    if (self = [super initWithFrame:frame]) {
-        controller = ctrlr; // deliberately weak reference.
-    }    
+
+- (id)initWithFrame:(NSRect)frameRect{
+    if ((self=[super initWithFrame:frameRect])) {
+        itemRect=NSMakeRect(4.0, 3.0, 16.0, 16.0);
+        self.sbIconType=DarkMenuIcon;
+    }
     return self;
 }
 
-
-- (void)dealloc
-{
-    controller = nil;
-    [super dealloc];
-}
-
 - (void)drawRect:(NSRect)rect {
-	if (clicked) {
-        imageName=@"nvMenuC";
-        [[NSColor selectedMenuItemColor] set];
-		NSRectFill(rect);
+    CGFloat fract=1.0;
+	if (sbIconType==SelectedMenuIcon) {
+        fract=0.87;
+        [[NSColor selectedMenuItemColor] setFill];
     }else {
-        if ([NSApp isActive]) {
-            imageName = @"nvMenuDark";
-        }else{
-        imageName = @"nvMenuDark";
-        }
-		[[NSColor clearColor] set];
-        NSRectFill(rect);
+		[[NSColor clearColor] setFill];
 	}
-	NSBundle *bundle = [NSBundle bundleForClass:[self class]];
-	NSString *path = [bundle pathForResource:imageName ofType:@"png"];
-	NSImage *menuIcon = [[NSImage alloc] initWithContentsOfFile:path];
-	NSSize msgSize = [menuIcon size];
-    NSRect msgRect = NSMakeRect(0, 0, msgSize.width, msgSize.height);
-    msgRect.origin.x = ([self frame].size.width - msgSize.width)/2;
-    msgRect.origin.y = ([self frame].size.height - msgSize.height)/2;
-	[menuIcon drawInRect:msgRect fromRect:NSZeroRect operation: NSCompositeSourceOver fraction:1.0];
-	[menuIcon autorelease];
+    NSRectFill(rect);
+    
+	[[NSImage imageNamed:imageName] drawInRect:itemRect fromRect:NSZeroRect operation: NSCompositeSourceOver fraction:fract];
 }
+
 
 - (void)mouseDown:(NSEvent *)event
 {
-	clicked = YES;
-	[self setNeedsDisplay:YES];
+    self.sbIconType=SelectedMenuIcon;
     NSUInteger flags=[event modifierFlags];   
     if (((flags&NSDeviceIndependentModifierFlagsMask)==(flags&NSControlKeyMask))&&((flags&NSDeviceIndependentModifierFlagsMask)>0)) {
         [[NSNotificationCenter defaultCenter]postNotificationName:@"StatusItemMenuShouldDrop" object:nil];
-        clicked = NO;
-        [self setNeedsDisplay:YES];
+        self.sbIconType=DarkMenuIcon;
     }else{
         [[NSNotificationCenter defaultCenter]postNotificationName:@"NVShouldActivate" object:self];
     }
 }
 
 - (void)mouseUp:(NSEvent *)event {
-    
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-	clicked = NO;	
-	[self setNeedsDisplay:YES];
-	[self viewWillDraw];
+    self.sbIconType=DarkMenuIcon;
+//	[self viewWillDraw];
 }
 
 - (void)rightMouseDown:(NSEvent *)event {
-	clicked = YES;
-	[self setNeedsDisplay:YES];
+    self.sbIconType=SelectedMenuIcon;
      [[NSNotificationCenter defaultCenter]postNotificationName:@"StatusItemMenuShouldDrop" object:nil];
-//	[controller toggleAttachedMenu:self];	
-    clicked = NO;
-    [self setNeedsDisplay:YES];
+    self.sbIconType=DarkMenuIcon;
 }
 
-- (void)setInactiveIcon:(id)sender{
-	imageName = @"nvMenuDark";
-	[self setNeedsDisplay:YES];
-}
-
-- (void)setActiveIcon:(id)sender{
-    imageName=@"nvMenuDark";;
-	[self setNeedsDisplay:YES];
+- (void)setSbIconType:(StatusIconType)type{
+    if (sbIconType!=type) {
+        switch (type) {
+            case DarkMenuIcon:
+                imageName=@"nvMenuDark";
+                break;
+            case SelectedMenuIcon:
+                imageName=@"nvMenuW";
+                break;
+                
+            default:
+                imageName=@"nvMenuDark";
+                break;
+        }
+        sbIconType=type;
+        [self setNeedsDisplay:YES];
+    }
 }
 
 @end

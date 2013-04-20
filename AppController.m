@@ -1138,14 +1138,12 @@ terminateApp:
 	
     if ([notationController currentNoteStorageFormat] != SingleDatabaseFormat)
 		[notationController performSelector:@selector(synchronizeNotesFromDirectory) withObject:nil afterDelay:0.0];
-	[cView setActiveIcon:self];
 	[notationController updateDateStringsIfNecessary];
 }
 
 - (void)applicationWillResignActive:(NSNotification *)aNotification {
 	//sync note files when switching apps so user doesn't have to guess when they'll be updated
 	[notationController synchronizeNoteChanges:nil];
-	[cView setInactiveIcon:self];
     [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     
 }
@@ -2814,9 +2812,11 @@ terminateApp:
         userScheme=1;
         [[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];
         //	[self setForegrndColor:[NSColor colorWithDeviceRed:0.405 green:0.405 blue:0.405 alpha:1.0]];
-        [self setForegrndColor:[NSColor colorWithDeviceWhite:0.2430 alpha:1.0]];
+        [self setForegrndColor:[NSColor colorWithCalibratedRed:0.2430 green:0.2430 blue:0.2430 alpha:1.0]];
+        
         //[self setBackgrndColor:[NSColor colorWithDeviceWhite:0.970 alpha:1.0]];
-        [self setBackgrndColor:[NSColor colorWithDeviceWhite:0.902 alpha:1.0]];
+//        [NSColor colorWithCalibratedRed:0.902 green:0.902 blue:0.902 alpha:1.0]
+        [self setBackgrndColor:[NSColor colorWithCalibratedRed:0.902 green:0.902 blue:0.902 alpha:1.0]];
         NSMenu *mainM = [NSApp mainMenu];
         NSMenu *viewM = [[mainM itemWithTitle:@"View"] submenu];
         mainM = [[viewM itemWithTitle:@"Color Schemes"] submenu];
@@ -3301,15 +3301,15 @@ terminateApp:
         [self performSelector:@selector(hideDockIcon) withObject:nil afterDelay:0.22];
     }
     
-    - (void)setUpStatusBarItem{
-        float width = 25.0f;
-        CGFloat height = [[NSStatusBar systemStatusBar] thickness];
-        NSRect viewFrame = NSMakeRect(0.0f, 0.0f, width, height);
-        statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:width] retain];
-        cView = [[[StatusItemView alloc] initWithFrame:viewFrame controller:self] autorelease];
-        [statusItem setView:cView];
-    }
+- (void)setUpStatusBarItem{
+    NSRect viewFrame = NSMakeRect(0.0f, 0.0f, 24.0f,[[NSStatusBar systemStatusBar] thickness]);
+    statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:24.0f] retain];
+    cView = [[[StatusItemView alloc] initWithFrame:viewFrame] autorelease];
+    [statusItem setView:cView];
     
+    [[NSNotificationCenter defaultCenter]postNotificationName:@"StatusBarMenuIsAwake" object:statBarMenu];
+}
+
     - (void)toggleStatusItem:(NSNotification *)notification{
         if (!statusItem) {
             [self setUpStatusBarItem];

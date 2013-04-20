@@ -140,6 +140,7 @@
 		5C4B35421307220E00014119 /* TransparentScrollerSlotVerticalFill.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C4B353A1307220E00014119 /* TransparentScrollerSlotVerticalFill.tif */; };
 		5C4B356A1307225000014119 /* ETTransparentScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C4B35691307225000014119 /* ETTransparentScroller.m */; };
 		5C84319114229D810020E5A7 /* PassphraseRetriever.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5C84319314229D810020E5A7 /* PassphraseRetriever.xib */; };
+		5C91A1861723079B006BF757 /* nvMenuW.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C91A1851723079B006BF757 /* nvMenuW.png */; };
 		5C94376F132A0C9E00B08B80 /* greyscrollervertbottom3.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */; };
 		5C943771132A0C9E00B08B80 /* greyscrollerverttop3.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */; };
 		5C96F4FF131C2F9500A2E4AC /* TabClose_Front_Pressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C96F4FC131C2F9500A2E4AC /* TabClose_Front_Pressed.tif */; };
@@ -629,6 +630,7 @@
 		5C84319814229D940020E5A7 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C84319914229D940020E5A7 /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C8FA1F416F8A91800A2C6D7 /* SimperiumConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimperiumConfig.h; sourceTree = "<group>"; };
+		5C91A1851723079B006BF757 /* nvMenuW.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = nvMenuW.png; sourceTree = "<group>"; };
 		5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom3.tif; sourceTree = "<group>"; };
 		5C94376D132A0C9D00B08B80 /* greyscrollervertfill3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertfill3.tif; sourceTree = "<group>"; };
 		5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollerverttop3.tif; sourceTree = "<group>"; };
@@ -1138,6 +1140,7 @@
 				5C2CC189134989D7006FFE56 /* nvMenuDark.png */,
 				5C2CC182134989A8006FFE56 /* nvMenu.png */,
 				5C2CC183134989A8006FFE56 /* nvMenuC.png */,
+				5C91A1851723079B006BF757 /* nvMenuW.png */,
 				93A158BD133C497400E1E7DA /* Notality.icns */,
 				5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */,
 				5C94376D132A0C9D00B08B80 /* greyscrollervertfill3.tif */,
@@ -1652,6 +1655,7 @@
 				B683A0DC16F1CDA600564A1D /* TBRolloverBG@2x.png in Resources */,
 				B683A0DD16F1CDA600564A1D /* TBSynchronizing@2x.png in Resources */,
 				B683A0DE16F1CDA600564A1D /* TBSynchronizingWhite@2x.png in Resources */,
+				5C91A1861723079B006BF757 /* nvMenuW.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
