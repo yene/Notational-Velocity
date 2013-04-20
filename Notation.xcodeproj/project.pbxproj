@@ -128,7 +128,6 @@
 		5C177AE7141EF95200BC0C0A /* ETClipView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C177AE6141EF95200BC0C0A /* ETClipView.m */; };
 		5C1830CA132EA675005E2210 /* MarkupPreview.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CC132EA675005E2210 /* MarkupPreview.xib */; };
 		5C1830CD132EA687005E2210 /* SaveHTMLPreview.nib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CF132EA687005E2210 /* SaveHTMLPreview.nib */; };
-		5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC182134989A8006FFE56 /* nvMenu.png */; };
 		5C2CC186134989A8006FFE56 /* nvMenuC.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC183134989A8006FFE56 /* nvMenuC.png */; };
 		5C2CC18A134989D7006FFE56 /* nvMenuDark.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC189134989D7006FFE56 /* nvMenuDark.png */; };
 		5C2FAD2B1333970200FBFD34 /* ETScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C2CD036132ED47900CA0D7C /* ETScrollView.m */; };
@@ -585,7 +584,6 @@
 		5C1830D3132EA6A4005E2210 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5C1830D4132EA6A4005E2210 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5C1830D5132EA6A4005E2210 /* pt */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = pt; path = pt.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
-		5C2CC182134989A8006FFE56 /* nvMenu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenu.png; path = Images/nvMenu.png; sourceTree = "<group>"; };
 		5C2CC183134989A8006FFE56 /* nvMenuC.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuC.png; path = Images/nvMenuC.png; sourceTree = "<group>"; };
 		5C2CC189134989D7006FFE56 /* nvMenuDark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuDark.png; path = Images/nvMenuDark.png; sourceTree = "<group>"; };
 		5C2CD035132ED47900CA0D7C /* ETScrollView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ETScrollView.h; sourceTree = "<group>"; };
@@ -630,7 +628,7 @@
 		5C84319814229D940020E5A7 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C84319914229D940020E5A7 /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C8FA1F416F8A91800A2C6D7 /* SimperiumConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimperiumConfig.h; sourceTree = "<group>"; };
-		5C91A1851723079B006BF757 /* nvMenuW.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = nvMenuW.png; sourceTree = "<group>"; };
+		5C91A1851723079B006BF757 /* nvMenuW.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuW.png; path = Images/nvMenuW.png; sourceTree = "<group>"; };
 		5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom3.tif; sourceTree = "<group>"; };
 		5C94376D132A0C9D00B08B80 /* greyscrollervertfill3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertfill3.tif; sourceTree = "<group>"; };
 		5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollerverttop3.tif; sourceTree = "<group>"; };
@@ -1138,7 +1136,6 @@
 				93B348261371547800658F98 /* HUDIconSave.png */,
 				93B348271371547800658F98 /* HUDIconShare.png */,
 				5C2CC189134989D7006FFE56 /* nvMenuDark.png */,
-				5C2CC182134989A8006FFE56 /* nvMenu.png */,
 				5C2CC183134989A8006FFE56 /* nvMenuC.png */,
 				5C91A1851723079B006BF757 /* nvMenuW.png */,
 				93A158BD133C497400E1E7DA /* Notality.icns */,
@@ -1617,7 +1614,6 @@
 				5CF96E0C132EA29D0079B3FD /* NotationPrefsView.nib in Resources */,
 				93A158BC133C304D00E1E7DA /* Markdownify.nvhelp in Resources */,
 				93A158BE133C497400E1E7DA /* Notality.icns in Resources */,
-				5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */,
 				5C2CC186134989A8006FFE56 /* nvMenuC.png in Resources */,
 				5C2CC18A134989D7006FFE56 /* nvMenuDark.png in Resources */,
 				93B348281371547800658F98 /* HUDIconLock.png in Resources */,
