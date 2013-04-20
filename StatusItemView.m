@@ -8,7 +8,6 @@
 
 #import "StatusItemView.h"
 
-NSString *imageName = @"nvMenuDark";
 static NSRect itemRect;
 
 
@@ -26,16 +25,20 @@ static NSRect itemRect;
 }
 
 - (void)drawRect:(NSRect)rect {
-    CGFloat fract=1.0;
+    CGFloat fract;
+    NSString *iconName;
 	if (sbIconType==SelectedMenuIcon) {
         fract=0.87;
+        iconName = @"nvMenuW";
         [[NSColor selectedMenuItemColor] setFill];
     }else {
+        fract=1.0;
+        iconName = @"nvMenuDark";
 		[[NSColor clearColor] setFill];
 	}
     NSRectFill(rect);
     
-	[[NSImage imageNamed:imageName] drawInRect:itemRect fromRect:NSZeroRect operation: NSCompositeSourceOver fraction:fract];
+	[[NSImage imageNamed:iconName] drawInRect:itemRect fromRect:NSZeroRect operation: NSCompositeSourceOver fraction:fract];
 }
 
 
@@ -64,18 +67,6 @@ static NSRect itemRect;
 
 - (void)setSbIconType:(StatusIconType)type{
     if (sbIconType!=type) {
-        switch (type) {
-            case DarkMenuIcon:
-                imageName=@"nvMenuDark";
-                break;
-            case SelectedMenuIcon:
-                imageName=@"nvMenuW";
-                break;
-                
-            default:
-                imageName=@"nvMenuDark";
-                break;
-        }
         sbIconType=type;
         [self setNeedsDisplay:YES];
     }
