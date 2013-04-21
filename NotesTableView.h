@@ -101,6 +101,8 @@ typedef struct _ViewLocationContext {
 - (id)labelsListSource;
 - (void)setLabelsListSource:(id)labelsSource;
 - (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(NSInteger)index;
+- (BOOL)needsGridLines;
+- (void)updateGrid;
 
 @end
 

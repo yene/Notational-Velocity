@@ -164,7 +164,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 - (void)awakeFromNib {
 	[globalPrefs registerWithTarget:self forChangesInSettings:
 	 @selector(setTableFontSize:sender:),
-	 @selector(setHorizontalLayout:sender:), nil];
+	 @selector(setHorizontalLayout:sender:),@selector(setShowGrid:sender:),@selector(setAlternatingRows:sender:), nil];
 	
 	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, NSRTFPboardType, NSRTFDPboardType, NSStringPboardType, nil]];
 	
@@ -277,39 +277,43 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     [[NSGraphicsContext currentContext] setShouldAntialias:NO];
 	
 	NSBezierPath *line = [NSBezierPath bezierPath];
-    NSUInteger i;
-	
-    [[self gridColor] setStroke];
-	
-	NSIndexSet *set = [self selectedRowIndexes];
-	NSInteger editedRow = [self editedRow];
-	
+    NSUInteger i;	
+//	NSIndexSet *set = [self selectedRowIndexes];
+//	NSInteger editedRow = [self editedRow];
+	NSUInteger lastRow=[self numberOfRows];
 	NSRange rangeOfRows = [self rowsInRect:clipRect];
-	float yToDraw = -0.5;
+    NSUInteger maxRow=NSMaxRange(rangeOfRows);
+	float yToDraw;
+    CGFloat maxX=clipRect.origin.x + clipRect.size.width;
 	float ySpacing = [self rowHeight] + [self intercellSpacing].height;
 	float rowRectOrigin = ySpacing * rangeOfRows.location;
 	
-	for (i = rangeOfRows.location; i < rangeOfRows.location + rangeOfRows.length; i++) {
+	for (i = rangeOfRows.location; i < maxRow; i++) {
 		//don't draw this line if it's next to a selected row, or the row after it is being edited
-		if (![set containsIndex:i] && editedRow != (NSInteger)(i+1)) {			
-			yToDraw = rowRectOrigin + ySpacing - 0.5;
-			[line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
-			[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
-		}
+		if (i>=lastRow) {
+            break;
+        }        
+//        if (![set containsIndex:i] && editedRow != (NSInteger)(i+1)) {
+			yToDraw = rowRectOrigin + ySpacing;// - 0.5;
+			[line moveToPoint:NSMakePoint(0, yToDraw)];
+			[line lineToPoint:NSMakePoint(maxX, yToDraw)];
+//		}
 		rowRectOrigin += ySpacing;
 	}
 	//draw everything after the visible range of rows
-	while (rowRectOrigin < clipRect.size.height) {
-		rowRectOrigin += ySpacing;
-		[line moveToPoint:NSMakePoint(clipRect.origin.x, rowRectOrigin)];
-		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, rowRectOrigin)];
-	}
+//	while (rowRectOrigin < clipRect.size.height) {
+//		rowRectOrigin += ySpacing;
+//		[line moveToPoint:NSMakePoint(clipRect.origin.x, rowRectOrigin)];
+//		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, rowRectOrigin)];
+//	}
+    [[self gridColor] setStroke];
 	[line stroke];
 	[NSGraphicsContext restoreGraphicsState];
 }
 
 - (void)_configureAttributesForCurrentLayout {
 	BOOL horiz = [globalPrefs horizontalLayout];
+    [self updateGrid];
 	
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 	if (!cachedCell) cachedCell = [[col dataCell] retain];
@@ -356,7 +360,9 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		[self updateTitleDereferencorState];
 		
 		viewMenusValid = NO;
-	}
+	}else if (([selectorString isEqualToString:SEL_STR(setShowGrid:sender:)])||([selectorString isEqualToString:SEL_STR(setAlternatingRows:sender:)]) ) {
+        [self updateGrid];
+    }
 }
 
 - (double)distanceFromRow:(NSUInteger)aRow forVisibleArea:(NSRect)visibleRect {
@@ -1267,11 +1273,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)drawRect:(NSRect)rect {
-	if(([globalPrefs showGrid])||(([globalPrefs horizontalLayout])&&(![globalPrefs alternatingRows]))){
-        [self setGridStyleMask:NSTableViewSolidHorizontalGridLineMask];
-    }else{
-        [self setGridStyleMask:NSTableViewGridNone];
-    }
+
     //force fully live resizing of columns while resizing window
     [super drawRect:rect];
 	
@@ -1297,26 +1299,25 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 }
 
-# pragma mark elasticthreads work
+#pragma mark - nvALT work
+//david
 - (void)flagsChanged:(NSEvent *)theEvent{
 	[[NSApp delegate] flagsChanged:theEvent];
 }
 
 - (void)setBackgroundColor:(NSColor *)color{
-    [super setBackgroundColor:color];
     [NotesTableHeaderCell setBackgroundColor:color];
     CGFloat fWhite;		
     fWhite = [[color colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-    if (fWhite < 0.75f) {
-        if (fWhite<0.25f) {
-            fWhite += 0.22f;
-        }else {
-            fWhite += 0.16f;
-        }		
+    if (fWhite<0.25f) {
+        fWhite += 0.22f;
+    }else if (fWhite < 0.75f) {
+        fWhite += 0.16f;
     }else {
         fWhite -= 0.20f;
     }
     [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:1.0f]];
+    [super setBackgroundColor:color];
    
 }
 
@@ -1326,7 +1327,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	CGFloat fWhite;
 //	CGFloat endWhite;
 	CGFloat fAlpha;
-	NSColor *backgroundColor = [(AppController *)[self delegate] backgrndColor];
+	NSColor *backgroundColor = [self backgroundColor];
     
 	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
 	NSColor *evenColor = backgroundColor;
@@ -1341,7 +1342,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
 		}
 	}
-	float rowHeight = [self rowHeight] + [self intercellSpacing].height;
+	CGFloat rowHeight = [self rowHeight] + [self intercellSpacing].height;
 	NSRect visibleRect = [self visibleRect];
 	NSRect highlightRect;
 	
@@ -1354,17 +1355,42 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	while (NSMinY(highlightRect) < NSMaxY(clipRect))
 	{
-		NSRect clippedHighlightRect
-		= NSIntersectionRect(highlightRect, clipRect);
-		int row = (int)
-		((NSMinY(highlightRect)+rowHeight/2.0)/rowHeight);
+		NSRect clippedHighlightRect = NSIntersectionRect(highlightRect, clipRect);
+		int row = (int)((NSMinY(highlightRect)+rowHeight/2.0)/rowHeight);
+        clippedHighlightRect.size.height=rowHeight;
 		NSColor *rowColor = (0 == row % 2) ? evenColor : oddColor;
-		[rowColor set];
+		[rowColor setFill];
 		NSRectFill(clippedHighlightRect);
 		highlightRect.origin.y += rowHeight;
 	}
     
 	[super highlightSelectionInClipRect: clipRect];
+}
+
+- (BOOL)needsGridLines{
+    return [globalPrefs showGrid]||(([globalPrefs horizontalLayout])&&(![globalPrefs alternatingRows]));
+}
+
+- (void)updateGrid{
+    NSUInteger mask=[self gridStyleMask];
+    BOOL updateGridLines=NO;
+    if ([self needsGridLines]) {
+        if (mask!=NSTableViewSolidHorizontalGridLineMask) {
+            mask=NSTableViewSolidHorizontalGridLineMask;
+            updateGridLines=YES;
+        }
+    }else if (mask!=NSTableViewGridNone) {
+        mask=NSTableViewGridNone;
+        updateGridLines=YES;
+    }
+    if (updateGridLines) {
+        [self setGridStyleMask:mask];
+        [self setNeedsDisplay:YES];
+    }
+}
+
+- (BOOL)isOpaque{
+    return YES;
 }
 
 @end

@@ -261,6 +261,7 @@ CGFloat _perceptualDarkness(NSColor*a);
         bgColor=[[NSApp delegate]backgrndColor];
         [self setBackgroundColor:bgColor];
     }
+	[[self enclosingScrollView] setBackgroundColor:bgColor];
 	//[self setBackgroundColor:bgColor];
 	//[nvTextScroller setBackgroundColor:bgColor];
 	//[[self enclosingScrollView] setNeedsDisplay:YES];

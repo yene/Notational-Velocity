@@ -2354,13 +2354,38 @@ terminateApp:
 
 #pragma mark nvALT methods
 
+//- (NSCell *)tableView:(NSTableView *)aTableView dataCellForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)rowIndex {
+//    NSTextFieldCell *aCell = [tableColumn dataCell];
+//    if (aTableView==notesTableView) {
+//        if (!self.isEditing&&[aCell isHighlighted]) {
+//            CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
+//            if (([window firstResponder]==notesTableView)||[prefsController horizontalLayout]) {
+//                [aCell setTextColor:[NSColor whiteColor]];
+//                return aCell;
+//            }else if (white>0.5) {
+//                [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
+//                return aCell;
+//            }
+//        }
+//        [aCell setTextColor:foregrndColor];
+//    }
+//    return aCell;
+//}
+
+
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
-    if (aTableView==notesTableView) {
-        if (!self.isEditing&&([[notesTableView selectedRowIndexes] containsIndex:rowIndex])) {
-            [aCell setTextColor:[NSColor whiteColor]];
-        }else {
-            [aCell setTextColor:foregrndColor];
+    if (aTableView==notesTableView) {      
+        if (!self.isEditing&&[aCell isHighlighted]) {
+            CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
+            if (([window firstResponder]==notesTableView)||[prefsController horizontalLayout]) {
+                [aCell setTextColor:[NSColor whiteColor]];
+                return;
+            }else if (white>0.5) {
+                [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
+                return;
+            }
         }
+        [aCell setTextColor:foregrndColor];
     }
 }
 
@@ -2853,31 +2878,32 @@ terminateApp:
     }
     
     - (void)updateColorScheme{
-        @try {
+//        @try {
             if (!IsLionOrLater) {
                 
                 [window setBackgroundColor:backgrndColor];//[NSColor blueColor]
                 [dualFieldView setBackgroundColor:backgrndColor];
             }
             [mainView setBackgroundColor:backgrndColor];
-            [notesTableView setBackgroundColor:backgrndColor];
-            [textView setBackgroundColor:backgrndColor];
+        [notesTableView setBackgroundColor:backgrndColor];
+        [NotesTableHeaderCell setForegroundColor:foregrndColor];
+        [notationController setForegroundTextColor:foregrndColor];
+        
+        [textView setBackgroundColor:backgrndColor];
+        [textView updateTextColors];
             [self updateFieldAttributes];
-            [NotesTableHeaderCell setForegroundColor:foregrndColor];
             //[editorStatusView setBackgroundColor:backgrndColor];
             //		[editorStatusView setNeedsDisplay:YES];
             //	[field setTextColor:foregrndColor];
-            [textView updateTextColors];
-            [notationController setForegroundTextColor:foregrndColor];
             if (currentNote) {
                 [self contentsUpdatedForNote:currentNote];
             }
             [dividerShader updateColors:backgrndColor];
             [splitView setNeedsDisplay:YES];
-        }
-        @catch (NSException * e) {
-            NSLog(@"setting SCheme EXception : %@",[e name]);
-        }
+//        }
+//        @catch (NSException * e) {
+//            NSLog(@"setting SCheme EXception : %@",[e name]);
+//        }
     }
     
     - (void)updateFieldAttributes{
