@@ -38,7 +38,6 @@ typedef struct _NoteFilterContext {
 
 @interface NoteObject : NSObject <NSCoding, SynchronizedNote> {
 	NSAttributedString *tableTitleString;
-	NSString *titleString, *labelString;
 	NSMutableAttributedString *contentString;
 	
 	//caching/searching purposes only -- created at runtime
@@ -46,7 +45,6 @@ typedef struct _NoteFilterContext {
 	NSMutableSet *labelSet;
 	BOOL contentsWere7Bit, contentCacheNeedsUpdate;
 	//if this note's title is "Chicken Shack menu listing", its prefix parent might have the title "Chicken Shack"
-	NSMutableArray *prefixParentNotes;
 	
 //	NSString *wordCountString;
 	NSString *dateModifiedString, *dateCreatedString;
@@ -54,14 +52,9 @@ typedef struct _NoteFilterContext {
 	id delegate; //the notes controller
 	
 	//for syncing to text file
-	NSString *filename;
 	UInt32 nodeID;
-	UInt32 logicalSize;
-	UTCDateTime fileModifiedDate, *attrsModifiedDate;
 	PerDiskInfo *perDiskInfoGroups;
 	unsigned int perDiskInfoGroupCount;
-	int currentFormatID;
-	NSStringEncoding fileEncoding;
 	BOOL shouldWriteToFile, didUnarchive;
 	
 	//for storing in write-ahead-log
@@ -76,11 +69,19 @@ typedef struct _NoteFilterContext {
 	NSMutableDictionary *syncServicesMD;
 	
 	//more metadata
-	CFAbsoluteTime modifiedDate, createdDate;
 	NSRange selectedRange;
 	
 	//each note has its own undo manager--isn't that nice?
 	NSUndoManager *undoManager;
+@public
+	NSMutableArray *prefixParentNotes;
+	NSString *filename;
+	NSString *titleString, *labelString;
+	UInt32 logicalSize;
+	UTCDateTime fileModifiedDate, *attrsModifiedDate;
+	NSStringEncoding fileEncoding;
+	int currentFormatID;
+	CFAbsoluteTime modifiedDate, createdDate;
 }
 
 

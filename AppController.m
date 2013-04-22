@@ -1173,9 +1173,9 @@ terminateApp:
 		[field setStringValue:@""];
 		typedStringIsCached = NO;
 		
+		[notesTableView deselectAll:sender];//thiss
 		[notationController filterNotesFromString:@""];
-		
-		[notesTableView deselectAll:sender];
+		//was here
         [self setDualFieldIsVisible:YES];
         //		[self _expandToolbar];
 		
@@ -2375,9 +2375,9 @@ terminateApp:
 
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
     if (aTableView==notesTableView) {      
-        if (!self.isEditing&&[aCell isHighlighted]) {
+        if (!self.isEditing&&[aCell isHighlighted]) {          
             CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-            if (([window firstResponder]==notesTableView)||[prefsController horizontalLayout]) {
+            if (([window firstResponder]==notesTableView)||([notesTableView rowHeight]>30.0)) {
                 [aCell setTextColor:[NSColor whiteColor]];
                 return;
             }else if (white>0.5) {

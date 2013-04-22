@@ -17,6 +17,7 @@
 
 
 #import "NSString_CustomTruncation.h"
+#import "NSString_NV.h"
 #import "GlobalPrefs.h"
 
 @implementation NSString (CustomTruncation)
@@ -108,6 +109,7 @@ static NSDictionary *LineTruncAttributes() {
 	return lineTruncAttributes;
 }
 
+#pragma mark fix truncation here
 NSDictionary *LineTruncAttributesForTitle() {
 	if (!titleTruncAttrs) {
 		GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
@@ -121,7 +123,13 @@ NSDictionary *LineTruncAttributesForTitle() {
 		
 		if (ColumnIsSet(NoteDateCreatedColumn, bitmap) || ColumnIsSet(NoteDateModifiedColumn, bitmap)) {
 			//account for right-"aligned" date string, which will be relatively constant, so this can be cached
-			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent: fontSize * -4.6]; //avg of -55 for ~11-12 font size
+            
+            NSString *dateTest=[NSString relativeDateStringWithAbsoluteTime:CFDateGetAbsoluteTime((CFDateRef)[NSDate dateWithNaturalLanguageString:@"April 1, 2013"])];
+            CGFloat multiplier=-4.6;
+            if (dateTest&&(dateTest.length>8)) {
+                multiplier-=(dateTest.length-8.0);
+            }
+			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent: fontSize * multiplier]; //avg of -55 for ~11-12 font size
 		}
 	}
 	return titleTruncAttrs;
