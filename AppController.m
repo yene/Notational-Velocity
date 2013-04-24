@@ -2354,41 +2354,16 @@ terminateApp:
 
 #pragma mark nvALT methods
 
-//- (NSCell *)tableView:(NSTableView *)aTableView dataCellForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)rowIndex {
-//    NSTextFieldCell *aCell = [tableColumn dataCell];
-//    if (aTableView==notesTableView) {
-//        if (!self.isEditing&&[aCell isHighlighted]) {
-//            CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-//            if (([window firstResponder]==notesTableView)||[prefsController horizontalLayout]) {
-//                [aCell setTextColor:[NSColor whiteColor]];
-//                return aCell;
-//            }else if (white>0.5) {
-//                [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
-//                return aCell;
-//            }
-//        }
-//        [aCell setTextColor:foregrndColor];
-//    }
-//    return aCell;
-//}
-
-
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
     if (aTableView==notesTableView) {
-        if ([aCell isHighlighted]) {
-            if (!self.isEditing) {
-                CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-                if (([window firstResponder]==notesTableView)||([notesTableView rowHeight]>30.0)) {
-                    [aCell setTextColor:[NSColor whiteColor]];
-                    return;
-                }else if (white>0.5) {                    
-                    [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
-                    return;
-                }
-            }else if ([notesTableView editedRow]==rowIndex){
+        if ([aCell isHighlighted]) {           
+            if (([window firstResponder]==notesTableView)||([notesTableView rowHeight]>30.0)||(isEditing&&([notesTableView editedRow]==rowIndex))) {
                 [aCell setTextColor:[NSColor whiteColor]];
                 return;
-            }           
+            }else if ([[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent]>0.5) {                    
+                [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
+                return;
+            }
         }
         [aCell setTextColor:foregrndColor];
     }
@@ -2925,6 +2900,7 @@ terminateApp:
         
         if (self.isEditing) {
             [theFieldEditor setDrawsBackground:NO];
+            [theFieldEditor setTextColor:foregrndColor];
             // [theFieldEditor setBackgroundColor:backgrndColor];
             [theFieldEditor setSelectedTextAttributes:fieldAttributes];
             [theFieldEditor setInsertionPointColor:foregrndColor];
@@ -3232,6 +3208,7 @@ terminateApp:
                 }
                 [theFieldEditor setDrawsBackground:NO];
                 // [theFieldEditor setBackgroundColor:backgrndColor];
+                [theFieldEditor setTextColor:foregrndColor];
                 [theFieldEditor setSelectedTextAttributes:fieldAttributes];
                 [theFieldEditor setInsertionPointColor:foregrndColor];
                 

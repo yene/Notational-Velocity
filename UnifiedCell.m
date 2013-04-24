@@ -205,7 +205,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		NSString *dateStr = (showDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote)(tv, noteObject, NSNotFound);
         CGFloat dateLength=70.0;
         if (dateStr.length>8) {
-            dateLength+=((dateStr.length-8.0)*2);
+            dateLength+=(((CGFloat)dateStr.length-8.0)*2);
         }
 		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - dateLength-4.0, NSMinY(cellFrame), dateLength, fontHeight) withAttributes:baseAttrs];
 	}

@@ -125,12 +125,9 @@ NSDictionary *LineTruncAttributesForTitle() {
 			//account for right-"aligned" date string, which will be relatively constant, so this can be cached
             
             NSString *dateTest=[NSString relativeDateStringWithAbsoluteTime:CFDateGetAbsoluteTime((CFDateRef)[NSDate dateWithNaturalLanguageString:@"April 1, 2013"])];
-            CGFloat multiplier=-4.6;
+            CGFloat multiplier=-4.7;
             if (dateTest&&(dateTest.length>8)) {
-                multiplier-=((CGFloat)dateTest.length-8.0);
-                if (multiplier<-6.5) {
-                    multiplier=-6.5;
-                }
+                multiplier=-6.1;
             }
 			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent: fontSize * multiplier]; //avg of -55 for ~11-12 font size
 		}
