@@ -2374,16 +2374,21 @@ terminateApp:
 
 
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
-    if (aTableView==notesTableView) {      
-        if (!self.isEditing&&[aCell isHighlighted]) {          
-            CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-            if (([window firstResponder]==notesTableView)||([notesTableView rowHeight]>30.0)) {
+    if (aTableView==notesTableView) {
+        if ([aCell isHighlighted]) {
+            if (!self.isEditing) {
+                CGFloat white=[[foregrndColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
+                if (([window firstResponder]==notesTableView)||([notesTableView rowHeight]>30.0)) {
+                    [aCell setTextColor:[NSColor whiteColor]];
+                    return;
+                }else if (white>0.5) {                    
+                    [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
+                    return;
+                }
+            }else if ([notesTableView editedRow]==rowIndex){
                 [aCell setTextColor:[NSColor whiteColor]];
                 return;
-            }else if (white>0.5) {
-                [aCell setTextColor:[NSColor colorWithCalibratedWhite:0.2 alpha:1.0]];
-                return;
-            }
+            }           
         }
         [aCell setTextColor:foregrndColor];
     }

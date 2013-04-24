@@ -277,35 +277,24 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     [[NSGraphicsContext currentContext] setShouldAntialias:NO];
 	
 	NSBezierPath *line = [NSBezierPath bezierPath];
-    NSUInteger i;	
-//	NSIndexSet *set = [self selectedRowIndexes];
-//	NSInteger editedRow = [self editedRow];
-	NSUInteger lastRow=[self numberOfRows];
+	
+    //	NSIndexSet *set = [self selectedRowIndexes];
+    //	NSInteger editedRow = [self editedRow];
 	NSRange rangeOfRows = [self rowsInRect:clipRect];
     NSUInteger maxRow=NSMaxRange(rangeOfRows);
-	float yToDraw;
-    CGFloat maxX=clipRect.origin.x + clipRect.size.width;
-	float ySpacing = [self rowHeight] + [self intercellSpacing].height;
-	float rowRectOrigin = ySpacing * rangeOfRows.location;
+    CGFloat rectWidth=NSMaxX(clipRect);
+	CGFloat rectHeight = [self rowHeight] + [self intercellSpacing].height;
+	CGFloat rowRectOrigin = rectHeight * rangeOfRows.location;
+    //    BOOL horiz = [globalPrefs horizontalLayout];
 	
-	for (i = rangeOfRows.location; i < maxRow; i++) {
-		//don't draw this line if it's next to a selected row, or the row after it is being edited
-		if (i>=lastRow) {
-            break;
-        }        
-//        if (![set containsIndex:i] && editedRow != (NSInteger)(i+1)) {
-			yToDraw = rowRectOrigin + ySpacing;// - 0.5;
-			[line moveToPoint:NSMakePoint(0, yToDraw)];
-			[line lineToPoint:NSMakePoint(maxX, yToDraw)];
-//		}
-		rowRectOrigin += ySpacing;
-	}
-	//draw everything after the visible range of rows
-//	while (rowRectOrigin < clipRect.size.height) {
-//		rowRectOrigin += ySpacing;
-//		[line moveToPoint:NSMakePoint(clipRect.origin.x, rowRectOrigin)];
-//		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, rowRectOrigin)];
-//	}
+    
+    NSInteger row;
+    for (row = rangeOfRows.location; row < maxRow; row++) {
+        rowRectOrigin += rectHeight;
+        [line moveToPoint:NSMakePoint(0.0, rowRectOrigin)];
+        [line lineToPoint:NSMakePoint(rectWidth, rowRectOrigin)];
+    }
+    
     [[self gridColor] setStroke];
 	[line stroke];
 	[NSGraphicsContext restoreGraphicsState];
@@ -1326,45 +1315,40 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 # pragma mark alternating rows (Brett)
 - (void)highlightSelectionInClipRect:(NSRect)clipRect
 {
-	CGFloat fWhite;
-//	CGFloat endWhite;
-	CGFloat fAlpha;
-	NSColor *backgroundColor = [self backgroundColor];
-    
-	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-	NSColor *evenColor = backgroundColor;
-	NSColor *oddColor = backgroundColor;
-	[gBack getWhite:&fWhite alpha:&fAlpha];
+	if (![self dataSource]) {
+		return;
+	}
+	NSColor *evenColor = [self backgroundColor];
+	NSColor *oddColor = evenColor;
 	if ([globalPrefs alternatingRows]) {
-		if (fWhite < 0.5f) {
+		if ([[evenColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace]whiteComponent] < 0.5f) {
 //			endWhite = fWhite + 0.25f;
-			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor whiteColor]];
+			oddColor = [evenColor blendedColorWithFraction:0.05f ofColor:[NSColor whiteColor]];
 		} else {
 //			endWhite = fWhite-0.28f;
-			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
+			oddColor = [evenColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
 		}
 	}
-	CGFloat rowHeight = [self rowHeight] + [self intercellSpacing].height;
-	NSRect visibleRect = [self visibleRect];
-	NSRect highlightRect;
 	
-	highlightRect.origin = NSMakePoint(
-									   NSMinX(visibleRect),
-									   (int)(NSMinY(clipRect)/rowHeight)*rowHeight);
-	highlightRect.size = NSMakeSize(
-									NSWidth(visibleRect),
-									rowHeight - [self intercellSpacing].height);
-	
-	while (NSMinY(highlightRect) < NSMaxY(clipRect))
-	{
-		NSRect clippedHighlightRect = NSIntersectionRect(highlightRect, clipRect);
-		int row = (int)((NSMinY(highlightRect)+rowHeight/2.0)/rowHeight);
-        clippedHighlightRect.size.height=rowHeight;
-		NSColor *rowColor = (0 == row % 2) ? evenColor : oddColor;
-		[rowColor setFill];
-		NSRectFill(clippedHighlightRect);
-		highlightRect.origin.y += rowHeight;
-	}
+    [NSGraphicsContext saveGraphicsState];
+    [[NSGraphicsContext currentContext] setShouldAntialias:NO];
+    
+    NSIndexSet *set=[self selectedRowIndexes];
+	CGFloat rectHeight = [self rowHeight] + [self intercellSpacing].height;
+    CGFloat maxY=NSMaxY([self visibleRect]);
+    NSInteger row=[self rowsInRect:clipRect].location;
+    NSRect highlightRect=NSMakeRect(0.0, (rectHeight * (CGFloat)row),NSMaxX(clipRect), rectHeight);
+    
+    for (row; highlightRect.origin.y < maxY; row++) {
+       
+        NSColor *rowColor = (0 == row % 2) ? evenColor : oddColor;
+        [rowColor setFill];
+        
+        NSRectFill(highlightRect);
+        highlightRect.origin.y+=rectHeight;
+    }
+    
+	[NSGraphicsContext restoreGraphicsState];
     
 	[super highlightSelectionInClipRect: clipRect];
 }
@@ -1391,8 +1375,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
     }
 }
 
-//- (BOOL)isOpaque{
-//    return YES;
-//}
+- (BOOL)isOpaque{
+    return YES;
+}
 
 @end
