@@ -127,7 +127,10 @@ NSDictionary *LineTruncAttributesForTitle() {
             NSString *dateTest=[NSString relativeDateStringWithAbsoluteTime:CFDateGetAbsoluteTime((CFDateRef)[NSDate dateWithNaturalLanguageString:@"April 1, 2013"])];
             CGFloat multiplier=-4.6;
             if (dateTest&&(dateTest.length>8)) {
-                multiplier-=(dateTest.length-8.0);
+                multiplier-=((CGFloat)dateTest.length-8.0);
+                if (multiplier<-6.5) {
+                    multiplier=-6.5;
+                }
             }
 			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent: fontSize * multiplier]; //avg of -55 for ~11-12 font size
 		}
