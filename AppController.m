@@ -2933,16 +2933,14 @@ terminateApp:
         if (backgrndColor) {
             [backgrndColor release];
         }
-        backgrndColor = inColor;
-        [backgrndColor retain];
+        backgrndColor = [inColor retain];
     }
     
     - (void)setForegrndColor:(NSColor *)inColor{
         if (foregrndColor) {
             [foregrndColor release];
         }
-        foregrndColor = inColor;
-        [foregrndColor retain];
+        foregrndColor = [inColor retain];
     }
     
     - (NSColor *)backgrndColor{

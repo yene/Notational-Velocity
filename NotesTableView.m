@@ -177,7 +177,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 				   name:NSWindowDidResignMainNotification object:[self window]];	
 	//[self setb]
     [[self enclosingScrollView] setDrawsBackground:NO];
-    
+
    // [self setBackgroundColor:[NSColor clearColor]];
 	outletObjectAwoke(self);
 }
@@ -1306,18 +1306,20 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)setBackgroundColor:(NSColor *)color{
-    [NotesTableHeaderCell setBackgroundColor:color];
-    CGFloat fWhite;		
-    fWhite = [[color colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-    if (fWhite<0.25f) {
-        fWhite += 0.22f;
-    }else if (fWhite < 0.75f) {
-        fWhite += 0.16f;
-    }else {
-        fWhite -= 0.20f;
+    if (![[color colorSpaceName] isEqualToString:@"NSNamedColorSpace"]) {
+        [NotesTableHeaderCell setBackgroundColor:color];
+        CGFloat fWhite;		
+        fWhite = [[color colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
+        if (fWhite<0.25f) {
+            fWhite += 0.22f;
+        }else if (fWhite < 0.75f) {
+            fWhite += 0.16f;
+        }else {
+            fWhite -= 0.20f;
+        }
+        [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:1.0f]];
+        [super setBackgroundColor:color];
     }
-    [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:1.0f]];
-    [super setBackgroundColor:color];
    
 }
 
@@ -1389,8 +1391,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
     }
 }
 
-- (BOOL)isOpaque{
-    return YES;
-}
+//- (BOOL)isOpaque{
+//    return YES;
+//}
 
 @end
