@@ -78,18 +78,20 @@
 }
 
 - (void)changeUseETScrollbarsOnLion{
-    if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {    
-         id theScroller=[[scrollerClass alloc]init];
-        [self setVerticalScroller:theScroller];
-        [theScroller release];
-        
+    NSScrollerStyle style=[self scrollerStyle];
+    id theScroller;
+    if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {
+        theScroller=[[scrollerClass alloc]init];
     }else{
-        NSScroller *theScroller=[[NSScroller alloc]init];
-        [self setVerticalScroller:theScroller];
-        [theScroller release];
-        
+        theScroller=[[NSScroller alloc]init];
+        if (style==NSScrollerStyleLegacy) {
+            style=[NSScroller preferredScrollerStyle];
+        }
     }
-//    [self setScrollerStyle:NSScrollerStyleOverlay];
+    [theScroller setScrollerStyle:style];
+    [self setVerticalScroller:theScroller];
+    [theScroller release];
+    [self setScrollerStyle:style];
     [self tile];
     [self reflectScrolledClipView:[self contentView]];
 }

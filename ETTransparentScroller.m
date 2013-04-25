@@ -9,9 +9,9 @@
 
 #import "ETTransparentScroller.h"
 
-@interface NSScroller (NVTSPrivate)
-- (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
-@end
+//@interface NSScroller (NVTSPrivate)
+//- (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
+//@end
 
 @implementation ETTransparentScroller
 
@@ -64,9 +64,7 @@
     return 15.0;
 }
 //
-+ (NSScrollerStyle)preferredScrollerStyle{
-    return NSScrollerStyleOverlay;
-}
+
 
 
 //+ (BOOL)isCompatibleWithOverlayScrollers {

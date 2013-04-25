@@ -14,12 +14,30 @@
 + (BOOL)isCompatibleWithOverlayScrollers {
     return self == [ETOverlayScroller class];
 }
+
+- (void)setScrollerStyle:(NSScrollerStyle)newScrollerStyle{
+    if (IsLionOrLater&&(newScrollerStyle==NSScrollerStyleOverlay)) {
+        verticalPaddingLeft = 4.5f;
+    }else{
+        verticalPaddingLeft = 4.0f;
+    }
+    [super setScrollerStyle:newScrollerStyle];
+}
+
++ (NSScrollerStyle)preferredScrollerStyle{
+    return NSScrollerStyleOverlay;
+}
+
 #endif
 
 - (id)initWithFrame:(NSRect)frameRect{
 	if ((self=[super initWithFrame:frameRect])) {	
-        verticalPaddingLeft = 5.0f;
-        verticalPaddingRight = 2.5f;
+        verticalPaddingRight = 3.0f;
+        if (IsLionOrLater&&([self scrollerStyle]==NSScrollerStyleOverlay)) {
+            verticalPaddingLeft = 4.5f;
+        }else{
+            verticalPaddingLeft = 4.0f;
+        }
         knobAlpha=0.6f;
         slotAlpha=0.55f;
         fillBackground=NO;
