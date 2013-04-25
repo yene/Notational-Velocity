@@ -38,22 +38,14 @@
     return [super hitTest:aPoint];
 }
 
-
-//- (void)setScrollerClassWithString:(NSString *)scrollerClassName{
-//    scrollerClass=NSClassFromString(scrollerClassName);
-//}
-//
-//- (void)setNeedsOverlayTiling:(BOOL)overlay{
-//    needsOverlayTiling=overlay;
-//}
-
 - (void)awakeFromNib{ 
     needsOverlayTiling=NO;
     BOOL fillIt=NO;
     if([[[self documentView]className] isEqualToString:@"NotesTableView"]){
-        scrollerClass=NSClassFromString(@"ETOverlayScroller"); 
+        scrollerClass=NSClassFromString(@"ETOverlayScroller");
         if (!IsLionOrLater) {
-            needsOverlayTiling=YES;            
+            [self setAutohidesScrollers:YES];
+            needsOverlayTiling=YES;
         }
     }else{
         scrollerClass=NSClassFromString(@"ETTransparentScroller");   
@@ -66,12 +58,10 @@
         [[GlobalPrefs defaultPrefs] registerForSettingChange:@selector(setUseETScrollbarsOnLion:sender:) withTarget:self];
         [self setHorizontalScrollElasticity:NSScrollElasticityNone];
         [self setVerticalScrollElasticity:NSScrollElasticityAllowed];
-        [self setScrollerStyle:NSScrollerStyleOverlay];   
+//        [self setScrollerStyle:NSScrollerStyleOverlay];   
     }
 #endif    
     if (!IsLionOrLater||([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion])) {
-//        NSRect vsRect=[[self verticalScroller]frame];
-//        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
          id theScroller=[[scrollerClass alloc]init];
         [theScroller setFillBackground:fillIt];
         [self setVerticalScroller:theScroller];
@@ -88,22 +78,18 @@
 }
 
 - (void)changeUseETScrollbarsOnLion{
-    if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {       
-//        NSRect vsRect=[[self verticalScroller]frame];
-//        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+    if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {    
          id theScroller=[[scrollerClass alloc]init];
         [self setVerticalScroller:theScroller];
         [theScroller release];
         
     }else{
-//        id oldScrollers=[self verticalScroller];
         NSScroller *theScroller=[[NSScroller alloc]init];
         [self setVerticalScroller:theScroller];
         [theScroller release];
-//        [oldScrollers release];
         
     }
-    [self setScrollerStyle:NSScrollerStyleOverlay];
+//    [self setScrollerStyle:NSScrollerStyleOverlay];
     [self tile];
     [self reflectScrolledClipView:[self contentView]];
 }
