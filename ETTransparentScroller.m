@@ -63,13 +63,7 @@
 + (CGFloat)scrollerWidthForControlSize:(NSControlSize)controlSize scrollerStyle:(NSScrollerStyle)scrollerStyle{
     return 15.0;
 }
-//
 
-
-
-//+ (BOOL)isCompatibleWithOverlayScrollers {
-//    return self == [ETTransparentScroller class];
-//}
 #else
 + (CGFloat)scrollerWidth
 {
@@ -92,14 +86,7 @@
         [super drawRect:aRect];
     }else{
         if (([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom + 1) > minKnobHeight){
-//	        if (fillBackground) {
-//	            [[[[self window] contentView] backgroundColor] setFill];
-//	            NSRectFill([self bounds]);
-//	        }
-//            else if (isOverlay){
-//                [[NSColor clearColor] setFill];
-//                NSRectFill([self bounds]);                
-//            }
+
             if (fillBackground) {                
                 [[[[self window] contentView] backgroundColor] setFill];
                 NSRectFill([self bounds]);
@@ -112,20 +99,7 @@
     }
 }
 
-- (void)drawKnobSlotInRect:(NSRect)slotRect highlight:(BOOL)flag{
-//    if (isOverlay) {
-//        NSRect knobRect=[self rectForPart:NSScrollerKnobSlot];
-//        NSBezierPath *aPath=[NSBezierPath bezierPathWithRoundedRect:knobRect xRadius:4.0 yRadius:4.0];
-//        [[NSColor colorWithCalibratedWhite:0.7 alpha:0.4] setFill];
-//        [aPath fill];
-//        [aPath setLineWidth:0.3];
-//        [[NSColor colorWithCalibratedWhite:0.2 alpha:0.7] setStroke];
-//        [aPath stroke];
-//        [super drawKnobSlotInRect:slotRect highlight:flag];
-//    }else{
-//        NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
-//    }
-   
+- (void)drawKnobSlotInRect:(NSRect)slotRect highlight:(BOOL)flag{  
    
     NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
    

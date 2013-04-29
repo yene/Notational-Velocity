@@ -50,6 +50,7 @@
 #import "ETClipView.h"
 #import "ETScrollView.h"
 #import "NSFileManager+DirectoryLocations.h"
+#import "nvaDevConfig.h"
 
 #define NSApplicationPresentationAutoHideMenuBar (1 <<  2)
 #define NSApplicationPresentationHideMenuBar (1 <<  3)
@@ -981,6 +982,11 @@ terminateApp:
 		NotationController *newNotation = nil;
 		NSData *newData = [prefsController aliasDataForDefaultDirectory];
 		if (newData) {
+#if kUseCachesFolderForInterimNoteChanges
+            if (notationController&&[notationController flushAllNoteChanges]) {
+                [notationController closeJournal];
+            }
+#endif
 			if ((newNotation = [[NotationController alloc] initWithAliasData:newData error:&err])) {
 				[self setNotationController:newNotation];
 				[newNotation release];
