@@ -13,15 +13,16 @@
     IBOutlet NSPanel *tagPanel;
     IBOutlet NSTextField *tagField;
     BOOL isHappening;
+    NSArray *commonTags;
 }
 
-- (void)awakeFromNib;
+@property(retain,nonatomic)NSArray *commonTags;
+
+- (id)initWithDelegate:(id)del commonTags:(NSArray *)cTags atPoint:(NSPoint)centerpoint;
 - (NSString *)newMultinoteLabels;
 - (void)setTF:(NSString *)inString;
-- (void)popTP:(id)sender;
 - (void)closeTP:(id)sender;
-- (void)setDel:(id)sender;
-- (NSPanel *)tagPanel;
+- (NSTextView *)tagFieldEditor;
 - (NSTextField *)tagField;
 - (BOOL)isMultitagging;
 

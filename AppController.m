@@ -58,7 +58,7 @@
 #define NSApplicationPresentationHideDock (1 <<  1)
 //#define NSApplicationActivationPolicyAccessory
 
-//#define NSTextViewChangedNotification @"TextView has changed contents"
+//#define NSTextViewChangedNotification @"TextViewHasChangedContents"
 //#define kDefaultMarkupPreviewMode @"markupPreviewMode"
 #define kDualFieldHeight 35.0
 
@@ -124,14 +124,14 @@ BOOL splitViewAwoke;
         }
         
         NSNotificationCenter *nc=[NSNotificationCenter defaultCenter];
-        [nc addObserver:previewController selector:@selector(requestPreviewUpdate:) name:@"TextView has changed contents" object:self];
+        [nc addObserver:previewController selector:@selector(requestPreviewUpdate:) name:@"TextViewHasChangedContents" object:self];
         [nc addObserver:self selector:@selector(toggleAttachedWindow:) name:@"NVShouldActivate" object:nil];
         [nc addObserver:self selector:@selector(toggleAttachedMenu:) name:@"StatusItemMenuShouldDrop" object:nil];
         [nc addObserver:self selector:@selector(togDockIcon:) name:@"AppShouldToggleDockIcon" object:nil];
         [nc addObserver:self selector:@selector(toggleStatusItem:) name:@"AppShouldToggleStatusItem" object:nil];
         
         [nc addObserver:self selector:@selector(resetModTimers:) name:@"ModTimersShouldReset" object:nil];
-        
+        [nc addObserver:self selector:@selector(releaseTagEditor:) name:@"TagEditorShouldRelease" object:nil];
         // Setup URL Handling
         NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
         [appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
@@ -940,25 +940,19 @@ terminateApp:
     }
 	//if single note, add the tag column if necessary and then begin editing
 	
-	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
+	NSIndexSet *selIndexes = [notesTableView selectedRowIndexes];
 	
-	if ([indexes count] > 1) {
+	if ([selIndexes count] > 1) {
+        
+        NSRect linkingFrame=[textScrollView convertRect:[textScrollView frame] toView:nil];
+        linkingFrame=[window convertRectToScreen:linkingFrame];
+        NSPoint cPoint=NSMakePoint(NSMidX(linkingFrame), NSMaxY(linkingFrame));
+        
+        //Multiple Notes selected, use ElasticThreads' multitagging implementation
+        tagEditor = [[[TagEditingManager alloc] initWithDelegate:self commonTags:[self commonLabelsForNotesAtIndexes:selIndexes] atPoint:cPoint] retain];
+        
 		//Multiple Notes selected, use ElasticThreads' multitagging implementation
-		TagEditer = [[[TagEditingManager alloc] init] retain];
-		[TagEditer setDel:self];
-		@try {
-			cTags = [[[NSArray alloc] initWithArray:[self commonLabels]] retain];
-			if ([cTags count]>0) {
-				[TagEditer setTF:[cTags componentsJoinedByString:@","]];
-			}else {
-				[TagEditer setTF:@""];
-			}
-			[TagEditer popTP:self];
-		}
-		@catch (NSException * e) {
-			NSLog(@"multitag excep this: %@",[e name]);
-		}
-	} else if ([indexes count] == 1) {
+	} else if ([selIndexes count] == 1) {
         self.isEditing = YES;
 		[notesTableView editRowAtColumnWithIdentifier:NoteLabelsColumnString];
 	}
@@ -1187,9 +1181,6 @@ terminateApp:
 		
 		[field selectText:sender];
 		[[field cell] setShowsClearButton:NO];
-	} else if ([[TagEditer tagPanel] isKeyWindow]) {  //<--this is for ElasticThreads' multitagging window
-		[TagEditer closeTP:self];
-		[TagEditer release];
 	}
 }
 
@@ -1296,28 +1287,18 @@ terminateApp:
 			[window makeFirstResponder:textView];
 			return YES;
 		}
-	} else if (control == [TagEditer tagField]) {
-        
-		if (command == @selector(insertNewline:)) {
+	} else if (control == [tagEditor tagField]) {
+		if ((command == @selector(insertNewline:))||(command == @selector(insertTab:))) {
             if ([aTextView selectedRange].length>0) {
-                NSString *theLabels = [[TagEditer newMultinoteLabels] autorelease];
-                if (![theLabels hasSuffix:@" "]) {
-                    theLabels = [theLabels stringByAppendingString:@" "];
+                NSString *fieldStr=[aTextView string];
+                NSInteger len=fieldStr.length;
+                if ((![fieldStr hasSuffix:@","])&&![fieldStr hasSuffix:@" "]) {
+                    [aTextView insertText:@"," replacementRange:NSMakeRange(len, 0)];
+                    len++;
                 }
-                [TagEditer setTF:theLabels];
-                [aTextView setSelectedRange:NSMakeRange(theLabels.length, 0)];
+                [aTextView setSelectedRange:NSMakeRange(len, 0)];
                 return YES;
             }
-		}else if (command == @selector(insertTab:)) {
-            if ([aTextView selectedRange].length>0) {
-                NSString *theLabels = [[TagEditer newMultinoteLabels] autorelease];
-                if (![theLabels hasSuffix:@" "]) {
-                    theLabels = [theLabels stringByAppendingString:@" "];
-                }
-                [TagEditer setTF:theLabels];
-                [aTextView setSelectedRange:NSMakeRange(theLabels.length, 0)];
-            }
-            return YES;
 		}else {
             if ((command == @selector(deleteBackward:))||(command == @selector(deleteForward:))) {
                 wasDeleting = YES;
@@ -1443,12 +1424,12 @@ terminateApp:
 		
 		isFilteringFromTyping = NO;
         
-	} else if ([TagEditer isMultitagging]) { //<--for elasticthreads multitagging
+	} else if ([tagEditor isMultitagging]) { //<--for elasticthreads multitagging
         if (!isAutocompleting&&!wasDeleting) {
             isAutocompleting = YES;
-            NSTextView *editor = (NSTextView *)[[TagEditer tagPanel] fieldEditor:YES forObject:[TagEditer tagField]];
+            NSTextView *editor = [tagEditor tagFieldEditor];
             NSRange selRange = [editor selectedRange];
-            NSString *tagString = [[TagEditer newMultinoteLabels] autorelease];
+            NSString *tagString = [tagEditor newMultinoteLabels];
             NSString *searchString = tagString;
             if (selRange.length>0) {
                 searchString = [searchString substringWithRange:selRange];
@@ -1467,7 +1448,7 @@ terminateApp:
                     tagString = [tagString substringToIndex:selRange.location];
                     tagString = [tagString stringByAppendingString:useStr];
                     selRange = NSMakeRange(selRange.location + selRange.length, useStr.length - searchString.length );
-                    [TagEditer setTF:tagString];
+                    [tagEditor setTF:tagString];
                     [editor setSelectedRange:selRange];
                 }
             }
@@ -2178,19 +2159,7 @@ terminateApp:
 
 
 - (void)windowDidResignKey:(NSNotification *)notification{
-    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
-    if ([notification object] == [TagEditer tagPanel]) {  //<--this is for ElasticThreads' multitagging window
-        
-        if ([TagEditer isMultitagging]) {
-            //   BOOL tagExists = YES;
-            [TagEditer closeTP:self];
-            if (cTags) {
-                cTags = nil;
-                [cTags release];
-            }
-        }
-	}
-    
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];    
 }
 
 - (void)windowWillClose:(NSNotification *)aNotification {
@@ -2391,110 +2360,121 @@ terminateApp:
 
 #pragma mark multitagging
 
-- (NSArray *)commonLabels{
-	NSCharacterSet *tagSeparators = [NSCharacterSet  characterSetWithCharactersInString:@", "];
-	NSArray *retArray = [[[NSArray alloc]initWithObjects:@"",nil]retain];
-	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
-	NSString *existTags;
-	NSSet *tagsForNote;
-	NSEnumerator *noteEnum = [[[notationController notesAtIndexes:indexes] objectEnumerator] retain];
+- (NSArray *)commonLabelsForNotesAtIndexes:(NSIndexSet *)selDexes{
+	NSArray *retArray =[NSArray array];
+    
+	NSEnumerator *noteEnum = [[[notationController notesAtIndexes:selDexes] objectEnumerator] retain];
 	NoteObject *aNote;
-	NSMutableSet *commonTags = [[[NSMutableSet alloc]initWithCapacity:1] retain];
-	NSArray *tagArray;
 	aNote = [noteEnum nextObject];
-	existTags = labelsOfNote(aNote);
-	if (![existTags isEqualToString:@""]) {
-		tagArray = [existTags componentsSeparatedByCharactersInSet:tagSeparators];
-		[commonTags addObjectsFromArray:tagArray];
-		
+	NSString *existTags = labelsOfNote(aNote);
+	if (existTags&&(existTags.length>0)) {
+        NSMutableSet *commonTags = [NSMutableSet new];
+        
+        [commonTags addObjectsFromArray:[existTags labelCompatibleWords]];
 		while (((aNote = [noteEnum nextObject]))&&([commonTags count]>0)) {
 			existTags = labelsOfNote(aNote);
-			if (![existTags isEqualToString:@""]) {
-				tagArray = [existTags componentsSeparatedByCharactersInSet:tagSeparators];
-				@try {
-					if ([tagArray count]>0) {
-						tagsForNote =[NSSet setWithArray:tagArray];
-						if ([commonTags intersectsSet:tagsForNote]) {
-							[commonTags intersectSet:tagsForNote];
-						}else {
-							[commonTags removeAllObjects];
-							break;
-						}
-						
-					}else {
-						[commonTags removeAllObjects];
-						break;
-					}
-				}
-				@catch (NSException * e) {
-					NSLog(@"intersect EXCEPT: %@",[e description]);
-					[commonTags removeAllObjects];
-					break;
-				}
-			}else {
+			if (!existTags||(existTags.length==0)) {
 				[commonTags removeAllObjects];
 				break;
+            }else{
+				NSArray *tagArray = [existTags labelCompatibleWords];
+                if (tagArray&&([tagArray count]>0)) {
+                    NSSet *tagsForNote =[NSSet setWithArray:tagArray];
+                    if ([commonTags intersectsSet:tagsForNote]) {
+                        [commonTags intersectSet:tagsForNote];
+                    }else {
+                        [commonTags removeAllObjects];
+                        break;
+                    }
+                }else {
+                    [commonTags removeAllObjects];
+                    break;
+                }
 			}
 		}
-		if ([commonTags count]>0) {
-			retArray = [commonTags allObjects];
+		if (commonTags&&([commonTags count]>0)) {
+			retArray = [NSArray arrayWithArray:[commonTags allObjects]];
 		}
+        [commonTags release];
 	}
 	[noteEnum release];
-	[commonTags release];
-	
 	return retArray;
 }
 
 - (IBAction)multiTag:(id)sender {
-	NSCharacterSet *tagSeparators = [NSCharacterSet  characterSetWithCharactersInString:@", "];
-	NSString *existTagString;
-	NSMutableArray *theTags = [[[NSMutableArray alloc] init] autorelease];
-	NSString *thisTag = [TagEditer newMultinoteLabels];
-	NSArray *newTags = [NSArray arrayWithArray:[thisTag componentsSeparatedByCharactersInSet:tagSeparators]];
-	[thisTag release];
-    for (thisTag in newTags) {
-        if (([thisTag hasPrefix:@" "])||([thisTag hasSuffix:@" "])) {
-			thisTag = [thisTag stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		}
-        if (([thisTag hasPrefix:@","])||([thisTag hasSuffix:@","])) {
-			thisTag = [thisTag stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
-		}
-		if (![thisTag isEqualToString:@""]) {
-			[theTags addObject:thisTag];
-		}
+	NSString *tagString = [[tagEditor newMultinoteLabels] stringByTrimmingCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
+	NSArray *newTags;
+    if (tagString&&(tagString.length>0)) {
+        newTags=[tagString labelCompatibleWords];
+    }else{
+        newTags=[NSArray array];
     }
-	if ([theTags count]<1) {
-		[theTags addObject:@""];
-	}
-    
-	NoteObject *aNote;
-    NSArray *selNotes = [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
-    for (aNote in selNotes) {
-        existTagString = labelsOfNote(aNote);
+    NSArray *commonLabs=tagEditor.commonTags;
+    if (![newTags isEqualToArray:commonLabs]) {
         
-		NSMutableArray *finalTags = [[[NSMutableArray alloc] init] autorelease];
-		[finalTags addObjectsFromArray:theTags];
-        NSArray *existingTags = [existTagString  componentsSeparatedByCharactersInSet:tagSeparators];
-		thisTag = nil;
-        for (thisTag in existingTags) {
-            if (([thisTag hasPrefix:@" "])||([thisTag hasSuffix:@" "])) {
-				thisTag = [thisTag stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-			}
-			
-			if ((![theTags containsObject:thisTag])&&(![cTags containsObject:thisTag])&&(![thisTag isEqualToString:@""])) {
-				[finalTags addObject:thisTag];
-			}
+        NSArray *selNotes = [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
+        if (!selNotes||([selNotes count]==0)) {
+            return;
         }
-		NSString *newTagsString = [finalTags componentsJoinedByString:@" "];
-        if (([newTagsString hasPrefix:@","])||([newTagsString hasSuffix:@","])) {
-			newTagsString = [newTagsString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
-		}
-		[aNote setLabelString:newTagsString];
+        tagString=nil;
+        
+        BOOL gotNewLabels=(newTags&&([newTags count]>0));
+        BOOL gotCommonLabels=(commonLabs&&([commonLabs count]>0));
+        NSPredicate *pred;
+        if (gotCommonLabels&&gotNewLabels) {
+            pred=[NSPredicate predicateWithFormat:@"NOT %@ CONTAINS[cd] SELF",newTags];
+            commonLabs=[commonLabs filteredArrayUsingPredicate:pred];
+        }
+        NSMutableArray *finalTags = [NSMutableArray new];
+        for (NoteObject *aNote in selNotes) {
+            NSString *separator=@" ";
+            tagString=labelsOfNote(aNote);
+            NSArray *filteredTags;
+            
+            if (tagString&&(tagString.length>0)) {
+                if (([tagString rangeOfString:@","].location!=NSNotFound)) {
+                    separator=@",";
+                }
+                filteredTags=[tagString labelCompatibleWords];
+                if (gotCommonLabels) {
+                    pred=[NSPredicate predicateWithFormat:@"NOT %@ CONTAINS[cd] SELF",commonLabs];
+                    filteredTags=[filteredTags filteredArrayUsingPredicate:pred];
+                }
+                if (filteredTags&&([filteredTags count]>0)) {
+                    [finalTags addObjectsFromArray:filteredTags];
+                }
+            }
+            if (gotNewLabels) {
+                if (finalTags&&([finalTags count]>0)) {
+                    pred=[NSPredicate predicateWithFormat:@"NOT %@ CONTAINS[cd] SELF",finalTags];
+                    filteredTags=[newTags filteredArrayUsingPredicate:pred];
+                    if (filteredTags&&([filteredTags count]>0)) {
+                        [finalTags addObjectsFromArray:filteredTags];
+                    }
+                }else{
+                    [finalTags addObjectsFromArray:newTags];
+                }
+            }
+            if (finalTags&&([finalTags count]>0)) {
+                tagString = [finalTags componentsJoinedByString:separator];
+            }else{
+                tagString=@"";
+            }
+        
+            [aNote setLabelString:tagString];
+            [finalTags removeAllObjects];
+        }
+        
+		[notesTableView scrollRowToVisible:[[notesTableView selectedRowIndexes] firstIndex]];
+        [finalTags release];
     }
-	[TagEditer closeTP:self];
-	[cTags release];
-	[TagEditer release];
+	[tagEditor closeTP:self];
+}
+
+- (void)releaseTagEditor:(NSNotification *)note{
+    if (tagEditor) {
+        [tagEditor release];
+    }
 }
 
 #pragma mark splitview/toolbar management
@@ -3181,10 +3161,9 @@ terminateApp:
         [previewController printPreview:self];
     }
     
-    - (void)postTextUpdate
-    {
+    - (void)postTextUpdate{
         
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextView has changed contents" object:self];
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextViewHasChangedContents" object:self];
     }
     
     - (IBAction)selectPreviewMode:(id)sender

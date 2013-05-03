@@ -65,7 +65,7 @@
 	StatusItemView *cView;
   NSStatusItem *statusItem;
 	IBOutlet NSMenu *statBarMenu;
-	TagEditingManager *TagEditer;
+	TagEditingManager *tagEditor;
 	NSColor *backgrndColor;
 	NSColor *foregrndColor;
 	NSInteger userScheme;
@@ -109,7 +109,6 @@
 	BOOL isFilteringFromTyping, typedStringIsCached;
 	BOOL isCreatingANote;
 	NSString *typedString;
-	NSArray *cTags;
     BOOL isEditing;
 	
 	NoteObject *currentNote;
@@ -186,8 +185,9 @@ void outletObjectAwoke(id sender);
 - (NSMenu *)statBarMenu;
 - (void)toggleAttachedWindow:(NSNotification *)aNotification;
 - (void)toggleAttachedMenu:(NSNotification *)aNotification;
-- (NSArray *)commonLabels;
+- (NSArray *)commonLabelsForNotesAtIndexes:(NSIndexSet *)selDexes;
 - (IBAction)multiTag:(id)sender;
+- (void)releaseTagEditor:(NSNotification *)note;
 - (void)setDualFieldInToolbar;
 - (void)setDualFieldInView;
 - (void)setDualFieldIsVisible:(BOOL)isVis;
