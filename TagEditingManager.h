@@ -8,18 +8,19 @@
 #import <Cocoa/Cocoa.h>
 
 
-@interface TagEditingManager : NSObject {
+@interface TagEditingManager : NSObject <NSWindowDelegate> {
 	
     IBOutlet NSPanel *tagPanel;
     IBOutlet NSTextField *tagField;
     BOOL isHappening;
+    NSString *tagFieldString;
     NSArray *commonTags;
 }
 
 @property(retain,nonatomic)NSArray *commonTags;
+@property(retain)NSString *tagFieldString;
 
 - (id)initWithDelegate:(id)del commonTags:(NSArray *)cTags atPoint:(NSPoint)centerpoint;
-- (NSString *)newMultinoteLabels;
 - (void)setTF:(NSString *)inString;
 - (void)closeTP:(id)sender;
 - (NSTextView *)tagFieldEditor;

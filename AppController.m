@@ -945,7 +945,12 @@ terminateApp:
 	if ([selIndexes count] > 1) {
         
         NSRect linkingFrame=[textScrollView convertRect:[textScrollView frame] toView:nil];
-        linkingFrame=[window convertRectToScreen:linkingFrame];
+        
+        if (IsLionOrLater) {
+            linkingFrame=[window convertRectToScreen:linkingFrame];
+        }else{
+            linkingFrame.origin=[window convertBaseToScreen:linkingFrame.origin];
+        }
         NSPoint cPoint=NSMakePoint(NSMidX(linkingFrame), NSMaxY(linkingFrame));
         
         //Multiple Notes selected, use ElasticThreads' multitagging implementation
@@ -1429,7 +1434,7 @@ terminateApp:
             isAutocompleting = YES;
             NSTextView *editor = [tagEditor tagFieldEditor];
             NSRange selRange = [editor selectedRange];
-            NSString *tagString = [tagEditor newMultinoteLabels];
+            NSString *tagString = [NSString stringWithString:tagEditor.tagFieldString];
             NSString *searchString = tagString;
             if (selRange.length>0) {
                 searchString = [searchString substringWithRange:selRange];
@@ -2402,7 +2407,7 @@ terminateApp:
 }
 
 - (IBAction)multiTag:(id)sender {
-	NSString *tagString = [[tagEditor newMultinoteLabels] stringByTrimmingCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
+	NSString *tagString = [tagEditor.tagFieldString stringByTrimmingCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
 	NSArray *newTags;
     if (tagString&&(tagString.length>0)) {
         newTags=[tagString labelCompatibleWords];

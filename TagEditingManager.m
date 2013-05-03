@@ -12,6 +12,7 @@
 @implementation TagEditingManager
 
 @synthesize commonTags;
+@synthesize tagFieldString;
 
 - (id)initWithDelegate:(id)del commonTags:(NSArray *)cTags atPoint:(NSPoint)centerpoint{
 	if ((self=[super init])) {
@@ -34,6 +35,7 @@
 }
 
 - (void)dealloc{
+    [tagFieldString release];
     [commonTags release];
 	[tagPanel release];
 	[tagField release];
@@ -52,7 +54,9 @@
         if (commonTags&&([commonTags count]>0)) {
             newTagString=[commonTags componentsJoinedByString:@","];
         }
-        [tagField setStringValue:newTagString];        
+        self.tagFieldString=newTagString;
+    }else{
+        self.tagFieldString=@"";
     }
 }
 
@@ -80,10 +84,6 @@
     isHappening = NO;
     self.commonTags=[NSArray array];
     [[NSNotificationCenter defaultCenter]postNotificationName:@"TagEditorShouldRelease" object:nil];
-}
-
-- (NSString *)newMultinoteLabels{
-	return [NSString stringWithString:[tagField stringValue]];
 }
 
 - (void)setTF:(NSString *)inString{

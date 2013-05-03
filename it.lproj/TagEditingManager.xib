@@ -2,25 +2,28 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="8.00">
 	<data>
 		<int key="IBDocument.SystemTarget">1050</int>
-		<string key="IBDocument.SystemVersion">10J869</string>
-		<string key="IBDocument.InterfaceBuilderVersion">1306</string>
-		<string key="IBDocument.AppKitVersion">1038.35</string>
-		<string key="IBDocument.HIToolboxVersion">461.00</string>
+		<string key="IBDocument.SystemVersion">12D78</string>
+		<string key="IBDocument.InterfaceBuilderVersion">3084</string>
+		<string key="IBDocument.AppKitVersion">1187.37</string>
+		<string key="IBDocument.HIToolboxVersion">626.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
-			<string key="NS.object.0">1306</string>
+			<string key="NS.object.0">3084</string>
 		</object>
 		<array key="IBDocument.IntegratedClassDependencies">
+			<string>NSCustomObject</string>
 			<string>NSTextField</string>
 			<string>NSTextFieldCell</string>
-			<string>NSWindowTemplate</string>
 			<string>NSView</string>
-			<string>NSCustomObject</string>
+			<string>NSWindowTemplate</string>
 		</array>
 		<array key="IBDocument.PluginDependencies">
 			<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 		</array>
-		<dictionary class="NSMutableDictionary" key="IBDocument.Metadata"/>
+		<object class="NSMutableDictionary" key="IBDocument.Metadata">
+			<string key="NS.key.0">PluginDependencyRecalculationVersion</string>
+			<integer value="1" key="NS.object.0"/>
+		</object>
 		<array class="NSMutableArray" key="IBDocument.RootObjects" id="384264609">
 			<object class="NSCustomObject" id="515108334">
 				<string key="NSClassName">TagEditingManager</string>
@@ -34,27 +37,27 @@
 			<object class="NSWindowTemplate" id="387290972">
 				<int key="NSWindowStyleMask">8219</int>
 				<int key="NSWindowBacking">2</int>
-				<string key="NSWindowRect">{{122, 324}, {322, 55}}</string>
-				<int key="NSWTFlags">-461896704</int>
+				<string key="NSWindowRect">{{122, 324}, {324, 53}}</string>
+				<int key="NSWTFlags">-1535638528</int>
 				<string key="NSWindowTitle">Modify or Add Tags to Selected Notes:</string>
 				<string key="NSWindowClass">NSPanel</string>
 				<nil key="NSViewClass"/>
-				<string key="NSWindowContentMaxSize">{2000, 55}</string>
-				<string key="NSWindowContentMinSize">{150, 55}</string>
+				<nil key="NSUserInterfaceItemIdentifier"/>
+				<string key="NSWindowContentMaxSize">{2000, 53}</string>
+				<string key="NSWindowContentMinSize">{150, 53}</string>
 				<object class="NSView" key="NSWindowView" id="716340357">
 					<reference key="NSNextResponder"/>
 					<int key="NSvFlags">256</int>
 					<array class="NSMutableArray" key="NSSubviews">
 						<object class="NSTextField" id="914473982">
 							<reference key="NSNextResponder" ref="716340357"/>
-							<int key="NSvFlags">268</int>
-							<string key="NSFrame">{{20, 20}, {282, 22}}</string>
+							<int key="NSvFlags">266</int>
+							<string key="NSFrame">{{13, 19}, {298, 22}}</string>
 							<reference key="NSSuperview" ref="716340357"/>
 							<reference key="NSWindow"/>
-							<reference key="NSNextKeyView"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSTextFieldCell" key="NSCell" id="746859396">
-								<int key="NSCellFlags">-1804468671</int>
+								<int key="NSCellFlags">-1804599231</int>
 								<int key="NSCellFlags2">268436480</int>
 								<string key="NSContents"/>
 								<object class="NSFont" key="NSSupport">
@@ -83,16 +86,18 @@
 									</object>
 								</object>
 							</object>
+							<bool key="NSAllowsLogicalLayoutDirection">NO</bool>
 						</object>
 					</array>
-					<string key="NSFrame">{{7, 11}, {322, 55}}</string>
+					<string key="NSFrameSize">{324, 53}</string>
 					<reference key="NSSuperview"/>
 					<reference key="NSWindow"/>
 					<reference key="NSNextKeyView" ref="914473982"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
-				<string key="NSMinSize">{150, 74}</string>
-				<string key="NSMaxSize">{2000, 74}</string>
+				<string key="NSMinSize">{150, 72}</string>
+				<string key="NSMaxSize">{2000, 72}</string>
+				<bool key="NSWindowIsRestorable">NO</bool>
 			</object>
 		</array>
 		<object class="IBObjectContainer" key="IBDocument.Objects">
@@ -128,6 +133,26 @@
 						<reference key="destination" ref="914473982"/>
 					</object>
 					<int key="connectionID">436</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">value: tagFieldString</string>
+						<reference key="source" ref="914473982"/>
+						<reference key="destination" ref="515108334"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="914473982"/>
+							<reference key="NSDestination" ref="515108334"/>
+							<string key="NSLabel">value: tagFieldString</string>
+							<string key="NSBinding">value</string>
+							<string key="NSKeyPath">tagFieldString</string>
+							<object class="NSDictionary" key="NSOptions">
+								<string key="NS.key.0">NSContinuouslyUpdatesValue</string>
+								<boolean value="YES" key="NS.object.0"/>
+							</object>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">438</int>
 				</object>
 			</array>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -188,8 +213,9 @@
 				</array>
 			</object>
 			<dictionary class="NSMutableDictionary" key="flattenedProperties">
+				<string key="-1.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="-2.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="-3.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<string key="370.IBEditorWindowLastContentRect">{{625, 720}, {322, 55}}</string>
 				<string key="370.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="370.IBWindowTemplateEditedContentRect">{{625, 720}, {322, 55}}</string>
 				<boolean value="NO" key="370.NSWindowTemplate.visibleAtLaunch"/>
@@ -201,7 +227,7 @@
 			<nil key="activeLocalization"/>
 			<dictionary class="NSMutableDictionary" key="localizations"/>
 			<nil key="sourceID"/>
-			<int key="maxID">436</int>
+			<int key="maxID">438</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -212,12 +238,16 @@
 						<string key="bringFocusToControlField:">id</string>
 						<string key="copyNoteLink:">id</string>
 						<string key="deleteNote:">id</string>
+						<string key="editNoteExternally:">id</string>
 						<string key="exportNote:">id</string>
 						<string key="fieldAction:">id</string>
+						<string key="fixFileEncoding:">id</string>
 						<string key="importNotes:">id</string>
+						<string key="lockPreview:">id</string>
 						<string key="multiTag:">id</string>
-						<string key="openFileInEditor:">id</string>
+						<string key="previewNoteWithMarked:">id</string>
 						<string key="printNote:">id</string>
+						<string key="printPreview:">id</string>
 						<string key="renameNote:">id</string>
 						<string key="revealNote:">id</string>
 						<string key="savePreview:">id</string>
@@ -228,11 +258,11 @@
 						<string key="sharePreview:">id</string>
 						<string key="showHelpDocument:">id</string>
 						<string key="showPreferencesWindow:">id</string>
+						<string key="switchFullScreen:">id</string>
 						<string key="switchViewLayout:">id</string>
 						<string key="syncWaitQuit:">id</string>
 						<string key="tagNote:">id</string>
 						<string key="toggleCollapse:">id</string>
-						<string key="toggleFullscreen:">id</string>
 						<string key="toggleNVActivation:">id</string>
 						<string key="togglePreview:">id</string>
 						<string key="toggleSourceView:">id</string>
@@ -251,6 +281,10 @@
 							<string key="name">deleteNote:</string>
 							<string key="candidateClassName">id</string>
 						</object>
+						<object class="IBActionInfo" key="editNoteExternally:">
+							<string key="name">editNoteExternally:</string>
+							<string key="candidateClassName">id</string>
+						</object>
 						<object class="IBActionInfo" key="exportNote:">
 							<string key="name">exportNote:</string>
 							<string key="candidateClassName">id</string>
@@ -259,20 +293,32 @@
 							<string key="name">fieldAction:</string>
 							<string key="candidateClassName">id</string>
 						</object>
+						<object class="IBActionInfo" key="fixFileEncoding:">
+							<string key="name">fixFileEncoding:</string>
+							<string key="candidateClassName">id</string>
+						</object>
 						<object class="IBActionInfo" key="importNotes:">
 							<string key="name">importNotes:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="lockPreview:">
+							<string key="name">lockPreview:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 						<object class="IBActionInfo" key="multiTag:">
 							<string key="name">multiTag:</string>
 							<string key="candidateClassName">id</string>
 						</object>
-						<object class="IBActionInfo" key="openFileInEditor:">
-							<string key="name">openFileInEditor:</string>
+						<object class="IBActionInfo" key="previewNoteWithMarked:">
+							<string key="name">previewNoteWithMarked:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 						<object class="IBActionInfo" key="printNote:">
 							<string key="name">printNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="printPreview:">
+							<string key="name">printPreview:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 						<object class="IBActionInfo" key="renameNote:">
@@ -315,6 +361,10 @@
 							<string key="name">showPreferencesWindow:</string>
 							<string key="candidateClassName">id</string>
 						</object>
+						<object class="IBActionInfo" key="switchFullScreen:">
+							<string key="name">switchFullScreen:</string>
+							<string key="candidateClassName">id</string>
+						</object>
 						<object class="IBActionInfo" key="switchViewLayout:">
 							<string key="name">switchViewLayout:</string>
 							<string key="candidateClassName">id</string>
@@ -329,10 +379,6 @@
 						</object>
 						<object class="IBActionInfo" key="toggleCollapse:">
 							<string key="name">toggleCollapse:</string>
-							<string key="candidateClassName">id</string>
-						</object>
-						<object class="IBActionInfo" key="toggleFullscreen:">
-							<string key="name">toggleFullscreen:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 						<object class="IBActionInfo" key="toggleNVActivation:">
@@ -355,16 +401,20 @@
 					<dictionary class="NSMutableDictionary" key="outlets">
 						<string key="editorStatusView">EmptyView</string>
 						<string key="field">DualField</string>
+						<string key="fsMenuItem">NSMenuItem</string>
+						<string key="lockNoteItem">NSMenuItem</string>
 						<string key="mainView">ETContentView</string>
 						<string key="multiMarkdownPreview">NSMenuItem</string>
-						<string key="notesScrollView">AugmentedScrollView</string>
+						<string key="notesScrollView">ETScrollView</string>
 						<string key="notesTableView">NotesTableView</string>
 						<string key="previewToggler">NSMenuItem</string>
+						<string key="printPreviewItem">NSMenuItem</string>
+						<string key="savePreviewItem">NSMenuItem</string>
 						<string key="sparkleUpdateItem">NSMenuItem</string>
 						<string key="statBarMenu">NSMenu</string>
 						<string key="syncWaitPanel">NSPanel</string>
 						<string key="syncWaitSpinner">NSProgressIndicator</string>
-						<string key="textScrollView">NSScrollView</string>
+						<string key="textScrollView">ETScrollView</string>
 						<string key="textView">LinkingEditor</string>
 						<string key="textilePreview">NSMenuItem</string>
 						<string key="window">NSWindow</string>
@@ -379,6 +429,14 @@
 							<string key="name">field</string>
 							<string key="candidateClassName">DualField</string>
 						</object>
+						<object class="IBToOneOutletInfo" key="fsMenuItem">
+							<string key="name">fsMenuItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="lockNoteItem">
+							<string key="name">lockNoteItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
 						<object class="IBToOneOutletInfo" key="mainView">
 							<string key="name">mainView</string>
 							<string key="candidateClassName">ETContentView</string>
@@ -389,7 +447,7 @@
 						</object>
 						<object class="IBToOneOutletInfo" key="notesScrollView">
 							<string key="name">notesScrollView</string>
-							<string key="candidateClassName">AugmentedScrollView</string>
+							<string key="candidateClassName">ETScrollView</string>
 						</object>
 						<object class="IBToOneOutletInfo" key="notesTableView">
 							<string key="name">notesTableView</string>
@@ -397,6 +455,14 @@
 						</object>
 						<object class="IBToOneOutletInfo" key="previewToggler">
 							<string key="name">previewToggler</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="printPreviewItem">
+							<string key="name">printPreviewItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="savePreviewItem">
+							<string key="name">savePreviewItem</string>
 							<string key="candidateClassName">NSMenuItem</string>
 						</object>
 						<object class="IBToOneOutletInfo" key="sparkleUpdateItem">
@@ -417,7 +483,7 @@
 						</object>
 						<object class="IBToOneOutletInfo" key="textScrollView">
 							<string key="name">textScrollView</string>
-							<string key="candidateClassName">NSScrollView</string>
+							<string key="candidateClassName">ETScrollView</string>
 						</object>
 						<object class="IBToOneOutletInfo" key="textView">
 							<string key="name">textView</string>
@@ -439,14 +505,6 @@
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">./Classes/AppController.h</string>
-					</object>
-				</object>
-				<object class="IBPartialClassDescription">
-					<string key="className">AugmentedScrollView</string>
-					<string key="superclassName">NSScrollView</string>
-					<object class="IBClassDescriptionSource" key="sourceIdentifier">
-						<string key="majorKey">IBProjectSource</string>
-						<string key="minorKey">./Classes/AugmentedScrollView.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">
@@ -474,6 +532,14 @@
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">./Classes/ETContentView.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">ETScrollView</string>
+					<string key="superclassName">NSScrollView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/ETScrollView.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">
@@ -517,16 +583,36 @@
 					<string key="className">LinkingEditor</string>
 					<string key="superclassName">NSTextView</string>
 					<dictionary class="NSMutableDictionary" key="actions">
+						<string key="insertLink:">id</string>
+						<string key="pasteMarkdownLink:">id</string>
+						<string key="performFindPanelAction:">id</string>
 						<string key="shiftLeftAction:">id</string>
 						<string key="shiftRightAction:">id</string>
+						<string key="toggleLayoutOrientation:">id</string>
 					</dictionary>
 					<dictionary class="NSMutableDictionary" key="actionInfosByName">
+						<object class="IBActionInfo" key="insertLink:">
+							<string key="name">insertLink:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="pasteMarkdownLink:">
+							<string key="name">pasteMarkdownLink:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="performFindPanelAction:">
+							<string key="name">performFindPanelAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
 						<object class="IBActionInfo" key="shiftLeftAction:">
 							<string key="name">shiftLeftAction:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 						<object class="IBActionInfo" key="shiftRightAction:">
 							<string key="name">shiftRightAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleLayoutOrientation:">
+							<string key="name">toggleLayoutOrientation:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 					</dictionary>
@@ -622,7 +708,7 @@
 		</object>
 		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDependencyDefaults">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.macosx</string>
-			<integer value="1050" key="NS.object.0"/>
+			<real value="1070" key="NS.object.0"/>
 		</object>
 		<bool key="IBDocument.PluginDeclaredDependenciesTrackSystemTargetVersion">YES</bool>
 		<int key="IBDocument.defaultPropertyAccessControl">3</int>
