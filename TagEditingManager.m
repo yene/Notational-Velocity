@@ -8,69 +8,94 @@
 #import "TagEditingManager.h"
 #import "AppController.h"
 
+
 @implementation TagEditingManager
 
+@synthesize commonTags;
+@synthesize tagFieldString;
 
-- (id)init
-{
-	if ([super init]) {
+- (id)initWithDelegate:(id)del commonTags:(NSArray *)cTags atPoint:(NSPoint)centerpoint{
+	if ((self=[super init])) {
 		if (![NSBundle loadNibNamed:@"TagEditingManager" owner:self])  {
 			NSLog(@"Failed to load TagEditer.nib");
-		}
+		}else{
+            isHappening = YES;
+            NSRect zRect=[tagPanel frame];
+            centerpoint.x-=(zRect.size.width/2.0);
+            centerpoint.y-=(zRect.size.height+70.0);
+            [tagPanel setDelegate:self];
+            [tagField setDelegate:del];
+            self.commonTags=cTags;
+            [tagPanel setFrameOrigin:centerpoint];
+            [tagPanel makeKeyAndOrderFront:del];
+            
+        }
 	}
 	return self;
 }
 
 - (void)dealloc{
+    [tagFieldString release];
+    [commonTags release];
 	[tagPanel release];
 	[tagField release];
 	[super dealloc];
 }
 
-- (void)awakeFromNib {
-	[tagField setStringValue:@""];
-//	[tagField setDelegate:self];
+- (void)setCommonTags:(NSArray *)newTags{
+    if (commonTags) {
+        [commonTags release];
+        commonTags=nil;
+    }
+    
+    commonTags=[newTags retain];
+    if (isHappening) {
+        NSString *newTagString=@"";
+        if (commonTags&&([commonTags count]>0)) {
+            newTagString=[commonTags componentsJoinedByString:@","];
+        }
+        self.tagFieldString=newTagString;
+    }else{
+        self.tagFieldString=@"";
+    }
 }
 
-- (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)command{
-	if (command == @selector(cancelOperation:)) {
-		[tagPanel orderOut:self];
-		//[self closeTP:self];
-	}
-	return NO;
+//- (void)awakeFromNib {
+//	[tagField setStringValue:@""];
+////	[tagField setDelegate:self];
+//}
+
+//- (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)command{
+//	if (command == @selector(cancelOperation:)) {
+//		[tagPanel orderOut:self];
+//		//[self closeTP:self];
+//	}
+//	return NO;
+//}
+
+- (void)cancelOperation:(id)sender {
+    [tagPanel orderOut:nil];
 }
 
-- (NSString *)newMultinoteLabels{
-	return [[NSString stringWithString:[tagField stringValue]]retain];
+- (void)windowDidResignKey:(NSNotification *)notification{
+    if ([tagPanel isVisible]) {
+        [tagPanel orderOut:nil];
+    }
+    isHappening = NO;
+    self.commonTags=[NSArray array];
+    [[NSNotificationCenter defaultCenter]postNotificationName:@"TagEditorShouldRelease" object:nil];
 }
 
 - (void)setTF:(NSString *)inString{
 	[tagField setStringValue:inString];	
 }
 
-- (void)popTP:(id)sender{
-	[tagPanel center];
-	[tagPanel makeKeyAndOrderFront:sender];
-    isHappening = YES;
-
+- (void)closeTP:(id)sender{    
+    [tagPanel orderOut:nil];
 }
 
-- (void)setDel:(id)sender{
-	[tagPanel setDelegate:sender];
-	[tagField setDelegate:sender];
-   // [[tagPanel fieldEditor:YES forObject:tagField]setDelegate:sender];
-}
-
-- (void)closeTP:(id)sender{
-    if (isHappening &&([tagPanel isVisible])) {
-        [tagPanel orderOut:sender];
-    }    
-    isHappening = NO;
-	[tagField setStringValue:@""];
-}
-
-- (NSPanel *)tagPanel {
-	return tagPanel;
+- (NSTextView *)tagFieldEditor{
+    return (NSTextView *)[tagPanel fieldEditor:YES forObject:tagField];
 }
 
 - (NSTextField *)tagField{

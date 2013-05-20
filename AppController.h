@@ -57,6 +57,7 @@
 	IBOutlet NSMenuItem *fsMenuItem;
 	BOOL wasVert;
     BOOL wasDFVisible;
+    BOOL fieldWasFirstResponder;
   BOOL isAutocompleting;
   BOOL wasDeleting;
   IBOutlet ETContentView *mainView;
@@ -64,7 +65,7 @@
 	StatusItemView *cView;
   NSStatusItem *statusItem;
 	IBOutlet NSMenu *statBarMenu;
-	TagEditingManager *TagEditer;
+	TagEditingManager *tagEditor;
 	NSColor *backgrndColor;
 	NSColor *foregrndColor;
 	NSInteger userScheme;
@@ -108,7 +109,6 @@
 	BOOL isFilteringFromTyping, typedStringIsCached;
 	BOOL isCreatingANote;
 	NSString *typedString;
-	NSArray *cTags;
     BOOL isEditing;
 	
 	NoteObject *currentNote;
@@ -182,12 +182,12 @@ void outletObjectAwoke(id sender);
 //elasticwork
 //- (void)setIsEditing:(BOOL)inBool inCell:(NSCell *)theCell;
 //- (void)focusOnCtrlFld:(id)sender;
-- (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex;
 - (NSMenu *)statBarMenu;
-- (BOOL)toggleAttachedWindow:(NSNotification *)aNotification;
-- (BOOL)toggleAttachedMenu:(NSNotification *)aNotification;
-- (NSArray *)commonLabels;
+- (void)toggleAttachedWindow:(NSNotification *)aNotification;
+- (void)toggleAttachedMenu:(NSNotification *)aNotification;
+- (NSArray *)commonLabelsForNotesAtIndexes:(NSIndexSet *)selDexes;
 - (IBAction)multiTag:(id)sender;
+- (void)releaseTagEditor:(NSNotification *)note;
 - (void)setDualFieldInToolbar;
 - (void)setDualFieldInView;
 - (void)setDualFieldIsVisible:(BOOL)isVis;
@@ -197,8 +197,8 @@ void outletObjectAwoke(id sender);
 - (IBAction)toggleCollapse:(id)sender;
 - (IBAction)switchFullScreen:(id)sender;
 - (BOOL)isInFullScreen;
-- (IBAction)openFileInEditor:(id)sender;
-- (NSArray *)getTxtAppList;
+//- (IBAction)openFileInEditor:(id)sender;
+//- (NSArray *)getTxtAppList;
 //- (void)updateTextApp:(id)sender;
 - (IBAction)setBWColorScheme:(id)sender;
 - (IBAction)setLCColorScheme:(id)sender;
@@ -215,6 +215,7 @@ void outletObjectAwoke(id sender);
 - (IBAction)toggleWordCount:(id)sender;
 - (void)popWordCount:(BOOL)showIt;
 - (void)popPreview:(BOOL)showIt;
+- (IBAction)previewNoteWithMarked:(id)sender;
 - (IBAction)togglePreview:(id)sender;
 - (IBAction)toggleSourceView:(id)sender;
 - (IBAction)savePreview:(id)sender;
@@ -227,6 +228,7 @@ void outletObjectAwoke(id sender);
 - (void)updateRTL;
 - (void)refreshNotesList;
 - (void)focusControlField:(id)sender activate:(BOOL)shouldActivate;
+- (void)updateModifier:(NSTimer*)theTimer;
 #pragma mark toggling dock icon
 - (void)togDockIcon:(NSNotification *)notification;
 - (void)hideDockIconAfterDelay;
@@ -234,10 +236,9 @@ void outletObjectAwoke(id sender);
 - (void)showDockIcon;
 - (void)reActivate:(id)sender;
 - (void)toggleStatusItem:(NSNotification *)notification;
-//- (IBAction)testThing:(id)sender;
 - (void)setUpStatusBarItem;
 - (NSArray *)referenceLinksInString:(NSString *)contentString;
-- (IBAction)testThing:(id)sender;
+//- (IBAction)testThing:(id)sender;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)postToggleToolbar:(NSNumber *)boolNum;
 #endif

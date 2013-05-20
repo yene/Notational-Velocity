@@ -8,17 +8,15 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class AppController;
+
+typedef enum { DarkMenuIcon, SelectedMenuIcon } StatusIconType;
+
 @interface StatusItemView : NSView {
-    __weak AppController *controller;
-    BOOL clicked;
+//    BOOL clicked;
+    StatusIconType sbIconType;
 }
 
-//@property (nonatomic,readwrite,assign) BOOL clicked;
 
-- (id)initWithFrame:(NSRect)frame controller:(AppController *)ctrlr;
-//- (void)setClicked:(BOOL)inBool;
-- (void)setInactiveIcon:(id)sender;
-- (void)setActiveIcon:(id)sender;
+@property(readwrite,nonatomic)StatusIconType sbIconType;
 
 @end

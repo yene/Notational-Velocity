@@ -13,8 +13,6 @@
 
 @implementation ETClipView
 
-
-
 - (id)initWithFrame:(NSRect)frameRect{
     self = [super initWithFrame:frameRect];
     if (self) {

@@ -128,7 +128,6 @@
 		5C177AE7141EF95200BC0C0A /* ETClipView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C177AE6141EF95200BC0C0A /* ETClipView.m */; };
 		5C1830CA132EA675005E2210 /* MarkupPreview.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CC132EA675005E2210 /* MarkupPreview.xib */; };
 		5C1830CD132EA687005E2210 /* SaveHTMLPreview.nib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CF132EA687005E2210 /* SaveHTMLPreview.nib */; };
-		5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC182134989A8006FFE56 /* nvMenu.png */; };
 		5C2CC186134989A8006FFE56 /* nvMenuC.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC183134989A8006FFE56 /* nvMenuC.png */; };
 		5C2CC18A134989D7006FFE56 /* nvMenuDark.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC189134989D7006FFE56 /* nvMenuDark.png */; };
 		5C2FAD2B1333970200FBFD34 /* ETScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C2CD036132ED47900CA0D7C /* ETScrollView.m */; };
@@ -140,6 +139,7 @@
 		5C4B35421307220E00014119 /* TransparentScrollerSlotVerticalFill.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C4B353A1307220E00014119 /* TransparentScrollerSlotVerticalFill.tif */; };
 		5C4B356A1307225000014119 /* ETTransparentScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C4B35691307225000014119 /* ETTransparentScroller.m */; };
 		5C84319114229D810020E5A7 /* PassphraseRetriever.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5C84319314229D810020E5A7 /* PassphraseRetriever.xib */; };
+		5C91A1861723079B006BF757 /* nvMenuW.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C91A1851723079B006BF757 /* nvMenuW.png */; };
 		5C94376F132A0C9E00B08B80 /* greyscrollervertbottom3.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */; };
 		5C943771132A0C9E00B08B80 /* greyscrollerverttop3.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */; };
 		5C96F4FF131C2F9500A2E4AC /* TabClose_Front_Pressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C96F4FC131C2F9500A2E4AC /* TabClose_Front_Pressed.tif */; };
@@ -584,7 +584,11 @@
 		5C1830D3132EA6A4005E2210 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5C1830D4132EA6A4005E2210 /* de */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = de; path = de.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5C1830D5132EA6A4005E2210 /* pt */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = pt; path = pt.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
-		5C2CC182134989A8006FFE56 /* nvMenu.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenu.png; path = Images/nvMenu.png; sourceTree = "<group>"; };
+		5C1D1CE217344B2200139AFE /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		5C1D1CE317344B6600139AFE /* fr */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = fr; path = fr.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		5C1D1CE417344BDC00139AFE /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		5C1D1CE517344C1200139AFE /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		5C1D1CE617344C3200139AFE /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5C2CC183134989A8006FFE56 /* nvMenuC.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuC.png; path = Images/nvMenuC.png; sourceTree = "<group>"; };
 		5C2CC189134989D7006FFE56 /* nvMenuDark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuDark.png; path = Images/nvMenuDark.png; sourceTree = "<group>"; };
 		5C2CD035132ED47900CA0D7C /* ETScrollView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ETScrollView.h; sourceTree = "<group>"; };
@@ -629,6 +633,7 @@
 		5C84319814229D940020E5A7 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C84319914229D940020E5A7 /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/PassphraseRetriever.xib; sourceTree = "<group>"; };
 		5C8FA1F416F8A91800A2C6D7 /* SimperiumConfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimperiumConfig.h; sourceTree = "<group>"; };
+		5C91A1851723079B006BF757 /* nvMenuW.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuW.png; path = Images/nvMenuW.png; sourceTree = "<group>"; };
 		5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom3.tif; sourceTree = "<group>"; };
 		5C94376D132A0C9D00B08B80 /* greyscrollervertfill3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertfill3.tif; sourceTree = "<group>"; };
 		5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollerverttop3.tif; sourceTree = "<group>"; };
@@ -690,7 +695,6 @@
 		5CDBA8F413A5492700E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
 		5CDBA8F613A5493100E7494E /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5CDBA8F713A5493100E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
-		5CDBA8F813A5493900E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5CE5B0091422795300FB554C /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/PTKeyComboPanel.xib; sourceTree = "<group>"; };
 		5CE5B00C1422796900FB554C /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/PTKeyComboPanel.xib; sourceTree = "<group>"; };
 		5CE5B00D1422796900FB554C /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/PTKeyComboPanel.xib; sourceTree = "<group>"; };
@@ -772,11 +776,7 @@
 		5CF96D84132EA29D0079B3FD /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/Preferences.xib; sourceTree = "<group>"; };
 		5CF96D8A132EA29D0079B3FD /* pt */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = pt; path = pt.lproj/SavedSearches.nib; sourceTree = "<group>"; };
 		5CF96D90132EA29D0079B3FD /* pt */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = pt; path = pt.lproj/URLGetter.nib; sourceTree = "<group>"; };
-		5CFC3A4E13327EF9000B4792 /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
-		5CFC3A4F13327EF9000B4792 /* fr */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = fr; path = fr.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
-		5CFC3A5013327EF9000B4792 /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5CFF810713A52EE2008A93A3 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/MainMenu.xib; sourceTree = "<group>"; };
-		5CFF810813A53625008A93A3 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5CFF810913A536F7008A93A3 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/Preferences.xib; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* nvALT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = nvALT.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1136,8 +1136,8 @@
 				93B348261371547800658F98 /* HUDIconSave.png */,
 				93B348271371547800658F98 /* HUDIconShare.png */,
 				5C2CC189134989D7006FFE56 /* nvMenuDark.png */,
-				5C2CC182134989A8006FFE56 /* nvMenu.png */,
 				5C2CC183134989A8006FFE56 /* nvMenuC.png */,
+				5C91A1851723079B006BF757 /* nvMenuW.png */,
 				93A158BD133C497400E1E7DA /* Notality.icns */,
 				5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */,
 				5C94376D132A0C9D00B08B80 /* greyscrollervertfill3.tif */,
@@ -1304,39 +1304,39 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				21813561105AF27400A0AE18 /* Acknowledgments.txt */,
-				211344BA0B3551BD0081B064 /* BlorPasswordRetriever.nib */,
-				212850860B56E549005F6E34 /* CarbonErrorStrings.plist */,
-				5C49E364131C5CC500696B68 /* Credits.html */,
 				934C3FAE14FDA069000D14BA /* custom.css */,
 				934C3FAF14FDA069000D14BA /* customclean.css */,
-				212DCFF50A6E005000F74E46 /* DeletionManager.nib */,
-				5C49E553131C72FD00696B68 /* dsa_pub.pem */,
-				212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */,
-				21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */,
-				213621E70B92413F008C0830 /* FindPanel.nib */,
-				217DB1810B7CE5B9008CD564 /* Help Notes */,
-				219196B109D4F1DB00586B15 /* Images */,
-				216BA24110746E3900F62D93 /* ImporterAccessory.nib */,
-				8D1107310486CEB800E47090 /* Info.plist */,
-				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
-				21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */,
-				2114C259095885C800614E74 /* Localizable.strings */,
-				5CF96BFD132EA0300079B3FD /* MainMenu.xib */,
-				5C1830CC132EA675005E2210 /* MarkupPreview.xib */,
-				21A2FA7A09DF64E9001AF0B5 /* NotationPrefsView.nib */,
-				214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */,
-				214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */,
-				5C84319314229D810020E5A7 /* PassphraseRetriever.xib */,
-				219195E409D3A20F00586B15 /* Preferences.xib */,
-				5CE5B00A1422795300FB554C /* PTKeyComboPanel.xib */,
-				2110C0CF0B65F09E00F5C52E /* SavedSearches.nib */,
-				5C1830CF132EA687005E2210 /* SaveHTMLPreview.nib */,
-				2128651C1278AF220013820A /* ServicesMenu.strings */,
-				5CBA7A8F1305E2DF004ADEBB /* TagEditingManager.xib */,
 				934C3FB014FDA069000D14BA /* template.html */,
 				934C3FB114FDA069000D14BA /* templateclean.html */,
+				5C49E553131C72FD00696B68 /* dsa_pub.pem */,
+				21813561105AF27400A0AE18 /* Acknowledgments.txt */,
+				217DB1810B7CE5B9008CD564 /* Help Notes */,
+				219196B109D4F1DB00586B15 /* Images */,
+				2114C259095885C800614E74 /* Localizable.strings */,
+				8D1107310486CEB800E47090 /* Info.plist */,
+				5C49E364131C5CC500696B68 /* Credits.html */,
+				2128651C1278AF220013820A /* ServicesMenu.strings */,
+				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
+				212850860B56E549005F6E34 /* CarbonErrorStrings.plist */,
+				5CF96BFD132EA0300079B3FD /* MainMenu.xib */,
+				5C1830CC132EA675005E2210 /* MarkupPreview.xib */,
+				5C1830CF132EA687005E2210 /* SaveHTMLPreview.nib */,
+				5CBA7A8F1305E2DF004ADEBB /* TagEditingManager.xib */,
+				212DCFF50A6E005000F74E46 /* DeletionManager.nib */,
+				212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */,
+				219195E409D3A20F00586B15 /* Preferences.xib */,
+				21A2FA7A09DF64E9001AF0B5 /* NotationPrefsView.nib */,
+				214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */,
+				214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */,
+				5C84319314229D810020E5A7 /* PassphraseRetriever.xib */,
+				21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */,
+				211344BA0B3551BD0081B064 /* BlorPasswordRetriever.nib */,
+				5CE5B00A1422795300FB554C /* PTKeyComboPanel.xib */,
+				21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */,
+				216BA24110746E3900F62D93 /* ImporterAccessory.nib */,
+				2110C0CF0B65F09E00F5C52E /* SavedSearches.nib */,
 				21E6B0950B6E6D0B001ABEDC /* URLGetter.nib */,
+				213621E70B92413F008C0830 /* FindPanel.nib */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -1614,7 +1614,6 @@
 				5CF96E0C132EA29D0079B3FD /* NotationPrefsView.nib in Resources */,
 				93A158BC133C304D00E1E7DA /* Markdownify.nvhelp in Resources */,
 				93A158BE133C497400E1E7DA /* Notality.icns in Resources */,
-				5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */,
 				5C2CC186134989A8006FFE56 /* nvMenuC.png in Resources */,
 				5C2CC18A134989D7006FFE56 /* nvMenuDark.png in Resources */,
 				93B348281371547800658F98 /* HUDIconLock.png in Resources */,
@@ -1652,6 +1651,7 @@
 				B683A0DC16F1CDA600564A1D /* TBRolloverBG@2x.png in Resources */,
 				B683A0DD16F1CDA600564A1D /* TBSynchronizing@2x.png in Resources */,
 				B683A0DE16F1CDA600564A1D /* TBSynchronizingWhite@2x.png in Resources */,
+				5C91A1861723079B006BF757 /* nvMenuW.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2075,11 +2075,11 @@
 			isa = PBXVariantGroup;
 			children = (
 				5CBA7A901305E2DF004ADEBB /* English */,
-				5CFC3A4E13327EF9000B4792 /* de */,
-				5CFC3A4F13327EF9000B4792 /* fr */,
-				5CFC3A5013327EF9000B4792 /* pt */,
-				5CFF810813A53625008A93A3 /* it */,
-				5CDBA8F813A5493900E7494E /* zh */,
+				5C1D1CE217344B2200139AFE /* de */,
+				5C1D1CE317344B6600139AFE /* fr */,
+				5C1D1CE417344BDC00139AFE /* pt */,
+				5C1D1CE517344C1200139AFE /* it */,
+				5C1D1CE617344C3200139AFE /* zh */,
 			);
 			name = TagEditingManager.xib;
 			sourceTree = "<group>";
@@ -2270,7 +2270,7 @@
 				GCC_WARN_UNKNOWN_PRAGMAS = NO;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = YES;
+				GCC_WARN_UNUSED_PARAMETER = NO;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_PROFILING_CODE = YES;
@@ -2345,7 +2345,7 @@
 				GCC_WARN_UNKNOWN_PRAGMAS = NO;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = YES;
+				GCC_WARN_UNUSED_PARAMETER = NO;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = ICU/icu;

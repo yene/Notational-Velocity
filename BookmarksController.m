@@ -368,7 +368,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (void)doubleClicked:(id)sender {
-	int row = [bookmarksTableView selectedRow];
+	NSInteger row = [bookmarksTableView selectedRow];
 	if (row > -1) [self restoreNoteBookmark:[bookmarks objectAtIndex:row] inBackground:NO];
 }
 

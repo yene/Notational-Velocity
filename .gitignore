@@ -56,3 +56,5 @@ French.lproj/*.nvhelp
 
 >>>>>>> another gitignore
 SimperiumConfig.h
+
+*.pbxproj

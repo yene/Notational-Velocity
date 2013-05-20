@@ -45,9 +45,10 @@
     if (!IsLionOrLater) {
         [[NSColor whiteColor]set];
         NSRectFill([self bounds]);        
-    }else{
-        [super drawKnobSlotInRect:slotRect highlight:flag];
     }
+    //else{
+//        [super drawKnobSlotInRect:slotRect highlight:flag];
+  //  }
 }
 
 @end

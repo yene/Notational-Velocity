@@ -261,6 +261,7 @@ CGFloat _perceptualDarkness(NSColor*a);
         bgColor=[[NSApp delegate]backgrndColor];
         [self setBackgroundColor:bgColor];
     }
+	[[self enclosingScrollView] setBackgroundColor:bgColor];
 	//[self setBackgroundColor:bgColor];
 	//[nvTextScroller setBackgroundColor:bgColor];
 	//[[self enclosingScrollView] setNeedsDisplay:YES];
@@ -332,7 +333,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 - (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
 	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
 	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
-
+    
 	NSColor *proposedBlend = [fgColor blendedColorWithFraction:0.5 ofColor:bgColor];
 	NSColor *defaultColor = [[NSColor selectedTextBackgroundColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
 	
@@ -343,12 +344,11 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	//but the selection-color-difference from the foreground text needs to be great enough as well,
 	//and the proposed-color-difference from the foreground can't be too poor
 	//this heuristic chooses all the system-highlight colors in default fg/bg combinations and fg/bg blends in all others
-	
-//	NSLog(@"fg diff of proposed: %g fg diff of sel: %g", fgDiff, fgSelDiff);
-	if ((_perceptualDarkness(fgColor) > _perceptualDarkness(defaultColor) && 
-		 _perceptualDarkness(defaultColor) > _perceptualDarkness(bgColor) && fgSelDiff > 300.0) || fgDiff < 170.0)
+    
+	if ((_perceptualDarkness(fgColor) > _perceptualDarkness(defaultColor) &&
+		 _perceptualDarkness(defaultColor) > (_perceptualDarkness(bgColor)+0.22) && fgSelDiff > 300.0) || fgDiff < 160.0){
 		return defaultColor;
-	
+	}
 	//amplify the background balance after testing
 	return [fgColor blendedColorWithFraction:0.69 ofColor:bgColor];
 }
@@ -578,13 +578,16 @@ copyRTFType:
 #define OBLIQUENESS_FOR_ITALIC (0.20)
 
 - (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit{
-    NSUInteger syntaxLength=syntaxBit.length;    
-    NSRange selRange=[self selectedRange];    
+    NSUInteger syntaxLength=syntaxBit.length;
+    NSRange selRange=[self selectedRange];
     NSString *bifoString=[NSString stringWithString:self.activeParagraphBeforeCursor];
     NSString *aftaString=[NSString stringWithString:self.activeParagraphPastCursor];
-      
+    NSString *matchingPair=syntaxBit;
+    if ([matchingPair isEqualToString:@"[["]) {
+        matchingPair=@"]]";
+    }
     if (selRange.length==0){
-        if([[aftaString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]hasPrefix:syntaxBit]){
+        if([[aftaString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]hasPrefix:matchingPair]){
             NSString *trimmedBefore=[bifoString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
             if ([trimmedBefore hasSuffix:syntaxBit]) {
                 selRange.location-=syntaxLength;
@@ -603,7 +606,7 @@ copyRTFType:
                 selRange.length=diff;
                 [self insertText:@"" replacementRange:selRange];
             }else{
-                selRange.location+=([aftaString rangeOfString:syntaxBit].location+syntaxLength);
+                selRange.location+=([aftaString rangeOfString:matchingPair].location+syntaxLength);
                 selRange.length=0;
                 [self setSelectedRange:selRange];
             }
@@ -616,15 +619,15 @@ copyRTFType:
         NSRange beforeSyntax=NSMakeRange(NSNotFound, 0);
         NSRange afterSyntax=NSMakeRange(NSNotFound, 0);
         
-        if ([aftaString hasPrefix:syntaxBit]) {
+        if ([aftaString hasPrefix:matchingPair]) {
             if([bifoString hasSuffix:syntaxBit]){
                 beforeSyntax=selRange;
                 beforeSyntax.length=syntaxLength;
                 afterSyntax=beforeSyntax;
-                beforeSyntax.location-=syntaxLength; 
+                beforeSyntax.location-=syntaxLength;
                 afterSyntax.location+=selRange.length;
                 selRange.location=NSNotFound;
-            }else{                
+            }else{
                 afterSyntax.location=NSMaxRange(selRange);
                 afterSyntax.length=syntaxLength;
                 [super insertText:@"" replacementRange:afterSyntax];
@@ -640,18 +643,18 @@ copyRTFType:
             selRange.location=NSMaxRange(selRange);
             selRange.location-=syntaxLength;
             selRange.length=0;
-            [super insertText:syntaxBit replacementRange:selRange];
+            [super insertText:matchingPair replacementRange:selRange];
             return YES;
             
-        } else if(([selString hasPrefix:syntaxBit])&&([selString hasSuffix:syntaxBit])){
+        } else if(([selString hasPrefix:syntaxBit])&&([selString hasSuffix:matchingPair])){
             afterSyntax=selRange;
             afterSyntax.location+=(selRange.length-syntaxLength);
             afterSyntax.length=syntaxLength;
             beforeSyntax=selRange;
             beforeSyntax.length=syntaxLength;
-            selRange.length-=(syntaxLength*2); 
-        }else if([selString rangeOfString:syntaxBit].location!=NSNotFound){
-            NSUInteger syntCt=[selString componentsSeparatedByString:syntaxBit];
+            selRange.length-=(syntaxLength*2);
+        }else if(([selString rangeOfString:syntaxBit].location!=NSNotFound)||([selString rangeOfString:matchingPair].location!=NSNotFound)){
+            NSUInteger syntCt=[[selString componentsSeparatedByString:syntaxBit] count];
             if ((syntCt % 2)==0) {//odd number of syntaxBits
                 
                 NSRange insertRange=selRange;
@@ -667,31 +670,31 @@ copyRTFType:
                 [self setSelectedRange:selRange];
                 return YES;
             }else{
-            NSLog(@"trying to add markdown syntax, but selection string contains an even# of the syntax. haven't dealt with this condition yet");
+                NSLog(@"trying to add markdown syntax, but selection string contains an even# of the syntax. haven't dealt with this condition yet");
             }
         }
         
-        if (beforeSyntax.location!=NSNotFound&&afterSyntax.location!=NSNotFound) {    
+        if (beforeSyntax.location!=NSNotFound&&afterSyntax.location!=NSNotFound) {
             [super insertText:@"" replacementRange:afterSyntax];
             [super insertText:@"" replacementRange:beforeSyntax];
             if (selRange.location!=NSNotFound) {
                 [self setSelectedRange:selRange];
             }
-            return YES;            
+            return YES;
         }
-    }   
+    }
     if (selRange.length>0) {
         NSRange insertRange=selRange;
         insertRange.length=0;
         [super insertText:syntaxBit replacementRange:insertRange];
         insertRange.location+=(selRange.length+syntaxLength);
-        [super insertText:syntaxBit replacementRange:insertRange];
+        [super insertText:matchingPair replacementRange:insertRange];
         insertRange.location+=syntaxLength;
         selRange.location+=syntaxLength;
         [self setSelectedRange:selRange];
         return YES;
     }else{
-        NSString *doubleString=[syntaxBit stringByAppendingString:syntaxBit];
+        NSString *doubleString=[syntaxBit stringByAppendingString:matchingPair];
         [super insertText:doubleString];
         selRange.location+=syntaxLength;
         [self setSelectedRange:selRange];
@@ -957,7 +960,7 @@ copyRTFType:
 				[self doCommandBySelector:@selector(deleteToBeginningOfLine:)];
 				return YES;
 			}
-		}else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(modFlags&NSCommandKeyMask)&&!(modFlags&NSControlKeyMask)&&!(modFlags&NSAlternateKeyMask)){        
+		}else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(((modFlags&NSDeviceIndependentModifierFlagsMask)==(modFlags&NSCommandKeyMask))&&((modFlags&NSDeviceIndependentModifierFlagsMask)>0))){        
             NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1]; 
             if ([firstChar isEqualToString:@"<"]) {
                 [self removeStringAtStartOfSelectedParagraphs:@">"];
@@ -1326,10 +1329,15 @@ copyRTFType:
 - (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside {
 	
 	if (IsLeopardOrLater && whiteIBeamCursorIMP && defaultIBeamCursorIMP) {
-        NSRect aRect=NSZeroRect;
-        aRect.origin=[NSEvent mouseLocation];
-        aRect=[[self window] convertRectFromScreen:aRect];
-        NSPoint local_point = [self convertPoint:aRect.origin fromView:nil];
+        NSPoint local_point;
+        if (IsLionOrLater) {
+            NSRect aRect=NSZeroRect;
+            aRect.origin=[NSEvent mouseLocation];
+            aRect=[[self window] convertRectFromScreen:aRect];
+            local_point = [self convertPoint:aRect.origin fromView:nil];
+        }else{
+            local_point=[[self window]convertScreenToBase:[NSEvent mouseLocation]];
+        }
         NSRect bnds=[self visibleRect];
         if ([self textFinderIsVisible]&&(local_point.y<3.0)) {
             mouseInside=NO;
@@ -1503,11 +1511,12 @@ copyRTFType:
 		return;
 	}
 	
-	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nv"]) {
-        if (([currentEvent type]==10)&&((([currentEvent modifierFlags] & NSAlternateKeyMask)&&([currentEvent modifierFlags] & NSCommandKeyMask))&&!(([currentEvent modifierFlags] & NSControlKeyMask)))) {
+	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nvalt"]) {
+        NSUInteger flags=[currentEvent modifierFlags];
+        if (((flags&NSDeviceIndependentModifierFlagsMask)==(flags&NSCommandKeyMask))&&((flags&NSDeviceIndependentModifierFlagsMask)>0)) {
             NSString *newURLString=[[aLink lastPathComponent]stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
             NSString *txtString=[[NSString stringWithFormat:@"[[%@]]",[aLink lastPathComponent]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
-            newURLString=[NSString stringWithFormat:@"nv://make/?title=%@&txt=%@",newURLString,txtString];
+            newURLString=[NSString stringWithFormat:@"nvalt://make/?title=%@&txt=%@",newURLString,txtString];
 //            NSLog(@"newurlstring:%@",newURLString);
             NSURL *newURL=[NSURL URLWithString:newURLString];
 //            NSLog(@"interpret from cmd-keydown OLD URL:||%@||  AND NEW URL:|%@|",[aLink absoluteString],[newURL absoluteString]);
@@ -1756,16 +1765,33 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         unichar bulletChar, wsChar;
         NSRange realBulletRange = NSMakeRange(loc + previousLineRange.location, 2), carriedBulletRange = NSMakeRange(NSNotFound, 0);
         BOOL shouldDeleteLastBullet = NO;
-        
+        NSInteger keyLoc=loc;
         if ([prefsController autoFormatsListBullets]) {
-            if (loc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
-                [[NSCharacterSet listBulletsCharacterSet] characterIsMember:(bulletChar = [str characterAtIndex:loc])] && 
-                [[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:loc + 1])] &&
-                [[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet] characterIsMember:[str characterAtIndex:loc + 2]]) {
+            bulletChar = [str characterAtIndex:loc];
+            BOOL isNumberedList=[[NSCharacterSet decimalDigitCharacterSet] characterIsMember:bulletChar];
+            if (isNumberedList) {
+                if ([str length]>(keyLoc+1)) {
+                    keyLoc++;
+                }
+            }
+            if (keyLoc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
+                ([[NSCharacterSet listBulletsCharacterSet] characterIsMember:bulletChar]||isNumberedList) &&
+                [[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:keyLoc + 1])] &&
+                [[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet] characterIsMember:[str characterAtIndex:keyLoc + 2]]) {
                 
                 carriedBulletRange = NSMakeRange(NSMaxRange(previousLineRange) + [previousLineWhitespaceString length], 2);
-                previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%C%C", bulletChar, wsChar];
-                
+                if (isNumberedList) {
+                    NSString *intString=[NSString stringWithFormat:@"%C",bulletChar];
+                    NSInteger listNum=[intString integerValue];
+                    listNum++;
+                    intString=[NSString stringWithFormat:@"%ld.",listNum];
+//                     NSLog(@"intString :>%@<",intString);
+                    
+                    previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%@%C", intString, wsChar];
+//                    NSLog(@"this decimal:>%C<\nbul:>%C<",[previousLineWhitespaceString characterAtIndex:previousLineWhitespaceString.length-1],wsChar);
+                }else{
+                    previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%C%C", bulletChar, wsChar];
+                }
             } else if (NSMaxRange(realBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:realBulletRange]) {
                 //should not carry a bullet; also check if one is here that we should delete
                 shouldDeleteLastBullet = YES;
@@ -1957,16 +1983,18 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     if ([[self window] firstResponder]!=self) {
         [[self window] makeFirstResponder:self];
     }
-    NSRange selRange = [self selectedRange];
-    if (selRange.length>0) {
-        NSString *selString = [[self string] substringWithRange:selRange];
-        selString = [NSString stringWithFormat:@"[[%@]]",selString];
-        [super insertText:selString];
-        
-    }else{
-        [super insertText:@"[[]]"];
-        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
-    }
+    
+    [self changeMarkdownAttribute:@"[["];
+//    NSRange selRange = [self selectedRange];
+//    if (selRange.length>0) {
+//        NSString *selString = [[self string] substringWithRange:selRange];
+//        selString = [NSString stringWithFormat:@"[[%@]]",selString];
+//        [super insertText:selString];
+//        
+//    }else{
+//        [super insertText:@"[[]]"];
+//        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
+//    }
     
 } 
 
