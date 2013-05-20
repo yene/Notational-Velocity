@@ -951,8 +951,9 @@ copyRTFType:
                     [self moveBackward:self];       
                 }else{            
                     [self moveToEndOfParagraph:self];
-                }     
-                [self insertNewlineIgnoringFieldEditor:self];  
+                }
+                [self insertNewline:self];
+//                [self insertNewlineIgnoringFieldEditor:self];  
                 return YES;
             }
 		} else if ((keyChar == NSBackspaceCharacter || keyChar == NSDeleteCharacter) && [[self window] firstResponder] == self) {
