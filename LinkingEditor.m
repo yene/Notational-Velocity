@@ -1765,16 +1765,33 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         unichar bulletChar, wsChar;
         NSRange realBulletRange = NSMakeRange(loc + previousLineRange.location, 2), carriedBulletRange = NSMakeRange(NSNotFound, 0);
         BOOL shouldDeleteLastBullet = NO;
-        
+        NSInteger keyLoc=loc;
         if ([prefsController autoFormatsListBullets]) {
-            if (loc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
-                [[NSCharacterSet listBulletsCharacterSet] characterIsMember:(bulletChar = [str characterAtIndex:loc])] && 
-                [[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:loc + 1])] &&
-                [[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet] characterIsMember:[str characterAtIndex:loc + 2]]) {
+            bulletChar = [str characterAtIndex:loc];
+            BOOL isNumberedList=[[NSCharacterSet decimalDigitCharacterSet] characterIsMember:bulletChar];
+            if (isNumberedList) {
+                if ([str length]>(keyLoc+1)) {
+                    keyLoc++;
+                }
+            }
+            if (keyLoc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
+                ([[NSCharacterSet listBulletsCharacterSet] characterIsMember:bulletChar]||isNumberedList) &&
+                [[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:keyLoc + 1])] &&
+                [[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet] characterIsMember:[str characterAtIndex:keyLoc + 2]]) {
                 
                 carriedBulletRange = NSMakeRange(NSMaxRange(previousLineRange) + [previousLineWhitespaceString length], 2);
-                previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%C%C", bulletChar, wsChar];
-                
+                if (isNumberedList) {
+                    NSString *intString=[NSString stringWithFormat:@"%C",bulletChar];
+                    NSInteger listNum=[intString integerValue];
+                    listNum++;
+                    intString=[NSString stringWithFormat:@"%ld.",listNum];
+//                     NSLog(@"intString :>%@<",intString);
+                    
+                    previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%@%C", intString, wsChar];
+//                    NSLog(@"this decimal:>%C<\nbul:>%C<",[previousLineWhitespaceString characterAtIndex:previousLineWhitespaceString.length-1],wsChar);
+                }else{
+                    previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%C%C", bulletChar, wsChar];
+                }
             } else if (NSMaxRange(realBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:realBulletRange]) {
                 //should not carry a bullet; also check if one is here that we should delete
                 shouldDeleteLastBullet = YES;
