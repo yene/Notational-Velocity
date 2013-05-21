@@ -1771,17 +1771,17 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         BOOL isNumberedList=[[NSCharacterSet decimalDigitCharacterSet] characterIsMember:bulletChar];
         if ([prefsController autoFormatsListBullets]) {
             
-            NSInteger keyLoc=loc;
-            NSString *theNum;
+            NSUInteger keyLoc=loc;
+            NSString *theNum=@"";
             if (isNumberedList&&([str length]>(keyLoc+1))) {
                 NSRange numRange;
                 theNum=[[self string] firstNumberFromStringWithinRange:previousLineRange isInRange:&numRange];
                 if (numRange.location!=NSNotFound) {
-                    keyLoc+=numRange.length;                    
+                    keyLoc+=numRange.length;
                 }else{
                     isNumberedList=NO;
                 }
-            }          
+            }
             if (keyLoc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
                 ([[NSCharacterSet listBulletsCharacterSet] characterIsMember:bulletChar]||isNumberedList) &&
                 [[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:keyLoc + 1])] &&
@@ -1790,7 +1790,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
                 if (isNumberedList) {
                     
                     listNumber=[theNum integerValue];
-                    listNumber++;                    
+                    listNumber++;
                     previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%ld.", listNumber];
                     
                 }else{
@@ -1811,21 +1811,25 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
                 [self didChangeText];
             }
         } else {
-            if ([self shouldChangeTextInRange:NSMakeRange(NSMaxRange(previousLineRange), 0) replacementString:previousLineWhitespaceString]) {
-                [self replaceCharactersInRange:NSMakeRange(NSMaxRange(previousLineRange), 0) withString:previousLineWhitespaceString];
+            previousLineRange=NSMakeRange(NSMaxRange(previousLineRange), 0);
+            if ([self shouldChangeTextInRange:previousLineRange replacementString:previousLineWhitespaceString]) {
+                [self replaceCharactersInRange:previousLineRange withString:previousLineWhitespaceString];
                 if (carriedBulletRange.length>0) {
-                    [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] 
-                                               forCharacterRange:carriedBulletRange];
-                    //[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:carriedBulletRange];
-                    
-                    if (isNumberedList&&[self updateNumberedListFromRange:[self rangeOfActiveParagraph] startingNum:listNumber]) {
+                    if (!isNumberedList) {
+                        [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName]
+                                                   forCharacterRange:carriedBulletRange];
+                        //[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:carriedBulletRange];
+                    }else{
+                        [[self layoutManager]invalidateDisplayForCharacterRange:previousLineRange];
+                        [[self window] resetCursorRects];
+                        [self updateNumberedListFromRange:[self rangeOfActiveParagraph] startingNum:listNumber];
+                        [self setNeedsDisplay:YES];
                     }
                 }
-                
                 [self didChangeText];
             }
         }
-
+        
 		[previousLineScanner release];
 	}
 }
@@ -1841,50 +1845,50 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         return NO;
     }
     
-    nextRange=[noteText lineRangeForRange:nextRange];    
+    nextRange=[noteText lineRangeForRange:nextRange];
     if((nextRange.location==NSNotFound)||(NSMaxRange(nextRange)>noteLen)||(nextRange.length<2)) {
         return NO;
-   }
+    }
     NSString *wsString=[noteText substringWithRange:nextRange];
     NSRange txtRange=[wsString rangeOfCharacterFromSet:[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet]];
     if (txtRange.location==NSNotFound) {
         return NO;
-    }    
+    }
     wsString=[wsString substringToIndex:txtRange.location];
-    
     
     nextRange=NSMakeRange(NSMaxRange(currentRange)+1, 0);
     BOOL success=NO;
     while (NSMaxRange(nextRange)<noteLen) {
         nextRange=[noteText lineRangeForRange:nextRange];
-        NSString *nums=[noteText firstNumberFromStringWithinRange:nextRange isInRange:&txtRange];
+        [noteText firstNumberFromStringWithinRange:nextRange isInRange:&txtRange];
         if ((txtRange.location==NSNotFound)||(nextRange.length<(NSMaxRange(txtRange)+1))||(![[noteText substringWithRange:NSMakeRange(nextRange.location, txtRange.location)] isEqualToString:wsString])) {
             break;
         }
-       
+        
         listNum++;
-        nums=[NSString stringWithFormat:@"%ld",listNum];
-
+        NSString *nums=[NSString stringWithFormat:@"%ld",listNum];
         txtRange=NSMakeRange(nextRange.location+txtRange.location, txtRange.length);
         if ([self shouldChangeTextInRange:txtRange replacementString:nums]) {
             [self replaceCharactersInRange:txtRange withString:nums];
+            [[self layoutManager]invalidateDisplayForCharacterRange:txtRange];
+            //            [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] forCharacterRange:txtRange];
+            //            [self didChangeText];
             success=YES;
-            
             nextRange=NSMakeRange(NSMaxRange(nextRange), 0);
-            NSInteger nLen=nums.length;
-            if (txtRange.length<nLen) {
-                nLen-=txtRange.length;
-                nextRange.location+=nLen;
-            }else if (nLen<txtRange.length){
-                nLen=txtRange.length-nLen;                
-                noteLen-=nLen;
+            NSUInteger numLen=nums.length;
+            if (txtRange.length<numLen) {
+                numLen-=txtRange.length;
+                nextRange.location+=numLen;
+                noteLen+=numLen;
+            }else if (numLen<txtRange.length){
+                numLen=txtRange.length-numLen;
+                noteLen-=numLen;
             }
             continue;
-        }               
-        
-        
+        }
         break;
     }
+    
     return success;
 }
 
