@@ -1869,10 +1869,16 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         if ([self shouldChangeTextInRange:txtRange replacementString:nums]) {
             [self replaceCharactersInRange:txtRange withString:nums];
             success=YES;
-            if ((NSMaxRange(nextRange)<noteLen)) {
-                 nextRange.length-=1;
+            
+            nextRange=NSMakeRange(NSMaxRange(nextRange), 0);
+            NSInteger nLen=nums.length;
+            if (txtRange.length<nLen) {
+                nLen-=txtRange.length;
+                nextRange.location+=nLen;
+            }else if (nLen<txtRange.length){
+                nLen=txtRange.length-nLen;                
+                noteLen-=nLen;
             }
-            nextRange=NSMakeRange(NSMaxRange(nextRange)+nums.length, 0);
             continue;
         }               
         
