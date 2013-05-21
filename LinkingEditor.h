@@ -120,6 +120,7 @@
 - (void)insertStringAtStartOfSelectedParagraphs:(NSString *)insertString;
 - (void)removeStringAtStartOfSelectedParagraphs:(NSString *)removeString;
 - (BOOL)clipboardHasLink;
+- (BOOL)updateNumberedListFromRange:(NSRange)currentRange startingNum:(NSInteger)listNum;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)textFinderShouldResetContext:(NSNotification *)aNotification;
 - (void)textFinderShouldUpdateContext:(NSNotification *)aNotification;

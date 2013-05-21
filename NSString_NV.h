@@ -62,7 +62,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 
 - (NSData *)decodeBase64;
 - (NSData *)decodeBase64WithNewlines:(BOOL)encodedWithNewlines;
-
+- (NSString *)firstNumberFromStringWithinRange:(NSRange)subRange isInRange:(NSRange *)foundRange;
 //- (NSTextView*)textViewWithFrame:(NSRect*)theFrame;
 
 @end

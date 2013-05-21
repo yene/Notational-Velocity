@@ -104,6 +104,8 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
 	return relativeTimeString;
 }
 
+
+
 //take into account yesterday/today thing
 //this method _will_ affect application launch time
 + (NSString*)relativeDateStringWithAbsoluteTime:(CFAbsoluteTime)absTime {
@@ -582,6 +584,30 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
     // Clean up and go home
     BIO_free_all(mem);
     return data;
+}
+
+- (NSString *)firstNumberFromStringWithinRange:(NSRange)subRange isInRange:(NSRange *)foundRange{
+    if (NSMaxRange(subRange)<=self.length) {
+        NSString *thisString=[self substringWithRange:subRange];
+        NSRange txtRange=[thisString rangeOfCharacterFromSet:[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet]];
+        if ((txtRange.location!=NSNotFound)&&([thisString rangeOfCharacterFromSet:[NSCharacterSet decimalDigitCharacterSet]].location==txtRange.location)) {
+            NSPredicate *pred=[NSPredicate predicateWithFormat:@"SELF.length > 0"];
+            NSArray *comp=[thisString componentsSeparatedByCharactersInSet:[[NSCharacterSet decimalDigitCharacterSet]invertedSet]];
+            comp=[comp filteredArrayUsingPredicate:pred];
+            NSString *numString=(NSString *)[comp objectAtIndex:0];
+            NSRange numRange=[thisString rangeOfString:numString];
+            if(NSMaxRange(numRange)<NSMaxRange(subRange)){
+                if ([[thisString substringWithRange:NSMakeRange(NSMaxRange(numRange), 1)] isEqualToString:@"."]) {
+                    //            numRange.location+=subRange.location;
+                    *foundRange=numRange;
+                    return numString;
+                }
+            }
+        }
+        
+    }
+    *foundRange=NSMakeRange(NSNotFound, 0);
+    return @"";
 }
 
 @end
