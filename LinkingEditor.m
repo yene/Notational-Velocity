@@ -934,7 +934,7 @@ copyRTFType:
     if((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask)){
          [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     }
-	if ([anEvent modifierFlags] & NSCommandKeyMask) {
+	if (((modFlags & NSCommandKeyMask)>0)&&([[self window]firstResponder]==self)) {
 		
 		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 		if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
@@ -956,12 +956,12 @@ copyRTFType:
 //                [self insertNewlineIgnoringFieldEditor:self];  
                 return YES;
             }
-		} else if ((keyChar == NSBackspaceCharacter || keyChar == NSDeleteCharacter) && [[self window] firstResponder] == self) {
+		} else if (keyChar == NSBackspaceCharacter || keyChar == NSDeleteCharacter)  {
 			if ([[self string] length]) {
 				[self doCommandBySelector:@selector(deleteToBeginningOfLine:)];
 				return YES;
 			}
-		}else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(((modFlags&NSDeviceIndependentModifierFlagsMask)==(modFlags&NSCommandKeyMask))&&((modFlags&NSDeviceIndependentModifierFlagsMask)>0))){        
+		}else if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]){        
             NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1]; 
             if ([firstChar isEqualToString:@"<"]) {
                 [self removeStringAtStartOfSelectedParagraphs:@">"];
