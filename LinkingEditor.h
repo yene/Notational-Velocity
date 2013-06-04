@@ -85,7 +85,7 @@
 - (void)indicateRange:(NSValue*)rangeValue;
 
 - (void)fixTypingAttributesForSubstitutedFonts;
-- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside;
+- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)checkMouseLoc;
 
 - (BOOL)_selectionAbutsBulletIndentRange;
 - (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange;
@@ -101,10 +101,10 @@
 - (void)updateInsetAndForceLayout:(BOOL)force;
 - (void)updateInsetForFrame:(NSRect)frameRect andForceLayout:(BOOL)force;
 - (BOOL)setInsetForFrame:(NSRect)frameRect alwaysSet:(BOOL)always;
-- (BOOL)deleteEmptyPairsInRange:(NSRange)charRange;
+- (BOOL)deleteEmptyPairsBetweenRange:(NSRange)charRange inLineRange:(NSRange)lineRange;
 - (void)selectRangeAndRegisterUndo:(NSRange)selRange;
 - (BOOL)cursorIsBetweenEmptyPairs;
-- (NSString *)pairedCharacterForString:(NSString *)pairString;
+- (BOOL)cursorAtRange:(NSRange)charRange isBetweenEmptyPairsInLineRange:(NSRange)actRange;
 - (NSRange)rangeOfActiveParagraph;
 - (NSString *)activeParagraphTrimWS:(BOOL)shouldTrim;
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter;
