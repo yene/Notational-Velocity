@@ -262,7 +262,7 @@ CGFloat _perceptualDarkness(NSColor*a);
         [self setBackgroundColor:bgColor];
     }
 	[[self enclosingScrollView] setBackgroundColor:bgColor];
-    if (IsLionOrLater) {
+    if (IsLionOrLater&&[self textFinderIsVisible]) {
         [[self window]invalidateCursorRectsForView:[[self enclosingScrollView]findBarView]];
     }
     
