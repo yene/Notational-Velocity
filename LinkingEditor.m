@@ -1188,7 +1188,7 @@ copyRTFType:
             NSString *postString = self.activeParagraphPastCursor;//[NSString stringWithString:self.activeParagraphPastCursor];
             
             NSInteger autoPair=-1;
-            if ((postString.length==0)||![[NSCharacterSet alphanumericCharacterSet]characterIsMember:[postString characterAtIndex:0]]) {
+            if ((postString.length==0)||(selRange.length>0)||![[NSCharacterSet alphanumericCharacterSet]characterIsMember:[postString characterAtIndex:0]]) {
                 autoPair=0;
             }
             NSString *preStr=self.activeParagraphBeforeCursor;
