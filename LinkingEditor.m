@@ -262,7 +262,7 @@ CGFloat _perceptualDarkness(NSColor*a);
         [self setBackgroundColor:bgColor];
     }
 	[[self enclosingScrollView] setBackgroundColor:bgColor];
-    if (IsLionOrLater) {
+    if (IsLionOrLater&&[self textFinderIsVisible]) {
         [[self window]invalidateCursorRectsForView:[[self enclosingScrollView]findBarView]];
     }
     
@@ -1186,10 +1186,13 @@ copyRTFType:
             NSString *appendString = string;
             NSRange selRange = [self selectedRange];
             NSString *postString = self.activeParagraphPastCursor;//[NSString stringWithString:self.activeParagraphPastCursor];
-            BOOL autoPair=NO;
             
+            NSInteger autoPair=-1;
+            if ((postString.length==0)||![[NSCharacterSet alphanumericCharacterSet]characterIsMember:[postString characterAtIndex:0]]) {
+                autoPair=0;
+            }
             NSString *preStr=self.activeParagraphBeforeCursor;
-            if (pairCode==2) {
+            if (pairCode==2&&autoPair==0) {
                 NSInteger closingIdx=[postString rangeOfString:oppositeAppend].location;
                 if (closingIdx!=NSNotFound) {
                     NSInteger openingIdx=[[postString substringToIndex:closingIdx] rangeOfString:appendString].location;
@@ -1207,17 +1210,19 @@ copyRTFType:
                     }
                 }
                 if (closingIdx==NSNotFound) {
-                    autoPair=YES;
+                    autoPair=1;
                 }
             }else{
                 NSInteger openingIdx=[postString rangeOfString:appendString].location;
                 BOOL advance=NO;
                 if (pairCode==1) {
-                    NSUInteger aftCt=([[postString componentsSeparatedByString:appendString] count]%2);
-                    NSUInteger befCt=([[preStr componentsSeparatedByString:appendString] count]%2);
                     advance=(openingIdx==0);
-                    if (!advance&&(befCt==aftCt)) {
-                        autoPair=YES;
+                    if (!advance&&autoPair==0) {
+                        NSUInteger aftCt=([[postString componentsSeparatedByString:appendString] count]%2);
+                        NSUInteger befCt=([[preStr componentsSeparatedByString:appendString] count]%2);
+                        if (befCt==aftCt) {
+                            autoPair=1;
+                        }
                     }
                 }else{
                     advance=(openingIdx==0);
@@ -1232,7 +1237,7 @@ copyRTFType:
                     }
                 }
             }
-            if (autoPair) {
+            if (autoPair==1) {
                 if (selRange.length>0) {
                     [[[self undoManager] prepareWithInvocationTarget:self] setSelectedRange:selRange];
                     NSRange insRange=selRange;
@@ -1241,7 +1246,7 @@ copyRTFType:
                     insRange.location+=(selRange.length+1); //add appendstr.length
                     [super insertText:oppositeAppend replacementRange:insRange];
                     insRange.location+=1;  //add oppappendstr.length
-//                    selRange.length+=2;
+                    //                    selRange.length+=2;
                     [self setSelectedRange:insRange];
                     return;
                 }else {
@@ -1252,7 +1257,7 @@ copyRTFType:
             }
         }
     }
-    [super insertText:string]; 
+    [super insertText:string];
 }
 
 - (void)deleteBackward:(id)sender {
