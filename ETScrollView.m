@@ -26,7 +26,9 @@
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
             if([[self subviews]containsObject:[self findBarView]]) {
                 NSView *tView=[super hitTest:aPoint];
-                if ([tView superview]==[self findBarView]) {
+                if ((tView==[self findBarView])||([tView superview]==[self findBarView])||([[tView className]isEqualToString:@"NSFindPatternFieldEditor"])) {
+                    [[self window]invalidateCursorRectsForView:tView];
+                    [[self documentView]setMouseInside:NO];
                     return tView;
                 }
             }
@@ -37,6 +39,7 @@
     }
     return [super hitTest:aPoint];
 }
+
 
 - (void)awakeFromNib{ 
     needsOverlayTiling=NO;

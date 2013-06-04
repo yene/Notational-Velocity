@@ -610,6 +610,43 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
     return @"";
 }
 
+- (NSInteger)isPairedCharacterWithMatchString:(NSString **)matchString{
+    if (self.length==1) {
+        unichar ch=[self characterAtIndex:0];
+        NSInteger chNum=(NSInteger)ch;
+//        NSLog(@"ch :%ld Is(:%d >%@<",chNum,(unsigned int)ch==40,self);
+        if (chNum==34){//[@"\"" isEqualToString:self]) {
+             *matchString=@"\"";
+            return 1;
+        }
+//         NSLog(@"ch is ]:%d",ch==[@"]" characterAtIndex:0]);
+        if ([[NSCharacterSet characterSetWithCharactersInString:@"([{"]characterIsMember:ch]){
+            if (chNum==91){//[@"[" isEqualToString:self]) {
+                *matchString=@"]";
+    //            return @"]";
+            }else if (chNum==40){//([@"(" isEqualToString:self]) {
+                *matchString=@")";
+    //            return @")";
+            }else if (chNum==123){//([@"{" isEqualToString:self]) {
+                *matchString=@"}";
+    //            return @"}";
+            }
+            return 2;
+        }else if ([[NSCharacterSet characterSetWithCharactersInString:@")]}"]characterIsMember:ch]) {
+             if (chNum==93){//if ([@"]" isEqualToString:self]) {
+                *matchString=@"[";
+            }else  if (chNum==41){//if ([@")" isEqualToString:self]) {
+                *matchString=@"(";
+            }else if (chNum==125){// if ([@"}" isEqualToString:self]) {
+                *matchString=@"{";
+            }
+            return 0;
+        }        
+    }
+    return -1;
+//    return @"";
+}
+
 @end
 
 
@@ -746,6 +783,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 @end
 
 @implementation NSCharacterSet (NV)
+
 
 + (NSCharacterSet*)labelSeparatorCharacterSet {
 	static NSMutableCharacterSet *charSet = nil;

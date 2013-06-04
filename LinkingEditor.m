@@ -103,9 +103,9 @@ CGFloat _perceptualDarkness(NSColor*a);
 	didRenderFully = NO;
 	[[self layoutManager] setDelegate:self];
 	
-	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
-	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
-	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidResignMainNotification object:[self window]];
+//	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+//	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
+//	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidResignMainNotification object:[self window]];
     
 	//[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
     //	NoMods = YES;
@@ -262,6 +262,10 @@ CGFloat _perceptualDarkness(NSColor*a);
         [self setBackgroundColor:bgColor];
     }
 	[[self enclosingScrollView] setBackgroundColor:bgColor];
+    if (IsLionOrLater) {
+        [[self window]invalidateCursorRectsForView:[[self enclosingScrollView]findBarView]];
+    }
+    
 	//[self setBackgroundColor:bgColor];
 	//[nvTextScroller setBackgroundColor:bgColor];
 	//[[self enclosingScrollView] setNeedsDisplay:YES];
@@ -1175,32 +1179,74 @@ copyRTFType:
 
 - (void)insertText:(id)string {
     if([prefsController useAutoPairing]){
-        NSString *oppositeAppend = [self pairedCharacterForString:string];
-        if (![oppositeAppend isEqualToString:@""]){
+        NSString *oppositeAppend;
+        NSInteger pairCode;
+        if((pairCode=[string isPairedCharacterWithMatchString:&oppositeAppend])>=0){
+            //             NSLog(@"oppositeAppend:>%@< code:%ld",oppositeAppend,pairCode);
             NSString *appendString = string;
             NSRange selRange = [self selectedRange];
-            NSString *postString = [NSString stringWithString:self.activeParagraphPastCursor];
-            if ((selRange.length==0)&&([postString hasPrefix:appendString])&&([[NSArray arrayWithObjects:@"n",@"\"", nil] containsObject:oppositeAppend])) {
-                selRange.location+=1;
-                [self selectRangeAndRegisterUndo:selRange];        
-                return;
-            }else if ((![oppositeAppend isEqualToString:@"n"])&&((![postString hasPrefix:oppositeAppend])||([self.activeParagraphBeforeCursor hasSuffix:appendString]))) {
+            NSString *postString = self.activeParagraphPastCursor;//[NSString stringWithString:self.activeParagraphPastCursor];
+            BOOL autoPair=NO;
+            
+            NSString *preStr=self.activeParagraphBeforeCursor;
+            if (pairCode==2) {
+                NSInteger closingIdx=[postString rangeOfString:oppositeAppend].location;
+                if (closingIdx!=NSNotFound) {
+                    NSInteger openingIdx=[[postString substringToIndex:closingIdx] rangeOfString:appendString].location;
+                    if (openingIdx==NSNotFound) {
+                        openingIdx=[preStr rangeOfString:appendString options:NSBackwardsSearch].location;
+                        if (openingIdx!=NSNotFound) {
+                            NSUInteger opIdx=[preStr rangeOfString:oppositeAppend options:NSBackwardsSearch].location;
+                            //                              NSLog(@"opIdx :>%lu<  op:%lu",opIdx,openingIdx);
+                            if ((opIdx==NSNotFound)||(opIdx<openingIdx)) {
+                                closingIdx=NSNotFound;
+                            }
+                        }
+                    }else{
+                        closingIdx=NSNotFound;
+                    }
+                }
+                if (closingIdx==NSNotFound) {
+                    autoPair=YES;
+                }
+            }else{
+                NSInteger openingIdx=[postString rangeOfString:appendString].location;
+                BOOL advance=NO;
+                if (pairCode==1) {
+                    NSUInteger aftCt=([[postString componentsSeparatedByString:appendString] count]%2);
+                    NSUInteger befCt=([[preStr componentsSeparatedByString:appendString] count]%2);
+                    advance=(openingIdx==0);
+                    if (!advance&&(befCt==aftCt)) {
+                        autoPair=YES;
+                    }
+                }else{
+                    advance=(openingIdx==0);
+                }
+                if (advance&&(selRange.length==0)) {
+                    openingIdx=[preStr rangeOfString:oppositeAppend options:NSBackwardsSearch].location;
+                    NSUInteger clIdx=[preStr rangeOfString:appendString options:NSBackwardsSearch].location;
+                    if ((openingIdx!=NSNotFound)&&((clIdx==NSNotFound)||(openingIdx>=clIdx))) {
+                        selRange.location+=1;
+                        [self selectRangeAndRegisterUndo:selRange];
+                        return;
+                    }
+                }
+            }
+            if (autoPair) {
                 if (selRange.length>0) {
                     [[[self undoManager] prepareWithInvocationTarget:self] setSelectedRange:selRange];
                     NSRange insRange=selRange;
                     insRange.length=0;
                     [super insertText:appendString replacementRange:insRange];
-                    insRange.location+=selRange.length;
-                    insRange.location+=1;
-                    [super insertText:oppositeAppend replacementRange:insRange];                    
-                    insRange.location+=1;                    
+                    insRange.location+=(selRange.length+1); //add appendstr.length
+                    [super insertText:oppositeAppend replacementRange:insRange];
+                    insRange.location+=1;  //add oppappendstr.length
+//                    selRange.length+=2;
                     [self setSelectedRange:insRange];
                     return;
-                }else {       
-                    int extra = appendString.length;   
-                    appendString = [appendString stringByAppendingString:oppositeAppend];
-                    [super insertText:appendString];
-                    [self setSelectedRange:NSMakeRange(selRange.location+extra, 0)];  
+                }else {
+                    [super insertText:[appendString stringByAppendingString:oppositeAppend]];
+                    [self setSelectedRange:NSMakeRange(selRange.location+appendString.length, 0)];
                     return;
                 }
             }
@@ -1220,13 +1266,16 @@ copyRTFType:
 			if (charRange.location == 0) {
 				// At beginning of text.  Delete normally.
 				[super deleteBackward:sender];
-			}else if (![self deleteEmptyPairsInRange:charRange]) {
+			}else {
+                
+            
 				NSString *string = [self string];
 				NSRange paraRange = [string lineRangeForRange:NSMakeRange(charRange.location - 1, 1)];
 				if (paraRange.location == charRange.location) {
 					// At beginning of line.  Delete normally.
 					[super deleteBackward:sender];
 				} else {
+                    
 					unsigned tabWidth = [prefsController numberOfSpacesInTab];
 					unsigned indentWidth = 4;
 					BOOL usesTabs = ![prefsController softTabs];
@@ -1234,6 +1283,10 @@ copyRTFType:
 					unsigned leadingSpaces = [string numberOfLeadingSpacesFromRange:&leadingSpaceRange tabWidth:tabWidth];
 					
 					if (charRange.location > NSMaxRange(leadingSpaceRange)) {
+                        
+                        if ([self deleteEmptyPairsBetweenRange:charRange inLineRange:paraRange]) {
+                            return;
+                        }
 						// Not in leading whitespace.  Delete normally.
 						[super deleteBackward:sender];
 					} else {
@@ -1306,8 +1359,8 @@ copyRTFType:
 */
 
 - (void)mouseEntered:(NSEvent*)anEvent {
-	mouseInside = YES;
-	[self fixCursorForBackgroundUpdatingMouseInside:NO];
+//	mouseInside = YES;
+	[self fixCursorForBackgroundUpdatingMouseInside:YES];
     [super mouseEntered:anEvent];
 }
 - (void)mouseExited:(NSEvent*)anEvent {
@@ -1327,27 +1380,40 @@ copyRTFType:
     [self fixCursorForBackgroundUpdatingMouseInside:NO];
 }
 
-- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside {
+- (BOOL)mouseIsHere{
+    NSPoint mPt;
+    NSRect vRect=[[self enclosingScrollView]visibleRect];
+    if (IsLionOrLater) {
+        NSRect aRect=NSZeroRect;
+        aRect.origin=[NSEvent mouseLocation];        
+        mPt=[[self enclosingScrollView] convertPoint:[[self window] convertRectFromScreen:aRect].origin fromView:nil];
+        if ([self textFinderIsVisible]) {
+            NSView *fbView=[[self enclosingScrollView]findBarView];
+            if (NSMouseInRect(mPt,[fbView frame],[fbView isFlipped])) {
+                if (backgroundIsDark) {
+                    [[self window]invalidateCursorRectsForView:fbView];
+                }
+                return NO;
+            }
+             
+        }
+    }else{
+        mPt= [[self window]convertScreenToBase:[NSEvent mouseLocation]];
+    }
+//    vRect.size.width=[[self enclosingScrollView]visibleRect].size.width;
+//     NSLog(@"mPt:%@     vRect :>%@<",NSStringFromPoint(mPt),NSStringFromRect(vRect));
+    return NSMouseInRect(mPt,vRect,YES);
+}
+
+- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)checkMouseLoc {
 	
 	if (IsLeopardOrLater && whiteIBeamCursorIMP && defaultIBeamCursorIMP) {
-        NSPoint local_point;
-        if (IsLionOrLater) {
-            NSRect aRect=NSZeroRect;
-            aRect.origin=[NSEvent mouseLocation];
-            aRect=[[self window] convertRectFromScreen:aRect];
-            local_point = [self convertPoint:aRect.origin fromView:nil];
-        }else{
-            local_point=[[self window]convertScreenToBase:[NSEvent mouseLocation]];
+        if (checkMouseLoc) {
+            mouseInside=[self mouseIsHere];
         }
-        NSRect bnds=[self visibleRect];
-        if ([self textFinderIsVisible]&&(local_point.y<3.0)) {
-            mouseInside=NO;
-        }else if (setMouseInside){            
-			mouseInside = [self mouse:local_point inRect:bnds];
-        }
-        
 //          NSLog(@"mouseInside :>%d<",mouseInside);
 		BOOL shouldBeWhite = mouseInside && backgroundIsDark && ![self isHidden];
+      
 		Class class = [NSCursor class];
 		
 		//set method implementation directly; whiteIBeamCursorIMP and defaultIBeamCursorIMP always point to the same respective blocks of code
@@ -1357,7 +1423,7 @@ copyRTFType:
 		NSCursor *currentCursor = [NSCursor currentCursor];
 		NSCursor *whiteCursor = whiteIBeamCursorIMP(class, @selector(whiteIBeamCursor));
 		NSCursor *defaultCursor = defaultIBeamCursorIMP(class, @selector(IBeamCursor));
-		
+      
 		//if the current cursor is set incorrectly, and and it's not a non-IBeam cursor, then update it (IBeamCursor points to our recently-set implementation)
 		if ((currentCursor == whiteCursor) != shouldBeWhite && (currentCursor == whiteCursor || currentCursor == defaultCursor)) {
 			[[NSCursor IBeamCursor] set];
@@ -1378,7 +1444,7 @@ copyRTFType:
 
 - (void)windowBecameOrResignedMain:(NSNotification *)aNotification  {
 	//changing the window ordering seems to occasionally trigger mouseExited events w/o a corresponding mouseEntered
-	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+//	[self fixCursorForBackgroundUpdatingMouseInside:YES];
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
@@ -1835,7 +1901,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 }
 
 - (BOOL)updateNumberedListFromRange:(NSRange)currentRange startingNum:(NSInteger)listNum{
-    if (listNum==NSNotFound) {
+    if ((listNum==NSNotFound)||(currentRange.location==NSNotFound)) {
         return NO;
     }
     NSRange nextRange=NSMakeRange(currentRange.location, 0);
@@ -2148,48 +2214,28 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     return NSNotFound;    
 }
 
-
-- (NSString *)pairedCharacterForString:(NSString *)pairString{
-    if ([@"]" isEqualToString:pairString]) {
-        return @"n";
-    }else if ([@")" isEqualToString:pairString]) {
-        return @"n";
-    }else if ([@"}" isEqualToString:pairString]) {
-        return @"n";
-    }else if ([@"[" isEqualToString:pairString]) {
-        return @"]";
-    }else if ([@"(" isEqualToString:pairString]) {
-        return @")";
-    }else if ([@"{" isEqualToString:pairString]) {
-        return @"}";
-    }else if ([@"\"" isEqualToString:pairString]) {
-        return @"\"";
-    }
-    return @"";
-}
-
-- (BOOL)deleteEmptyPairsInRange:(NSRange)charRange{
-    if (([prefsController useAutoPairing])&&([self cursorIsBetweenEmptyPairs])) {
-        NSRange selRange=charRange;
+- (BOOL)deleteEmptyPairsBetweenRange:(NSRange)charRange inLineRange:(NSRange)lineRange{
+    if (([prefsController useAutoPairing])&&([self cursorAtRange:charRange isBetweenEmptyPairsInLineRange:lineRange])) {
         charRange.location-=1;
-        charRange.length=2; 
-        selRange.location-=1;
-        [self selectRangeAndRegisterUndo:selRange];
+        [self selectRangeAndRegisterUndo:charRange];
+        charRange.length=2;
         [self insertText:@"" replacementRange:charRange];   
         return YES;
     }    
     return NO;
 }
 
-
-- (BOOL)cursorIsBetweenEmptyPairs{
-    NSString *before=[NSString stringWithString:self.activeParagraphBeforeCursor];
-    NSString *after=[NSString stringWithString:self.activeParagraphPastCursor];
-    if ((([before hasSuffix:@"["])&&([after hasPrefix:@"]"]))||(([before hasSuffix:@"("])&&([after hasPrefix:@")"]))||(([before hasSuffix:@"{"])&&([after hasPrefix:@"}"]))||(([before hasSuffix:@"\""])&&([after hasPrefix:@"\""]))||(([before hasSuffix:@"'"])&&([after hasPrefix:@"'"]))) {
-        return YES;
+- (BOOL)cursorAtRange:(NSRange)charRange isBetweenEmptyPairsInLineRange:(NSRange)actRange{
+    NSUInteger keyLoc=charRange.location;
+    if ((keyLoc>actRange.location)&&(keyLoc<NSMaxRange(actRange))) {     
+        keyLoc=[@"([{\"'" rangeOfString:[NSString stringWithFormat:@"%C",[[self string] characterAtIndex:keyLoc-1]]].location;
+        if ((keyLoc!=NSNotFound)&&(keyLoc==[@")]}\"'" rangeOfString:[NSString stringWithFormat:@"%C",[[self string] characterAtIndex:charRange.location]]].location)) {
+            return YES;
+        }
     }
     return NO;
 }
+
 
 #pragma mark Useful properties
 
@@ -2215,8 +2261,9 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     NSUInteger startDex;
     NSUInteger contentsEndDex;
     [[self string] getLineStart:&startDex end:NULL contentsEnd:&contentsEndDex forRange:[self selectedRange]];
-    if ((contentsEndDex!=NSNotFound)&&(contentsEndDex>startDex)) {
-        return NSMakeRange(startDex,(contentsEndDex-startDex));        
+   
+    if (contentsEndDex>startDex) {
+        return NSMakeRange(startDex,(contentsEndDex-startDex));
     }
     return NSMakeRange(NSNotFound, 0);
     
