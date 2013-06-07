@@ -103,7 +103,6 @@
 - (BOOL)setInsetForFrame:(NSRect)frameRect alwaysSet:(BOOL)always;
 - (BOOL)deleteEmptyPairsBetweenRange:(NSRange)charRange inLineRange:(NSRange)lineRange;
 - (void)selectRangeAndRegisterUndo:(NSRange)selRange;
-- (BOOL)cursorIsBetweenEmptyPairs;
 - (BOOL)cursorAtRange:(NSRange)charRange isBetweenEmptyPairsInLineRange:(NSRange)actRange;
 - (NSRange)rangeOfActiveParagraph;
 - (NSString *)activeParagraphTrimWS:(BOOL)shouldTrim;
