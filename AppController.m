@@ -342,7 +342,7 @@ void outletObjectAwoke(id sender) {
 		NSString *frameworkPath = [[[NSBundle bundleForClass:[self class]] privateFrameworksPath] stringByAppendingPathComponent:@"Sparkle.framework"];
 		if ([[NSBundle bundleWithPath:frameworkPath] load]) {
 			SUUpdater *updater =[NSClassFromString(@"SUUpdater") performSelector:@selector(sharedUpdater)];
-            if (!IsLionOrLater) {
+            if (IsLionOrLater) {
                 [updater setFeedURL:[NSURL URLWithString:kSparkleUpdateFeedForLions]];
             }else{
                 [updater setFeedURL:[NSURL URLWithString:kSparkleUpdateFeedForSnowLeopard]];
