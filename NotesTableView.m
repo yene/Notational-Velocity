@@ -161,6 +161,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 			 inTableColumn:[self tableColumnWithIdentifier:[globalPrefs sortedTableColumnKey]]];
 }
 
+
 - (void)awakeFromNib {
 	[globalPrefs registerWithTarget:self forChangesInSettings:
 	 @selector(setTableFontSize:sender:),
@@ -575,7 +576,12 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     NSEnumerator *theEnumerator = [allColumns objectEnumerator];
     NSTableColumn *theColumn = nil;
 	NSString *sortKey = [globalPrefs sortedTableColumnKey];
-	
+	NSImage *sortArrow;
+    if([globalPrefs tableIsReverseSorted] ){
+        sortArrow=[NSImage imageNamed:@"NSDescendingSortIndicator"];
+    }else{
+    sortArrow=[NSImage imageNamed:@"NSAscendingSortIndicator"];
+    }
     while ((theColumn = [theEnumerator nextObject]) != nil) {
 		NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:[[theColumn headerCell] stringValue] 
 															  action:@selector(setStatusForSortedColumn:) 
@@ -583,7 +589,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		[theMenuItem setTarget:self];
 		[theMenuItem setRepresentedObject:theColumn];
 		[theMenuItem setState:[[theColumn identifier] isEqualToString:sortKey]];
-		
+        [theMenuItem setOnStateImage:[NSImage imageNamed:nil]];
+        [theMenuItem setOnStateImage:sortArrow];
 		[theMenu addItem:theMenuItem];
     }
     return theMenu;
@@ -611,14 +618,49 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     return theMenu;
 }
 
+//- (BOOL)validateMenuItem:(NSMenuItem *)menuItem{
+//    SEL selector = [menuItem action];
+////    if (selector==@selector(setStatusForSortedColumn:)) {
+////        if (![[globalPrefs visibleTableColumns]containsObject:[[menuItem representedObject] identifier]]) {
+////            return NO;
+////        }
+////    }else
+//        if([globalPrefs horizontalLayout]&&(selector==@selector(actionHideShowColumn:))){
+//        BOOL retNo=NO;
+//        BOOL gotMod=[[globalPrefs visibleTableColumns]containsObject:NoteDateModifiedColumnString];//&&[[globalPrefs visibleTableColumns]containsObject:NoteDateCreatedColumnString]);
+//        NSString *key=[globalPrefs sortedTableColumnKey];
+//        if ([key isEqualToString:NoteDateCreatedColumnString]) {
+//            retNo=[[[menuItem representedObject] identifier] isEqualToString:NoteDateModifiedColumnString];
+//        }else if ([key isEqualToString:NoteDateModifiedColumnString]) {
+//            retNo=[[[menuItem representedObject] identifier] isEqualToString:NoteDateCreatedColumnString];
+//        }else{
+//            retNo=(gotMod&&[[[menuItem representedObject] identifier] isEqualToString:NoteDateCreatedColumnString]);
+//        }      
+//        
+//        if (gotMod&&retNo) {
+//            [menuItem setState:0];
+//            return NO;
+//        }    
+//    }
+//    return YES;
+//}
+
 - (void)setStatusForSortedColumn:(id)sender {
 	NSTableColumn* tableColumn = (NSTableColumn*)sender;
 	NSString *lastColumnName = [globalPrefs sortedTableColumnKey];
 	BOOL sortDescending = [globalPrefs tableIsReverseSorted];
 	
-	if ([sender isKindOfClass:[NSMenuItem class]])
-		tableColumn = [sender representedObject];
-	
+	if ([sender isKindOfClass:[NSMenuItem class]]){
+		tableColumn = [sender representedObject];        
+        [sender setOnStateImage:[NSImage imageNamed:nil]];
+        NSImage *sortArrow;
+        if(!sortDescending){
+            sortArrow=[NSImage imageNamed:@"NSDescendingSortIndicator"];
+        }else{
+            sortArrow=[NSImage imageNamed:@"NSAscendingSortIndicator"];
+        }
+        [sender setOnStateImage:sortArrow];
+	}
     if ([lastColumnName isEqualToString:[tableColumn identifier]]) {
 		//User clicked same column, change sort order
 		sortDescending = !sortDescending;

@@ -64,7 +64,6 @@
 //@property (readonly) BOOL clipboardHasLink;
 
 
-- (void)setMouseInside:(BOOL)inside;
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
@@ -79,7 +78,7 @@
 - (void)bold:(id)sender;
 - (void)italic:(id)sender;
 - (void)applyStyleOfTrait:(NSFontTraitMask)trait alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
-- (id)highlightLinkAtIndex:(unsigned)givenIndex;
+- (id)highlightLinkAtIndex:(NSUInteger)givenIndex;
 
 - (BOOL)jumpToRenaming;
 - (void)indicateRange:(NSValue*)rangeValue;
@@ -94,9 +93,11 @@
 
 - (BOOL)didRenderFully;
 
-#pragma mark ElasticThreads additions
+#pragma mark - nvALT additions
+- (void)setMouseInside:(BOOL)inside;
 - (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit;
 //- (BOOL)isAlreadyNearMarkdownLink;
+- (BOOL)mouseIsHere;
 - (void)resetInset;
 - (void)updateInsetAndForceLayout:(BOOL)force;
 - (void)updateInsetForFrame:(NSRect)frameRect andForceLayout:(BOOL)force;
