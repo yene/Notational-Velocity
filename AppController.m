@@ -707,7 +707,9 @@ terminateApp:
         if ([menuItem isHidden]==gotMarked) {
             [menuItem setHidden:!gotMarked];
         }
-        return gotMarked;
+        return gotMarked&&([[notesTableView selectedRowIndexes]count]>0);
+    }else if (selector==@selector(togglePreview:)){        
+          return (currentNote != nil);
     }
 	return YES;
 }
@@ -2803,8 +2805,9 @@ terminateApp:
     - (IBAction)setBWColorScheme:(id)sender{
         userScheme=0;
         [[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];
-        [self setForegrndColor:[NSColor colorWithCalibratedRed:0.0f green:0.0f blue:0.0f alpha:1.0f]];
-        [self setBackgrndColor:[NSColor colorWithCalibratedRed:1.0f green:1.0f blue:1.0f alpha:1.0f]];
+        
+        [self setForegrndColor:[[NSColor colorWithCalibratedWhite:0.02f alpha:1.0f]colorUsingColorSpaceName:NSCalibratedRGBColorSpace]];
+        [self setBackgrndColor:[[NSColor colorWithCalibratedWhite:0.98f alpha:1.0f]colorUsingColorSpaceName:NSCalibratedRGBColorSpace]];
         NSMenu *mainM = [NSApp mainMenu];
         NSMenu *viewM = [[mainM itemWithTitle:@"View"] submenu];
         mainM = [[viewM itemWithTitle:@"Color Schemes"] submenu];
@@ -2872,7 +2875,7 @@ terminateApp:
             }
             [mainView setBackgroundColor:backgrndColor];
         [notesTableView setBackgroundColor:backgrndColor];
-        [NotesTableHeaderCell setForegroundColor:foregrndColor];
+        [NotesTableHeaderCell setTxtColor:foregrndColor];
         [notationController setForegroundTextColor:foregrndColor];
         
         [textView setBackgroundColor:backgrndColor];

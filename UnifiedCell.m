@@ -41,26 +41,26 @@
 	[super dealloc];
 }
 
-#if 0
-//changes will hereafter affect all field editors for the window; do not want
-- (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
-	NSTextView *tv = (NSTextView *)[super setUpFieldEditorAttributes:textObj];
-	
-	[tv setTextContainerInset:NSMakeSize(-2,-2)];
-	
-	NSTextContainer *tc = [tv textContainer];
-	[tc setContainerSize:NSMakeSize(1.0e7, 1.0e7)];
-	[tc setWidthTracksTextView:NO];
-	[tc setHeightTracksTextView:NO];
-	
-	[tv setMinSize:[tv frame].size];
-    [tv setMaxSize:NSMakeSize(1.0e7, [tv frame].size.height)];
-    [tv setHorizontallyResizable:YES];
-    [tv setVerticallyResizable:NO];
-    [tv setAutoresizingMask:NSViewNotSizable];
-	return tv;
-}
-#endif
+//#if 0
+////changes will hereafter affect all field editors for the window; do not want
+//- (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
+//	NSTextView *tv = (NSTextView *)[super setUpFieldEditorAttributes:textObj];
+//	
+//	[tv setTextContainerInset:NSMakeSize(-2,-2)];
+//	
+//	NSTextContainer *tc = [tv textContainer];
+//	[tc setContainerSize:NSMakeSize(1.0e7, 1.0e7)];
+//	[tc setWidthTracksTextView:NO];
+//	[tc setHeightTracksTextView:NO];
+//	
+//	[tv setMinSize:[tv frame].size];
+//    [tv setMaxSize:NSMakeSize(1.0e7, [tv frame].size.height)];
+//    [tv setHorizontallyResizable:YES];
+//    [tv setVerticallyResizable:NO];
+//    [tv setAutoresizingMask:NSViewNotSizable];
+//	return tv;
+//}
+//#endif
 
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj 
 			   delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
