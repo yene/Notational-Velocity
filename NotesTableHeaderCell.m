@@ -131,7 +131,6 @@ NSColor *tColor;
 	tColor = [[inColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace] retain];
 }
 
-
 + (void)releaseColors{
     if (bColor) {
         [bColor release];
