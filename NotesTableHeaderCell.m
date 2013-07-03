@@ -23,6 +23,11 @@ NSColor *tColor;
     }
 }
 
+- (void)dealloc{
+    [[self class]releaseColors];
+    [super dealloc];
+}
+
 - (id)initTextCell:(NSString *)text{
     if ((self = [super initTextCell:text])) {
         if (!text || (text.length==0)) {
@@ -31,6 +36,7 @@ NSColor *tColor;
     }
     return self;
 }
+
 
 - (BOOL)isOpaque{
     return YES;
@@ -123,6 +129,18 @@ NSColor *tColor;
         [tColor release];
     }
 	tColor = [[inColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace] retain];
+}
+
+
++ (void)releaseColors{
+    if (bColor) {
+        [bColor release];
+        bColor=nil;
+    }    
+    if (tColor) {
+        [tColor release];
+        tColor=nil;
+    }
 }
 
 @end
