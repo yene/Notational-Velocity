@@ -100,6 +100,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		}
 		
 		[[self noteAttributeColumnForIdentifier:NoteLabelsColumnString] setDataCell: [[[LabelColumnCell alloc] init] autorelease]];
+        
 		[self _configureAttributesForCurrentLayout];
 		[self setAllowsColumnSelection:NO];
 		//[self setVerticalMotionCanBeginDrag:NO];
@@ -177,6 +178,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	[center addObserver:self selector:@selector(windowDidResignMain:)
 				   name:NSWindowDidResignMainNotification object:[self window]];	
 	//[self setb]
+    
     [[self enclosingScrollView] setDrawsBackground:NO];
 
    // [self setBackgroundColor:[NSColor clearColor]];
@@ -268,41 +270,10 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	}
 }
 
-- (void)drawGridInClipRect:(NSRect)clipRect {
-    
-	//draw lines manually to avoid interfering with title-focusrings and selection highlighting on leopard+
-	if (![self dataSource]) {
-		return;
-	}
-	[NSGraphicsContext saveGraphicsState];
-    [[NSGraphicsContext currentContext] setShouldAntialias:NO];
-	
-	NSBezierPath *line = [NSBezierPath bezierPath];
-	
-    //	NSIndexSet *set = [self selectedRowIndexes];
-    //	NSInteger editedRow = [self editedRow];
-	NSRange rangeOfRows = [self rowsInRect:clipRect];
-    NSUInteger maxRow=NSMaxRange(rangeOfRows);
-    CGFloat rectWidth=NSMaxX(clipRect);
-	CGFloat rectHeight = [self rowHeight] + [self intercellSpacing].height;
-	CGFloat rowRectOrigin = rectHeight * rangeOfRows.location;
-    //    BOOL horiz = [globalPrefs horizontalLayout];
-	
-    
-    NSInteger row;
-    for (row = rangeOfRows.location; row < maxRow; row++) {
-        rowRectOrigin += rectHeight;
-        [line moveToPoint:NSMakePoint(0.0, rowRectOrigin)];
-        [line lineToPoint:NSMakePoint(rectWidth, rowRectOrigin)];
-    }
-    
-    [[self gridColor] setStroke];
-	[line stroke];
-	[NSGraphicsContext restoreGraphicsState];
-}
-
 - (void)_configureAttributesForCurrentLayout {
 	BOOL horiz = [globalPrefs horizontalLayout];
+    
+    [self setUsesAlternatingRowBackgroundColors:[globalPrefs alternatingRows]];
     [self updateGrid];
 	
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
@@ -351,6 +322,9 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		
 		viewMenusValid = NO;
 	}else if (([selectorString isEqualToString:SEL_STR(setShowGrid:sender:)])||([selectorString isEqualToString:SEL_STR(setAlternatingRows:sender:)]) ) {
+        if (([selectorString isEqualToString:SEL_STR(setAlternatingRows:sender:)])) {
+            [self setUsesAlternatingRowBackgroundColors:[globalPrefs alternatingRows]];
+        }
         [self updateGrid];
     }
 }
@@ -511,11 +485,11 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 			NSRect frame = [win frame];
 			
 			//this is a nasty little hack
-			frame.size.height -= 2.6;
-			frame.size.width -= 2.6;
+			frame.size.height -= 2.6f;
+			frame.size.width -= 2.6f;
 			[win setFrame:frame display:NO];
-			frame.size.height += 2.6;
-			frame.size.width += 2.6;
+			frame.size.height += 2.6f;
+			frame.size.width += 2.6f;
 			[win setFrame:frame display:YES];
 		}
 		//[self tile];
@@ -1330,73 +1304,19 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 }
 
+
 #pragma mark - nvALT work
-//david
+
+- (BOOL)isOpaque{
+    return YES;
+}
+
 - (void)flagsChanged:(NSEvent *)theEvent{
 	[[NSApp delegate] flagsChanged:theEvent];
 }
 
-- (void)setBackgroundColor:(NSColor *)color{
-    if (![[color colorSpaceName] isEqualToString:@"NSNamedColorSpace"]) {
-        [NotesTableHeaderCell setBackgroundColor:color];
-        CGFloat fWhite;		
-        fWhite = [[color colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
-        if (fWhite<0.25f) {
-            fWhite += 0.22f;
-        }else if (fWhite < 0.75f) {
-            fWhite += 0.16f;
-        }else {
-            fWhite -= 0.20f;
-        }
-        [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:1.0f]];
-        [super setBackgroundColor:color];
-    }
-   
-}
-
-# pragma mark alternating rows (Brett)
-- (void)highlightSelectionInClipRect:(NSRect)clipRect
-{
-	if (![self dataSource]) {
-		return;
-	}
-	NSColor *evenColor = [self backgroundColor];
-	NSColor *oddColor = evenColor;
-	if ([globalPrefs alternatingRows]) {
-		if ([[evenColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace]whiteComponent] < 0.5f) {
-//			endWhite = fWhite + 0.25f;
-			oddColor = [evenColor blendedColorWithFraction:0.05f ofColor:[NSColor whiteColor]];
-		} else {
-//			endWhite = fWhite-0.28f;
-			oddColor = [evenColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
-		}
-	}
-	
-    [NSGraphicsContext saveGraphicsState];
-    [[NSGraphicsContext currentContext] setShouldAntialias:NO];
-    
-    NSIndexSet *set=[self selectedRowIndexes];
-	CGFloat rectHeight = [self rowHeight] + [self intercellSpacing].height;
-    CGFloat maxY=NSMaxY([self visibleRect]);
-    NSInteger row=[self rowsInRect:clipRect].location;
-    NSRect highlightRect=NSMakeRect(0.0, (rectHeight * (CGFloat)row),NSMaxX(clipRect), rectHeight);
-    
-    for (row; highlightRect.origin.y < maxY; row++) {
-       
-        NSColor *rowColor = (0 == row % 2) ? evenColor : oddColor;
-        [rowColor setFill];
-        
-        NSRectFill(highlightRect);
-        highlightRect.origin.y+=rectHeight;
-    }
-    
-	[NSGraphicsContext restoreGraphicsState];
-    
-	[super highlightSelectionInClipRect: clipRect];
-}
-
 - (BOOL)needsGridLines{
-    return [globalPrefs showGrid]||(([globalPrefs horizontalLayout])&&(![globalPrefs alternatingRows]));
+    return [globalPrefs showGrid]||(([globalPrefs horizontalLayout])&&(![self usesAlternatingRowBackgroundColors]));
 }
 
 - (void)updateGrid{
@@ -1417,8 +1337,85 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
     }
 }
 
-- (BOOL)isOpaque{
-    return YES;
+- (void)drawGridInClipRect:(NSRect)clipRect {
+	//resize cliprect if the view is taller than the amount of actual rows with content
+	if (![self dataSource]) {
+		return;
+	}
+    
+    CGFloat newHt=[self rowsInRect:clipRect].length * ([self rowHeight] + [self intercellSpacing].height);
+    if (newHt<clipRect.size.height) {
+        clipRect.size.height=newHt;
+    }
+    [super drawGridInClipRect:clipRect];
+}
+
+- (void)setBackgroundColor:(NSColor *)color{
+    if (![[color colorSpaceName] isEqualToString:@"NSNamedColorSpace"]) {
+        [NotesTableHeaderCell setBColor:color];
+        CGFloat fWhite;
+        fWhite = [[color colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent];
+        if (fWhite<0.25f) {
+            fWhite += 0.22f;
+        }else if (fWhite < 0.75f) {
+            fWhite += 0.16f;
+        }else {
+            fWhite -= 0.20f;
+        }
+        [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:0.7f]];
+    }
+    [super setBackgroundColor:color];
+}
+
+# pragma mark alternating rows 
+- (void)drawBackgroundInClipRect:(NSRect)clipRect{
+	if (![self usesAlternatingRowBackgroundColors]) {
+        [[self backgroundColor]setFill];
+        NSRectFill(clipRect);
+    }else{
+        NSColor *backColor=[self backgroundColor];
+        NSColor *altColor;
+		if ([[backColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace]whiteComponent] < 0.5f) {
+			altColor = [backColor blendedColorWithFraction:0.05f ofColor:[NSColor whiteColor]];
+		} else {
+			altColor = [backColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
+        }
+        
+        CGFloat rectHeight = [self rowHeight] + [self intercellSpacing].height;
+        NSInteger loc;
+        if (clipRect.origin.y<0.0f) {
+            CGFloat minY=fabs(NSMinY(clipRect));
+            loc=(NSInteger)(minY/rectHeight);
+            if (((NSInteger)minY % (NSInteger)rectHeight)!=0) {
+                loc++;
+            }
+            loc=0-loc;
+        }else{
+            loc=(NSInteger)[self rowsInRect:clipRect].location;
+        }
+        NSRect rowRect=NSMakeRect(0.0f, (rectHeight * (CGFloat)loc),NSMaxX(clipRect), rectHeight);
+        CGFloat maxY=NSMaxY(clipRect);
+        NSInteger row;
+        [NSGraphicsContext saveGraphicsState];
+        //        [[NSGraphicsContext currentContext] setShouldAntialias:NO];
+        for (row=loc; rowRect.origin.y < maxY; row++) {
+            if(( row % 2)!=0){
+                [altColor setFill];
+            }else{
+                [backColor setFill];
+            }
+            NSRectFill(rowRect);
+            rowRect.origin.y+=rectHeight;
+        }
+        [NSGraphicsContext restoreGraphicsState];
+    }
+}
+
+- (void)highlightSelectionInClipRect:(NSRect)clipRect{
+    if (![self dataSource]) {
+		return;
+	}
+    [super highlightSelectionInClipRect:clipRect];
 }
 
 @end

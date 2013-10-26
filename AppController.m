@@ -707,7 +707,9 @@ terminateApp:
         if ([menuItem isHidden]==gotMarked) {
             [menuItem setHidden:!gotMarked];
         }
-        return gotMarked;
+        return gotMarked&&([[notesTableView selectedRowIndexes]count]>0);
+    }else if (selector==@selector(togglePreview:)){        
+          return (currentNote != nil);
     }
 	return YES;
 }
@@ -1382,8 +1384,6 @@ terminateApp:
 - (void)controlTextDidChange:(NSNotification *)aNotification {
     
 	if ([aNotification object] == field) {
-        //        [self resetModTimers];
-        //        [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 		typedStringIsCached = NO;
 		isFilteringFromTyping = YES;
 		
@@ -1393,6 +1393,7 @@ terminateApp:
 		BOOL didFilter = [notationController filterNotesFromString:fieldString];
 		
 		if ([fieldString length] > 0) {
+//             [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextShouldReset" object:self];
 			[field setSnapbackString:nil];
 			
             
@@ -1652,6 +1653,7 @@ terminateApp:
 	[editorStatusView setHidden:!state];
 	
 	if (state) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:self];
 		[editorStatusView setLabelStatus:[notesTableView numberOfSelectedRows]];
         if ([notesSubview isCollapsed]) {
             [self toggleCollapse:self];
@@ -2303,9 +2305,8 @@ terminateApp:
 }
 
 - (void)focusControlField:(id)sender activate:(BOOL)shouldActivate{
-    if (IsLionOrLater) {
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:sender];
-    }
+//        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:sender];
+
 	if ([notesSubview isCollapsed]) {
 		[self toggleCollapse:self];
 	}else if (![self dualFieldIsVisible]){
@@ -2718,7 +2719,6 @@ terminateApp:
 	}   
 #endif
     if(IsLeopardOrLater){
-        //@try {
         
         self.isEditing = NO;
         NSResponder *currentResponder = [window firstResponder];
@@ -2791,10 +2791,6 @@ terminateApp:
         if (![NSApp isActive]) {
             [NSApp activateIgnoringOtherApps:YES];
         }
-        /*}
-         @catch (NSException * e) {
-         NSLog(@"fullscreen issues >%@<",[e name]);
-         }*/
     }
 }
 
@@ -2803,8 +2799,9 @@ terminateApp:
     - (IBAction)setBWColorScheme:(id)sender{
         userScheme=0;
         [[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];
-        [self setForegrndColor:[NSColor colorWithCalibratedRed:0.0f green:0.0f blue:0.0f alpha:1.0f]];
-        [self setBackgrndColor:[NSColor colorWithCalibratedRed:1.0f green:1.0f blue:1.0f alpha:1.0f]];
+        
+        [self setForegrndColor:[[NSColor colorWithCalibratedWhite:0.02f alpha:1.0f]colorUsingColorSpaceName:NSCalibratedRGBColorSpace]];
+        [self setBackgrndColor:[[NSColor colorWithCalibratedWhite:0.98f alpha:1.0f]colorUsingColorSpaceName:NSCalibratedRGBColorSpace]];
         NSMenu *mainM = [NSApp mainMenu];
         NSMenu *viewM = [[mainM itemWithTitle:@"View"] submenu];
         mainM = [[viewM itemWithTitle:@"Color Schemes"] submenu];
@@ -2822,11 +2819,9 @@ terminateApp:
     - (IBAction)setLCColorScheme:(id)sender{
         userScheme=1;
         [[NSUserDefaults standardUserDefaults] setInteger:userScheme forKey:@"ColorScheme"];
-        //	[self setForegrndColor:[NSColor colorWithDeviceRed:0.405 green:0.405 blue:0.405 alpha:1.0]];
+
         [self setForegrndColor:[NSColor colorWithCalibratedRed:0.2430 green:0.2430 blue:0.2430 alpha:1.0]];
         
-        //[self setBackgrndColor:[NSColor colorWithDeviceWhite:0.970 alpha:1.0]];
-//        [NSColor colorWithCalibratedRed:0.902 green:0.902 blue:0.902 alpha:1.0]
         [self setBackgrndColor:[NSColor colorWithCalibratedRed:0.902 green:0.902 blue:0.902 alpha:1.0]];
         NSMenu *mainM = [NSApp mainMenu];
         NSMenu *viewM = [[mainM itemWithTitle:@"View"] submenu];
@@ -2863,35 +2858,27 @@ terminateApp:
         [self updateColorScheme];
     }
     
-    - (void)updateColorScheme{
-//        @try {
-            if (!IsLionOrLater) {
-                
-                [window setBackgroundColor:backgrndColor];//[NSColor blueColor]
-                [dualFieldView setBackgroundColor:backgrndColor];
-            }
-            [mainView setBackgroundColor:backgrndColor];
-        [notesTableView setBackgroundColor:backgrndColor];
-        [NotesTableHeaderCell setForegroundColor:foregrndColor];
-        [notationController setForegroundTextColor:foregrndColor];
+- (void)updateColorScheme{
+    if (!IsLionOrLater) {
         
-        [textView setBackgroundColor:backgrndColor];
-        [textView updateTextColors];
-            [self updateFieldAttributes];
-            //[editorStatusView setBackgroundColor:backgrndColor];
-            //		[editorStatusView setNeedsDisplay:YES];
-            //	[field setTextColor:foregrndColor];
-            if (currentNote) {
-                [self contentsUpdatedForNote:currentNote];
-            }
-            [dividerShader updateColors:backgrndColor];
-            [splitView setNeedsDisplay:YES];
-//        }
-//        @catch (NSException * e) {
-//            NSLog(@"setting SCheme EXception : %@",[e name]);
-//        }
+        [window setBackgroundColor:backgrndColor];//[NSColor blueColor]
+        [dualFieldView setBackgroundColor:backgrndColor];
     }
+    [mainView setBackgroundColor:backgrndColor];
+    [notesTableView setBackgroundColor:backgrndColor];
+    [NotesTableHeaderCell setTxtColor:foregrndColor];
+    [notationController setForegroundTextColor:foregrndColor];
     
+    [textView setBackgroundColor:backgrndColor];
+    [textView updateTextColors];
+    [self updateFieldAttributes];
+    if (currentNote) {
+        [self contentsUpdatedForNote:currentNote];
+    }
+    [dividerShader updateColors:backgrndColor];
+    [splitView setNeedsDisplay:YES];
+}
+
     - (void)updateFieldAttributes{
         if (!foregrndColor) {
             foregrndColor = [self foregrndColor];

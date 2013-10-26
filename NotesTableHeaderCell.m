@@ -2,178 +2,144 @@
 //  NotesTableHeaderCell.m
 //  Notation
 //
-//  Created by elasticthreads on 10/19/10.
+//  Created by David Halter on 6/12/13.
+//  Copyright (c) 2013 David Halter. All rights reserved.
 //
 
 #import "NotesTableHeaderCell.h"
 
+
 NSColor *bColor;
 NSColor *tColor;
-NSColor *hColor;
-NSGradient *gradient;
 
 @implementation NotesTableHeaderCell
 
-- (id)initTextCell:(NSString *)text
-{
++ (void)initialize{
+    if (!bColor) {
+        bColor = [[[NSColor whiteColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace] retain];
+    }
+    if (!tColor) {
+        tColor = [[[NSColor blackColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace] retain];
+    }
+}
+
+- (void)dealloc{
+    [[self class]releaseColors];
+    [super dealloc];
+}
+
+- (id)initTextCell:(NSString *)text{
     if ((self = [super initTextCell:text])) {
-		@try {
-			//NSLog(@"headerCELL initing");
-			if (!bColor) {
-				bColor = [[NSColor whiteColor] retain];
-			}
-			if (!hColor) {
-				hColor = [[NSColor grayColor] retain];
-			}
-			if (!tColor) {
-				tColor = [[NSColor blackColor] retain];
-			}
-			gradient =  [[[NSGradient alloc] initWithStartingColor:[NSColor colorWithCalibratedWhite:0.93f alpha:0.3f] endingColor:[NSColor colorWithCalibratedWhite:0.12f alpha:0.25f]] retain];
-			
-		}
-		@catch (NSException * e) {
-			NSLog(@"init colors EXCEPT: %@",[e description]);
-		}
-		@finally {			
-			if (text == nil || [text isEqualToString:@""]) {
-				[self setTitle:@"Title"];
-			}
-			attrs = [[NSMutableDictionary dictionaryWithDictionary:
-					  [[self attributedStringValue] 
-					   attributesAtIndex:0 
-					   effectiveRange:NULL]] 
-					 mutableCopy];
-			//NSLog(@"done initing");
-			return self;
-		}
+        if (!text || (text.length==0)) {
+            [self setTitle:@"Title"];
+        }
     }
-    return nil;
+    return self;
 }
 
-+ (void)setBackgroundColor:(NSColor *)inColor{
-    if (bColor) {
-        [bColor release];
-    }
-	bColor = [inColor retain];
-	CGFloat fWhite;
-	CGFloat endWhite;
-	CGFloat fAlpha;
-	NSColor	*gBack = [inColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-	[gBack getWhite:&fWhite alpha:&fAlpha];
-	if (fWhite<0.5f) {
-		endWhite = fWhite + .4f;
-	}else {		
-		endWhite = fWhite - .27f;
-	}
-	[hColor release];
-	hColor = [[inColor blendedColorWithFraction:0.60f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.98f]] retain];
-}
 
-+ (void)setForegroundColor:(NSColor *)inColor{
-    if (tColor) {
-        [tColor release];
-    }
-	tColor = [inColor retain];
+- (BOOL)isOpaque{
+    return YES;
 }
 
 - (NSRect)drawingRectForBounds:(NSRect)theRect {
-	return NSInsetRect(theRect, 6.0f, 0.0);
+	return NSIntegralRect(NSInsetRect(theRect, 6.0f, 0.0f));
 }
 
-- (void)drawWithFrame:(NSRect)inFrame inView:(NSView*)inView
-{
-	@try {
-		[[bColor copy]setFill];
-		NSRectFill(inFrame);
-		[gradient drawInRect:inFrame angle:90];
-		@try {
-			[tColor set];
-			 NSBezierPath* thePath = [NSBezierPath bezierPath];
-			 [thePath removeAllPoints];	
-			[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),(inFrame.origin.y +  inFrame.size.height))];
-			[thePath lineToPoint:NSMakePoint(inFrame.origin.x,(inFrame.origin.y +  inFrame.size.height))];	
-			if (inFrame.origin.x>5) {
-				[thePath lineToPoint:inFrame.origin];
-			}
-			
-//			[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
-//			[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];
-			
-			[thePath setLineWidth:1.4];
-			 [thePath stroke];
-		}
-		@catch (NSException * e) {
-			NSLog(@"draw sides EXCEPT name: %@  description : %@",[e name],[e description]);
-		}
-		float offset = 5;  
-		NSRect centeredRect = inFrame;
-		centeredRect.size = [[self stringValue] sizeWithAttributes:attrs];
-		//centeredRect.origin.x += ((inFrame.size.width - centeredRect.size.width) / 2.0); //- offset;
-		centeredRect.origin.x += offset;
-		centeredRect.origin.y = ((inFrame.size.height - centeredRect.size.height) / 2.0);
-		// centeredRect.origin.y += offset/2;
-
-		[attrs setValue:tColor forKey:@"NSColor"];
-		[[self stringValue] drawInRect:centeredRect withAttributes:attrs];		
-	}
-	@catch (NSException * e) {
-		NSLog(@"draw frame EXCEPT: %@",[e description]);
-	}
-	
+- (NSRect)sortIndicatorRectForBounds:(NSRect)theRect{
+    theRect=[super sortIndicatorRectForBounds:theRect];
+    theRect.origin.y= floorf(theRect.origin.y-0.5f);
+    return NSIntegralRect(theRect);
 }
 
 - (void)drawSortIndicatorWithFrame:(NSRect)cellFrame inView:(NSView *)controlView ascending:(BOOL)ascending priority:(NSInteger)priority{
 	NSLog(@"draw sort");
 }
 
+- (void)drawInteriorWithFrame:(NSRect)cellFrame inView:(NSView *)controlView{
+    cellFrame=NSInsetRect(cellFrame, 0.0f, 1.0f);
+    cellFrame.size.height-=1.0f;
+    [super drawInteriorWithFrame:cellFrame inView:controlView];
+}
+
+- (void)drawWithFrame:(NSRect)inFrame inView:(NSView*)inView{
+    [self setTextColor:tColor];
+    [self drawGradientFromColor:bColor inRect:inFrame];
+    [self drawBorderWithFrame:inFrame];
+    [self drawInteriorWithFrame:inFrame inView:inView];
+}
+
 - (void)highlight:(BOOL)hBool withFrame:(NSRect)inFrame inView:(NSView *)controlView{
-	@try {
-		if (hBool) {
-			[hColor setFill];
-			
-			NSRectFill(inFrame);
-			
-			[gradient drawInRect:inFrame angle:90];
-			@try {
-				[tColor setStroke];
-				NSBezierPath* thePath = [NSBezierPath bezierPath];
-				[thePath removeAllPoints];
-				[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),(inFrame.origin.y +  inFrame.size.height))];
-				[thePath lineToPoint:NSMakePoint(inFrame.origin.x,(inFrame.origin.y +  inFrame.size.height))];	
-				if (inFrame.origin.x>5) {
-					[thePath lineToPoint:inFrame.origin];
-				}
-//				[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
-//				[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];
-				//[thePath setLineWidth:2.0]; // Has no effect.
-				[thePath setLineWidth:1.4];
-				[thePath stroke];
-			}
-			@catch (NSException * e) {
-				NSLog(@"draw highliths sides EXCEPT name: %@  description : %@",[e name],[e description]);
-			}
-			
-			float offset = 5;
-			[attrs setValue:bColor forKey:@"NSColor"];    
-			NSRect centeredRect = inFrame;
-			centeredRect.size = [[self stringValue] sizeWithAttributes:attrs]; 
-			centeredRect.origin.x += offset;
-			centeredRect.origin.y = ((inFrame.size.height - centeredRect.size.height) / 2.0); 			
-			[attrs setValue:tColor forKey:@"NSColor"];
-			[[self stringValue] drawInRect:centeredRect withAttributes:attrs];				
-		}		
+    NSColor *theBack;
+    if ([[bColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace] whiteComponent]<0.5f) {
+        theBack=[bColor highlightWithLevel:0.24f];
+        [self setTextColor:[tColor highlightWithLevel:0.3f]];
+	}else {
+        theBack=[bColor shadowWithLevel:0.24f];
+        [self setTextColor:[tColor shadowWithLevel:0.3f]];
 	}
-	@catch (NSException * e) {
-		NSLog(@"draw highlight EXCEPT: %@",[e description]);
-	}		
+    [self drawGradientFromColor:theBack inRect:inFrame];
+    [self drawBorderWithFrame:inFrame];
+    
+    [self drawInteriorWithFrame:inFrame inView:controlView];
 }
 
 
-- (id)copyWithZone:(NSZone *)zone
-{
-    id newCopy = [super copyWithZone:zone];
-    [attrs retain];
-    return newCopy;
+
+#pragma mark - nvALT additions
+
+- (void)drawBorderWithFrame:(NSRect)cellFrame{
+    NSBezierPath* thePath = [NSBezierPath new];
+    [thePath removeAllPoints];
+    [thePath moveToPoint:NSMakePoint((cellFrame.origin.x + cellFrame.size.width),(cellFrame.origin.y +  cellFrame.size.height))];
+    [thePath lineToPoint:NSMakePoint(cellFrame.origin.x,(cellFrame.origin.y +  cellFrame.size.height))];
+    if (cellFrame.origin.x>5.0f) {
+        [thePath lineToPoint:cellFrame.origin];
+    }
+    
+    [tColor setStroke];
+    [thePath setLineWidth:1.3];
+    [thePath stroke];
+    [thePath release];
+}
+
+- (void)drawGradientFromColor:(NSColor *)baseColor inRect:(NSRect)cellFrame{
+    
+    baseColor = [baseColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];//[bColor    
+    NSColor *startColor = [baseColor blendedColorWithFraction:0.3f ofColor:[[NSColor colorWithCalibratedWhite:0.9f alpha:1.0f] colorUsingColorSpaceName:NSCalibratedRGBColorSpace]];
+    
+    NSColor *endColor = [baseColor blendedColorWithFraction:0.52f ofColor:[[NSColor colorWithCalibratedWhite:0.1f alpha:1.0f] colorUsingColorSpaceName:NSCalibratedRGBColorSpace]];
+ 
+    
+    NSGradient *theGrad = [[NSGradient alloc] initWithColorsAndLocations: startColor, 0.11f,
+                                endColor, 0.94f, nil];
+    [theGrad drawInRect:cellFrame angle:90.0f];
+    [theGrad release];
+}
+
++ (void)setBColor:(NSColor *)inColor{
+    if (bColor) {
+        [bColor release];
+    }
+	bColor = [[inColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace] retain];
+}
+
++ (void)setTxtColor:(NSColor *)inColor{
+    if (tColor) {
+        [tColor release];
+    }
+	tColor = [[inColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace] retain];
+}
+
++ (void)releaseColors{
+    if (bColor) {
+        [bColor release];
+        bColor=nil;
+    }    
+    if (tColor) {
+        [tColor release];
+        tColor=nil;
+    }
 }
 
 @end

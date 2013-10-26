@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleDocumentTypes</key>
@@ -132,7 +134,7 @@
 	<key>CFBundleExecutable</key>
 	<string>nvALT</string>
 	<key>CFBundleGetInfoString</key>
-	<string>nvALT by ElasticThreads and Brett Terpstra, based on NV 2.0 β4 Copyright © 2010 Zachary Schneirov, All Rights Reserved.</string>
+	<string>nvALT by ElasticThreads and Brett Terpstra, based on NV 2.0 β5 Copyright © 2010 Zachary Schneirov, All Rights Reserved.</string>
 	<key>CFBundleIconFile</key>
 	<string>Notality.icns</string>
 	<key>CFBundleIdentifier</key>
