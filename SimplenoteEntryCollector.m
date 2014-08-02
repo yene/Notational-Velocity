@@ -161,15 +161,16 @@
 	NSNumber *deleted = [NSNumber numberWithInt:[[rawObject objectForKey:@"deleted"] intValue]];
     NSArray *systemTags = [rawObject objectForKey:@"systemTags"];
     if (!systemTags)
-        systemTags = [NSArray array];
+        systemTags = @[];
     NSArray *tags = [rawObject objectForKey:@"tags"];
     if (!tags)
-        tags = [NSArray array];
+        tags = @[];
     NSString *content = [rawObject objectForKey:@"content"];
     if (!content)
-        content = [NSString string];
+        content = @"";
+    
 	[entry setObject:key forKey:@"key"];
-	[entry setObject:[NSNumber numberWithInt:version] forKey:@"version"];
+	[entry setObject:@(version) forKey:@"version"];
 	[entry setObject:deleted forKey:@"deleted"];
 	// Normalize dates from unix epoch timestamps to mac os x epoch timestamps
 	[entry setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawObject objectForKey:@"creationDate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"create"];
