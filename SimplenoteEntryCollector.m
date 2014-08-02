@@ -159,6 +159,15 @@
 
 	NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithCapacity:12];
 	NSNumber *deleted = [NSNumber numberWithInt:[[rawObject objectForKey:@"deleted"] intValue]];
+    NSArray *systemTags = [rawObject objectForKey:@"systemTags"];
+    if (!systemTags)
+        systemTags = [NSArray array];
+    NSArray *tags = [rawObject objectForKey:@"tags"];
+    if (!tags)
+        tags = [NSArray array];
+    NSString *content = [rawObject objectForKey:@"content"];
+    if (!content)
+        content = [NSString string];
 	[entry setObject:key forKey:@"key"];
 	[entry setObject:[NSNumber numberWithInt:version] forKey:@"version"];
 	[entry setObject:deleted forKey:@"deleted"];
@@ -171,10 +180,10 @@
 	if ([rawObject objectForKey:@"publishkey"]) {
 		[entry setObject:[rawObject objectForKey:@"publishURL"] forKey:@"publishkey"];
 	}
-	[entry setObject:[rawObject objectForKey:@"systemTags"] forKey:@"systemtags"];
-	[entry setObject:[rawObject objectForKey:@"tags"] forKey:@"tags"];
+	[entry setObject:systemTags forKey:@"systemtags"];
+	[entry setObject:tags forKey:@"tags"];
 	if ([[fetcher representedObject] conformsToProtocol:@protocol(SynchronizedNote)]) [entry setObject:[fetcher representedObject] forKey:@"NoteObject"];
-	[entry setObject:[rawObject objectForKey:@"content"] forKey:@"content"];
+	[entry setObject:content forKey:@"content"];
 
 	//NSLog(@"fetched entry %@" , entry);
 
