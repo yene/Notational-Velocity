@@ -8,7 +8,7 @@
 	
 	NSTask* task = [[NSTask alloc] init];
     NSMutableArray* args = [NSMutableArray array];
- 
+    
     [args addObject:mdScriptPath];
     [task setArguments:args];
 	
@@ -16,7 +16,7 @@
 	NSPipe* stdoutPipe = [NSPipe pipe];
 	NSFileHandle* stdinFileHandle = [stdinPipe fileHandleForWriting];
 	NSFileHandle* stdoutFileHandle = [stdoutPipe fileHandleForReading];
-		
+    
 	[task setStandardInput:stdinPipe];
 	[task setStandardOutput:stdoutPipe];
 	
@@ -29,9 +29,9 @@
 	NSData* outputData = [stdoutFileHandle readDataToEndOfFile];
 	NSString* outputString = [[[NSString alloc] initWithData:outputData encoding:NSUTF8StringEncoding] autorelease];
 	[stdoutFileHandle closeFile];
-
+    
 	[task waitUntilExit];
-
+    
 	return outputString;
 }
 

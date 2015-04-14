@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 2/5/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #include <stdio.h>
 #include <unistd.h>
@@ -30,7 +40,6 @@
 - (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
     if ([super init]) {
 		logFD = -1;
-		
 		char filename[] = "Interim Note-Changes";
 		size_t newPathLength = sizeof(filename) + strlen(path) + 2;
 		
@@ -38,7 +47,7 @@
 		strlcpy(journalFile, path, newPathLength);
 		strlcat(journalFile, "/", newPathLength);
 		strlcat(journalFile, filename, newPathLength);
-		
+        
 		//for simplicity's sake the log file is always compressed and encrypted with the key for the current database
 		//if the database has no encryption, it should have passed some constant known key to us instead
 		logSessionKey = [key retain];
@@ -256,7 +265,7 @@
 	}
 	
 	//write length, checksum of data, record salt, then data itself
-    assert(sizeof(record) == sizeof(record.recordBuffer));
+    //assert(sizeof(record) == sizeof(record.recordBuffer));
     
     record.dataLength = CFSwapInt32HostToBig([data length]);
     record.checksum = CFSwapInt32HostToBig([data CRC32]);

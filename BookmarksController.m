@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 1/21/07.
-//  Copyright 2007 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "BookmarksController.h"
 #import "NoteObject.h"
@@ -147,6 +157,10 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (void)dealloc {
+	[window setDelegate:nil];
+	[bookmarksTableView setDelegate:nil];
+	[bookmarks makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
+	
 	[bookmarks release];
 	[super dealloc];
 }
@@ -213,20 +227,36 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	while ([bookmarksMenu numberOfItems]) {
 		[bookmarksMenu removeItemAtIndex:0];
 	}
+	
+	
+	NSMenu *menu2 = [appController statBarMenu];
+	NSMenu *bkSubMenu = [[menu2  itemWithTag:901] submenu];
+	while ([bkSubMenu numberOfItems]) {
+		[bkSubMenu removeItemAtIndex:0];
+	}
 		
 	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Show Bookmarks",@"menu item title for showing bookmarks") 
 														  action:@selector(showBookmarks:) keyEquivalent:@"0"] autorelease];
 	[theMenuItem setTarget:self];
 	[bookmarksMenu addItem:theMenuItem];
-	
+	theMenuItem = [theMenuItem copy];
+	[bkSubMenu addItem:theMenuItem];
+	[theMenuItem release];
 	[bookmarksMenu addItem:[NSMenuItem separatorItem]];
+	[bkSubMenu addItem:[NSMenuItem separatorItem]];
 		
 	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Add to Bookmarks",@"menu item title for bookmarking a note") 
 											  action:@selector(addBookmark:) keyEquivalent:@"D"] autorelease];
 	[theMenuItem setTarget:self];
 	[bookmarksMenu addItem:theMenuItem];
+	theMenuItem = [theMenuItem copy];
+	[bkSubMenu addItem:theMenuItem];
+	[theMenuItem release];
 	
-	if ([bookmarks count] > 0) [bookmarksMenu addItem:[NSMenuItem separatorItem]];
+	if ([bookmarks count] > 0) {
+		[bookmarksMenu addItem:[NSMenuItem separatorItem]];
+		[bkSubMenu addItem:[NSMenuItem separatorItem]];
+	}
 	
 	unsigned int i;
 	for (i=0; i<[bookmarks count]; i++) {
@@ -241,6 +271,9 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 			[theMenuItem setRepresentedObject:bookmark];
 			[theMenuItem setTarget:self];
 			[bookmarksMenu addItem:theMenuItem];
+			theMenuItem = [theMenuItem copy];
+			[bkSubMenu addItem:theMenuItem];
+			[theMenuItem release];
 		}
 	}
 }
@@ -335,7 +368,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (void)doubleClicked:(id)sender {
-	int row = [bookmarksTableView selectedRow];
+	NSInteger row = [bookmarksTableView selectedRow];
 	if (row > -1) [self restoreNoteBookmark:[bookmarks objectAtIndex:row] inBackground:NO];
 }
 
@@ -404,6 +437,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 			
 			return YES;
 		}
+		[object release];
 		return NO;
     }
 	

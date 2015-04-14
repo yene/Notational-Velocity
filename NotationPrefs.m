@@ -3,9 +3,19 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 4/1/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
 
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+#import "AppController.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
 #import "NSString_NV.h"
@@ -13,7 +23,9 @@
 #import "NSCollection_utils.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
-#include <Carbon/Carbon.h>
+#import "NotationFileManager.h"
+#import "SecureTextEntryManager.h"
+#import "DiskUUIDEntry.h"
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
 #include <ApplicationServices/ApplicationServices.h>
@@ -25,7 +37,7 @@
 
 #define INIT_DICT_ACCT() NSMutableDictionary *accountDict = ServiceAccountDictInit(self, serviceName)
 
-NSString *SyncPrefsDidChangeNotification = @"SyncPrefsDidChangeNotification";
+NSString *NotationPrefsDidChangeNotification = @"NotationPrefsDidChangeNotification";
 
 @implementation NotationPrefs
 
@@ -47,15 +59,19 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		for (i=0; i<4; i++) {
 			typeStrings[i] = [[NotationPrefs defaultTypeStringsForFormat:i] retain];
 			pathExtensions[i] = [[NotationPrefs defaultPathExtensionsForFormat:i] retain];
+			chosenExtIndices[i] = 0;
 		}
 		
 		confirmFileDeletion = YES;
 		storesPasswordInKeychain = secureTextEntry = doesEncryption = NO;
 		syncServiceAccounts = [[NSMutableDictionary alloc] init];
+		seenDiskUUIDEntries = [[NSMutableArray alloc] init];
 		notesStorageFormat = SingleDatabaseFormat;
 		hashIterationCount = DEFAULT_HASH_ITERATIONS;
 		keyLengthInBits = DEFAULT_KEY_LENGTH;
 		baseBodyFont = [[[GlobalPrefs defaultPrefs] noteBodyFont] retain];
+		//foregroundColor = [[[GlobalPrefs defaultPrefs] foregroundTextColor] retain];
+		foregroundColor = [[[NSApp delegate] foregrndColor]retain];
 		epochIteration = 0;
 		
 		[self updateOSTypesArray];
@@ -72,6 +88,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		//if we're initializing from an archive, we've obviously been run at least once before
 		firstTimeUsed = NO;
+		
+		preferencesChanged = NO;
 		
 		epochIteration = [decoder decodeInt32ForKey:VAR_STR(epochIteration)];
 		notesStorageFormat = [decoder decodeIntForKey:VAR_STR(notesStorageFormat)];
@@ -94,7 +112,20 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			NSLog(@"setting base body to current default: %@", baseBodyFont);
 			preferencesChanged = YES;
 		}
-				
+		//foregroundColor does not receive the same treatment as basebodyfont; in the event of a discrepancy between global and per-db settings,
+		//the former is applied to the notes in the database, while the latter is restored from the database itself
+		@try {
+			foregroundColor = [[decoder decodeObjectForKey:VAR_STR(foregroundColor)] retain];
+		} @catch (NSException *e) {
+			NSLog(@"Error trying to unarchive foreground text color (%@, %@)", [e name], [e reason]);
+		}
+		if (!foregroundColor || ![foregroundColor isKindOfClass:[NSColor class]]) {
+			//foregroundColor = [[[GlobalPrefs defaultPrefs] foregroundTextColor] retain];
+			
+			foregroundColor = [[[NSApp delegate] foregrndColor]retain];
+			preferencesChanged = YES;
+		}
+		
 		confirmFileDeletion = [decoder decodeBoolForKey:VAR_STR(confirmFileDeletion)];
 		
 		unsigned int i;
@@ -103,11 +134,15 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 				typeStrings[i] = [[NotationPrefs defaultTypeStringsForFormat:i] retain];
 			if (!(pathExtensions[i] = [[decoder decodeObjectForKey:[VAR_STR(pathExtensions) stringByAppendingFormat:@".%d",i]] retain]))
 				pathExtensions[i] = [[NotationPrefs defaultPathExtensionsForFormat:i] retain];
+			chosenExtIndices[i] = [decoder decodeIntForKey:[VAR_STR(chosenExtIndices) stringByAppendingFormat:@".%d",i]];
 		}
 		
 		if (!(syncServiceAccounts = [[decoder decodeObjectForKey:VAR_STR(syncServiceAccounts)] retain]))
 			syncServiceAccounts = [[NSMutableDictionary alloc] init];
 		keychainDatabaseIdentifier = [[decoder decodeObjectForKey:VAR_STR(keychainDatabaseIdentifier)] retain];
+		
+		if (!(seenDiskUUIDEntries = [[decoder decodeObjectForKey:VAR_STR(seenDiskUUIDEntries)] retain]))
+			seenDiskUUIDEntries = [[NSMutableArray alloc] init];
 		
 		masterSalt = [[decoder decodeObjectForKey:VAR_STR(masterSalt)] retain];
 		dataSessionSalt = [[decoder decodeObjectForKey:VAR_STR(dataSessionSalt)] retain];
@@ -117,8 +152,6 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		[self updateOSTypesArray];
     }
-	
-    preferencesChanged = NO;
 	
     return self;
 }
@@ -131,6 +164,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	 1: First NSArchiver (was unused--maps to 0)
 	 2: First NSKeyedArchiver
 	 3: First syncServicesMD and date created/modified syncing to files
+	 4: tracking of file size and attribute mod dates, font foreground colors, openmeta labels
 	 */
 	[coder encodeInt32:EPOC_ITERATION forKey:VAR_STR(epochIteration)];
 	
@@ -143,16 +177,20 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	[coder encodeBool:confirmFileDeletion forKey:VAR_STR(confirmFileDeletion)];
 	[coder encodeObject:baseBodyFont forKey:VAR_STR(baseBodyFont)];
-		
+	[coder encodeObject:foregroundColor forKey:VAR_STR(foregroundColor)];
+	
 	unsigned int i;
 	for (i=0; i<4; i++) {	
 		[coder encodeObject:typeStrings[i] forKey:[VAR_STR(typeStrings) stringByAppendingFormat:@".%d",i]];
 		[coder encodeObject:pathExtensions[i] forKey:[VAR_STR(pathExtensions) stringByAppendingFormat:@".%d",i]];
+		[coder encodeInt:chosenExtIndices[i] forKey:[VAR_STR(chosenExtIndices) stringByAppendingFormat:@".%d",i]];
 	}
 	
 	[coder encodeObject:[self syncServiceAccountsForArchiving] forKey:VAR_STR(syncServiceAccounts)];
 	
 	[coder encodeObject:keychainDatabaseIdentifier forKey:VAR_STR(keychainDatabaseIdentifier)];
+	
+	[coder encodeObject:seenDiskUUIDEntries forKey:VAR_STR(seenDiskUUIDEntries)];
 	
 	[coder encodeObject:masterSalt forKey:VAR_STR(masterSalt)];
 	[coder encodeObject:dataSessionSalt forKey:VAR_STR(dataSessionSalt)];
@@ -171,8 +209,10 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	free(allowedTypes);
 	
 	[syncServiceAccounts release];
+	[seenDiskUUIDEntries release];
 	[keychainDatabaseIdentifier release];
 	[baseBodyFont release];
+	[foregroundColor release];
     
     [super dealloc];
 }
@@ -202,11 +242,11 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	case SingleDatabaseFormat:
 	    return [NSMutableArray arrayWithCapacity:0];
 	case PlainTextFormat: 
-	    return [NSMutableArray arrayWithObjects:@"txt", @"text", @"utf8", nil];
+	    return [NSMutableArray arrayWithObjects:@"txt", @"text", @"utf8", @"taskpaper", nil];
 	case RTFTextFormat: 
 	    return [NSMutableArray arrayWithObjects:@"rtf", nil];
 	case HTMLFormat:
-	    return [NSMutableArray arrayWithObjects:@"htm", @"html", nil];
+	    return [NSMutableArray arrayWithObjects:@"html", @"htm", nil];
 	case WordDocFormat:
 		return [NSMutableArray arrayWithObjects:@"doc", nil];
 	case WordXMLFormat:
@@ -226,7 +266,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return storesPasswordInKeychain;
 }
 
-- (int)notesStorageFormat {
+- (NSInteger)notesStorageFormat {
 	return notesStorageFormat;
 }
 - (BOOL)confirmFileDeletion {
@@ -330,6 +370,17 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (BOOL)firstTimeUsed {
 	return firstTimeUsed;
+}
+
+- (void)setForegroundTextColor:(NSColor*)aColor {
+	[foregroundColor autorelease];
+	foregroundColor = [aColor retain];
+	
+	preferencesChanged = YES;
+}
+
+- (NSColor*)foregroundColor {
+	return foregroundColor;
 }
 
 - (void)setBaseBodyFont:(NSFont*)aFont {
@@ -542,9 +593,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return [masterKey derivedKeyOfLength:keyLengthInBits/8 salt:sessionSalt iterations:1];
 }
 
-- (void)setNotesStorageFormat:(int)formatID {
+- (void)setNotesStorageFormat:(NSInteger)formatID {
 	if (formatID != notesStorageFormat) {
-		int oldFormat = notesStorageFormat;
+		NSInteger oldFormat = notesStorageFormat;
 		notesStorageFormat = formatID;	
 		preferencesChanged = YES;
 		
@@ -559,7 +610,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	}
 }
 
-- (BOOL)shouldDisplaySheetForProposedFormat:(int)proposedFormat {
+- (BOOL)shouldDisplaySheetForProposedFormat:(NSInteger)proposedFormat {
 	BOOL notesExist = YES;
 	
 	if ([delegate respondsToSelector:@selector(totalNoteCount)])
@@ -624,18 +675,20 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 - (void)setSecureTextEntry:(BOOL)value {
-	//make application active to simplify balancing
-	//(what, someone will be setting this by command-clicking in a window?)
-	[NSApp activateIgnoringOtherApps:YES];
 	
 	secureTextEntry = value;
 	
 	preferencesChanged = YES;
 	
+	SecureTextEntryManager *tem = [SecureTextEntryManager sharedInstance];
+	
 	if (secureTextEntry) {
-		EnableSecureEventInput();
+		[tem enableSecureTextEntry];
+		[tem checkForIncompatibleApps];
 	} else {
-		DisableSecureEventInput();
+		//"forget" that the user had disabled the warning dialog when disabling this feature permanently
+		[[NSUserDefaults standardUserDefaults] removeObjectForKey:ShouldHideSecureTextEntryWarningKey];
+		[tem disableSecureTextEntry];
 	}
 }
 
@@ -768,6 +821,25 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	}
 }
 
+- (NSUInteger)tableIndexOfDiskUUID:(CFUUIDRef)UUIDRef {
+	//if this UUID doesn't yet exist, then add it and return the last index
+	
+	DiskUUIDEntry *diskEntry = [[[DiskUUIDEntry alloc] initWithUUIDRef:UUIDRef] autorelease];
+	
+	NSUInteger idx = [seenDiskUUIDEntries indexOfObject: diskEntry];
+	if (NSNotFound != idx) {
+		[[seenDiskUUIDEntries objectAtIndex:idx] see];
+		return idx;
+	}
+	
+	NSLog(@"saw new disk UUID: %@ (other disks are: %@)", diskEntry, seenDiskUUIDEntries);
+	[seenDiskUUIDEntries addObject:diskEntry];
+	
+	preferencesChanged = YES;
+	
+	return [seenDiskUUIDEntries count] - 1;
+}
+
 - (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath {
 	//is inside dropbox folder and notes are separate files
 	//is set to sync with any service
@@ -845,12 +917,21 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return 0;
 }
 
-- (NSString*)typeStringAtIndex:(int)typeIndex {
+- (NSString*)typeStringAtIndex:(NSInteger)typeIndex {
 
     return [typeStrings[notesStorageFormat] objectAtIndex:typeIndex];
 }
-- (NSString*)pathExtensionAtIndex:(int)pathIndex {
+- (NSString*)pathExtensionAtIndex:(NSInteger)pathIndex {
     return [pathExtensions[notesStorageFormat] objectAtIndex:pathIndex];
+}
+- (unsigned int)indexOfChosenPathExtension {
+	return chosenExtIndices[notesStorageFormat];
+}
+- (NSString*)chosenPathExtensionForFormat:(int)format {
+	if (chosenExtIndices[format] >= [pathExtensions[format] count])
+		return [NotationPrefs pathExtensionForFormat:format];
+	
+	return [pathExtensions[format] objectAtIndex:chosenExtIndices[format]];
 }
 
 - (void)updateOSTypesArray {
@@ -868,28 +949,47 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
     
     NSString *actualExt = [extension stringAsSafePathExtension];
 	[pathExtensions[notesStorageFormat] addObject:actualExt];
-    
-    preferencesChanged = YES;
-}
-
-- (void)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex {
-
-    [pathExtensions[notesStorageFormat] removeObjectAtIndex:extensionIndex];
 	
-    preferencesChanged = YES;
+	preferencesChanged = YES;
 }
 
-- (void)addAllowedType:(NSString*)type {
+- (BOOL)removeAllowedPathExtensionAtIndex:(NSUInteger)extensionIndex {
+
+	if ([pathExtensions[notesStorageFormat] count] > 1 && extensionIndex < [pathExtensions[notesStorageFormat] count]) {
+		[pathExtensions[notesStorageFormat] removeObjectAtIndex:extensionIndex];
+		
+		if (chosenExtIndices[notesStorageFormat] >= [pathExtensions[notesStorageFormat] count])
+			chosenExtIndices[notesStorageFormat] = 0;
+		
+		preferencesChanged = YES;
+		return YES;
+	}
+	return NO;
+}
+- (BOOL)setChosenPathExtensionAtIndex:(NSUInteger)extensionIndex {
+	if ([pathExtensions[notesStorageFormat] count] > extensionIndex &&
+		[[pathExtensions[notesStorageFormat] objectAtIndex:extensionIndex] length]) {
+		chosenExtIndices[notesStorageFormat] = extensionIndex;
+		
+		preferencesChanged = YES;
+		return YES;
+	}
+	return NO;
+}
+
+- (BOOL)addAllowedType:(NSString*)type {
     
 	if (type) {
 		[typeStrings[notesStorageFormat] addObject:[type fourCharTypeString]];
 		[self updateOSTypesArray];
 		
 		preferencesChanged = YES;
+		return YES;
 	}
+	return NO;
 }
 
-- (void)removeAllowedTypeAtIndex:(unsigned int)typeIndex {
+- (void)removeAllowedTypeAtIndex:(NSUInteger)typeIndex {
 	[typeStrings[notesStorageFormat] removeObjectAtIndex:typeIndex];
 	[self updateOSTypesArray];
 	
@@ -932,13 +1032,38 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return YES;
 }
 
-- (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry {
-    unsigned int i;
-    for (i=0; i<[pathExtensions[notesStorageFormat] count]; i++) {
-	if ([[(NSString*)catEntry->filename lowercaseString] hasSuffix:[[pathExtensions[notesStorageFormat] objectAtIndex:i] lowercaseString]])
-	    return YES;
+- (BOOL)pathExtensionAllowed:(NSString*)anExtension forFormat:(int)formatID {
+	NSUInteger i;
+    for (i=0; i<[pathExtensions[formatID] count]; i++) {
+		if ([anExtension compare:[pathExtensions[formatID] objectAtIndex:i] 
+						 options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+			return YES;
+		}
     }
+	return NO;
+}
+
+- (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry {
+    NSString *filename = (NSString*)catEntry->filename;
+	
+	if (![filename length])
+		return NO;
+	
+	//ignore hidden files and our own database-related files (e.g. if by chance they are given a TEXT file type)
+	if ([filename characterAtIndex:0] == '.') {
+		return NO;
+	}
+	if ([filename isEqualToString:NotesDatabaseFileName]) {
+		return NO;
+	}
+	if ([filename isEqualToString:@"Interim Note-Changes"]) {
+		return NO;
+	}
+	
+	if ([self pathExtensionAllowed:[filename pathExtension] forFormat:notesStorageFormat])
+		return YES;
     
+	NSUInteger i;
     for (i=0; i<[typeStrings[notesStorageFormat] count]; i++) {
 		if (catEntry->fileType == allowedTypes[i]) {
 			return YES;

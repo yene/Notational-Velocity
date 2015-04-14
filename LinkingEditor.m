@@ -1,15 +1,29 @@
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+
 #import "LinkingEditor.h"
 #import "GlobalPrefs.h"
 #import "AppController.h"
+#import "AppController_Importing.h"
 #import "NotesTableView.h"
-#import "FocusRingScrollView.h"
 #import "NSTextFinder.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
-#import "BodyScroller.h"
 #import "NSString_NV.h"
 #import "NVPasswordGenerator.h"
+#import "ETClipView.h"
+//#import "NVTextFinderAdditions.h"
+
 
 #include <CoreServices/CoreServices.h>
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
@@ -22,7 +36,36 @@
 static long (*GetGetScriptManagerVariablePointer())(short);
 #endif
 
+#define kDefaultTextInsetWidth 8.0
+#define kDefaultTextInsetHeight 8.0
+
+@interface NSCursor (WhiteIBeamCursor)
++ (NSCursor*)whiteIBeamCursor;
+@end
+
+@implementation NSCursor (WhiteIBeamCursor)
+
++ (NSCursor*)whiteIBeamCursor {
+	static NSCursor *invertedIBeamCursor = nil;
+	if (!invertedIBeamCursor) {
+		invertedIBeamCursor = [[NSCursor alloc] initWithImage:[NSImage imageNamed:@"IBeamInverted"] hotSpot:NSMakePoint(4,5)];
+	}
+	return invertedIBeamCursor;	
+}
+
+@end
+
+
 @implementation LinkingEditor
+
+@synthesize beforeString;
+@synthesize afterString;
+@synthesize activeParagraph;
+@synthesize activeParagraphBeforeCursor;
+@synthesize activeParagraphPastCursor;
+@synthesize managesTextWidth;
+
+CGFloat _perceptualDarkness(NSColor*a);
 
 - (void)awakeFromNib {
 	
@@ -33,111 +76,40 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		[self setAutomaticTextReplacementEnabled:[prefsController useTextReplacement]];
 	}
 
+    
     [prefsController registerWithTarget:self forChangesInSettings:
 	 @selector(setCheckSpellingAsYouType:sender:),
 	 @selector(setUseTextReplacement:sender:),
 	 @selector(setNoteBodyFont:sender:),
 	 @selector(setMakeURLsClickable:sender:),
-	 @selector(setSearchTermHighlightColor:sender:), nil];	
+	 @selector(setSearchTermHighlightColor:sender:),
+	 @selector(setShouldHighlightSearchTerms:sender:), nil];
 	
-	[self setTextContainerInset:NSMakeSize(2, 6)];
+    self.managesTextWidth=[prefsController managesTextWidthInWindow];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
-
-#if DELAYED_LAYOUT
-	rectForSuppressedUpdate = NSZeroRect;
-	inhibitingUpdates = didSetFutureRange = didRenderFully = didInvalidateLayout = NO;
-	//should go in outletawoke method
-	[(BodyScroller*)[[self enclosingScrollView] verticalScroller] setContentViewDelegate:self];
-#else
+	[self setDrawsBackground:YES];
+	[self updateTextColors];
+    [self updateInsetAndForceLayout:YES];
+    [self prepareTextFinder];
+    
+	[[self window] setAcceptsMouseMovedEvents:YES];
+	if (IsLeopardOrLater) {
+		defaultIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
+		whiteIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(whiteIBeamCursor)));
+	}
+	
 	didRenderFully = NO;
-#endif
 	[[self layoutManager] setDelegate:self];
 	
-	[self setLinkTextAttributes:[self preferredLinkAttributes]];
-	
-	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"NVFontMenu"] autorelease];
-
-	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut",@"cut menu item title") action:@selector(cut:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[theMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy",@"copy menu item title") action:@selector(copy:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[theMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Paste",@"paste menu item title") action:@selector(paste:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[theMenu addItem:theMenuItem];
-	
-	[theMenu addItem:[NSMenuItem separatorItem]];
-	
-	NSMenu *formatMenu = [[[NSMenu alloc] initWithTitle:NSLocalizedString(@"Format", nil)] autorelease];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Plain Text Style",nil) 
-											  action:@selector(defaultStyle:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Bold",nil) action:@selector(bold:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Italic",nil) action:@selector(italic:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Underline",nil) action:@selector(underlineNV:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Format",@"format submenu title") action:NULL keyEquivalent:@""] autorelease];
-	[theMenu addItem:theMenuItem];
-	[theMenu setSubmenu:formatMenu forItem:theMenuItem];
-	
-	
-	[self setMenu:theMenu];
+//	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+//	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
+//	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidResignMainNotification object:[self window]];
     
-    // Insert Password menus
-    static BOOL additionalEditItems = YES;
-    
-    if (additionalEditItems) {
-        additionalEditItems = NO;
-		
-        NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
-		
-		if (IsSnowLeopardOrLater) {
-			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
-													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
-			[theMenuItem setTarget:self];
-			[editMenu addItem:theMenuItem];
-			[theMenuItem release];
-		}
-		
-		[editMenu addItem:[NSMenuItem separatorItem]];
-        
-        #if PASSWORD_SUGGESTIONS
-        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
-												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
-        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
-        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-        [editMenu addItem:theMenuItem];
-        [theMenuItem release];
-        #endif
-        
-        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
-												 action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
-        #if PASSWORD_SUGGESTIONS
-        [theMenuItem setAlternate:YES];
-        #endif
-        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
-        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-        [editMenu addItem:theMenuItem];
-        [theMenuItem release];
-    }
-	
-	
+	//[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
+    //	NoMods = YES;
+   
 	outletObjectAwoke(self);
 }
 
@@ -157,15 +129,33 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		[self setTypingAttributes:[prefsController noteBodyAttributes]];
 		//[textView setFont:[prefsController noteBodyFont]];
 	} else if ([selectorString isEqualToString:SEL_STR(setMakeURLsClickable:sender:)]) {
+		
 		[self setLinkTextAttributes:[self preferredLinkAttributes]];
-	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)]) {
-		NSString *typedString = [[NSApp delegate] typedString];
-		if (typedString) [self highlightTermsTemporarilyReturningFirstRange:typedString];
+    
+	//} else if ([selectorString isEqualToString:SEL_STR(setBackgroundTextColor:sender:)]) {
+		
+		//link-color is derived both from foreground and background colors
+		//[self updateTextColors];
+		
+	//} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
+		
+		//[self updateTextColors];
+		//[self setTypingAttributes:[prefsController noteBodyAttributes]];
+		
+	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)] || 
+			   [selectorString isEqualToString:SEL_STR(setShouldHighlightSearchTerms:sender:)]) {
+		
+		if (![prefsController highlightSearchTerms]) {
+			[self removeHighlightedTerms];
+		} else {
+			NSString *typedString = [[NSApp delegate] typedString];
+			if (typedString)
+				[self highlightTermsTemporarilyReturningFirstRange:typedString avoidHighlight:NO];
+		}
 	}
 }
 
 - (BOOL)becomeFirstResponder {
-	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:YES];
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
 
 	if ([[[self window] currentEvent] type] == NSKeyDown && [[[self window] currentEvent] firstCharacter] == '\t') {
@@ -177,10 +167,10 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		}
 	}
 	
-#if DELAYED_LAYOUT
-	[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
-#endif
-		
+	[self setTypingAttributes:[prefsController noteBodyAttributes]];
+	
+	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
+	
 	return [super becomeFirstResponder];
 }
 
@@ -191,8 +181,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 }
 
 - (BOOL)resignFirstResponder {
-	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:NO];
 	[notesTableView setShouldUseSecondaryHighlightColor:NO];
+	
+	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
 	
 	return [super resignFirstResponder];
 }
@@ -202,14 +193,147 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	return;
 }
 
+- (void)setBackgroundColor:(NSColor*)aColor {
+	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
+    [self fixCursorForBackgroundUpdatingMouseInside:YES];
+	[super setBackgroundColor:aColor];
+}
+
+- (void)updateTextColors {
+	NSColor *fgColor = [[NSApp delegate] foregrndColor];
+	NSColor *bgColor = [self backgroundColor];
+    if (bgColor!=[[NSApp delegate]backgrndColor]) {
+        bgColor=[[NSApp delegate]backgrndColor];
+        [self setBackgroundColor:bgColor];
+    }
+	[[self enclosingScrollView] setBackgroundColor:bgColor];
+    if (IsLionOrLater&&[self textFinderIsVisible]) {
+        [[self window]invalidateCursorRectsForView:[[self enclosingScrollView]findBarView]];
+    }
+    
+	//[self setBackgroundColor:bgColor];
+	//[nvTextScroller setBackgroundColor:bgColor];
+	//[[self enclosingScrollView] setNeedsDisplay:YES];
+    
+	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:fgColor backgroundColor:bgColor]];
+	[self setLinkTextAttributes:[self preferredLinkAttributes]];
+	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 
+																forKey:NSBackgroundColorAttributeName]];
+	[self setTypingAttributes:[prefsController noteBodyAttributes]];
+    [[self enclosingScrollView]setNeedsDisplay:YES];
+//    [[[self enclosingScrollView]contentView]setNeedsDisplay:YES];
+    [self setNeedsDisplay:YES];
+}
+
+#define _CM(__ch) ((__ch) * 255.0)
+CGFloat _perceptualDarkness(NSColor*a) {
+	//0 to 1; the higher the darker
+	
+	CGFloat aRed, aGreen, aBlue;
+	[a getRed:&aRed green:&aGreen blue:&aBlue alpha:NULL];
+
+	return 1 - (0.299 * _CM(aRed) + 0.587 * _CM(aGreen) + 0.114 * _CM(aBlue))/255;
+}
+CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
+	//acceptable: 500
+	CGFloat aRed, aGreen, aBlue, bRed, bGreen, bBlue;
+	[a getRed:&aRed green:&aGreen blue:&aBlue alpha:NULL];
+	[b getRed:&bRed green:&bGreen blue:&bBlue alpha:NULL];
+
+	return (MAX(_CM(aRed), _CM(bRed)) - MIN(_CM(aRed), _CM(bRed))) + (MAX(_CM(aGreen), _CM(bGreen)) - MIN(_CM(aGreen), _CM(bGreen))) + 
+	(MAX(_CM(aBlue), _CM(bBlue)) - MIN(_CM(aBlue), _CM(bBlue)));
+}
+
+- (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
+	//if fgColor is black, choose blue; otherwise, rotate hue (keeping the same sat.) until color is different enough
+	
+	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	
+	CGFloat hue, brightness, saturation, alpha, diffInc = 0.5;
+	NSUInteger rotationsLeft = 25;
+	[fgColor getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
+
+	//if foreground color is too dark for hue changes to matter, then just use blue
+	if (brightness <= 0.24)
+		return [NSColor blueColor];
+	
+	brightness = _perceptualDarkness(bgColor) > 0.5 ? MAX(0.75, brightness) : MIN(0.35, brightness);
+	
+	saturation = MAX(0.5, saturation);
+	
+	//adjust hue until the perceptual differences between the proposed link
+	//and current foreground and background colors are great enough
+	NSColor *proposedLinkColor = nil;
+	do {
+		hue -= diffInc;
+		if (hue < 0.0)
+			hue += 1.0;
+		
+		proposedLinkColor = [NSColor colorWithCalibratedHue:hue saturation:saturation brightness:brightness alpha:alpha];
+		
+		diffInc = rotationsLeft > 15 ? 0.125 : 0.0625;
+		
+	} while ((_perceptualColorDifference(proposedLinkColor, bgColor) < 360.0 || 
+			  _perceptualColorDifference(proposedLinkColor, fgColor) < 170.0) && --rotationsLeft > 0);
+	return proposedLinkColor;
+}
+
+- (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
+	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+    
+	NSColor *proposedBlend = [fgColor blendedColorWithFraction:0.5 ofColor:bgColor];
+	NSColor *defaultColor = [[NSColor selectedTextBackgroundColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	
+	CGFloat fgDiff = _perceptualColorDifference(proposedBlend, fgColor);
+	CGFloat fgSelDiff = _perceptualColorDifference(defaultColor, fgColor);
+	
+	//selection color should be between foreground and background in terms of brightness
+	//but the selection-color-difference from the foreground text needs to be great enough as well,
+	//and the proposed-color-difference from the foreground can't be too poor
+	//this heuristic chooses all the system-highlight colors in default fg/bg combinations and fg/bg blends in all others
+    
+	if ((_perceptualDarkness(fgColor) > _perceptualDarkness(defaultColor) &&
+		 _perceptualDarkness(defaultColor) > (_perceptualDarkness(bgColor)+0.22) && fgSelDiff > 300.0) || fgDiff < 160.0){
+		return defaultColor;
+	}
+	//amplify the background balance after testing
+	return [fgColor blendedColorWithFraction:0.69 ofColor:bgColor];
+}
+
+
+- (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
+	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+	CGFloat hue, brightness, saturation;
+	[fgColor getHue:&hue saturation:&saturation brightness:&brightness alpha:NULL];
+	
+	//make the insertion point lighter than the foreground color if the background is dark and vise versa
+	NSColor *brighter = [fgColor blendedColorWithFraction:0.4 ofColor:[NSColor whiteColor]];
+	NSColor *darker = [fgColor blendedColorWithFraction:0.4 ofColor:[NSColor blackColor]];
+
+	return _perceptualColorDifference(brighter, bgColor) > _perceptualColorDifference(darker, bgColor) ? brighter : darker;
+}
+
 - (NSDictionary*)preferredLinkAttributes {
 	if (![prefsController URLsAreClickable])
 		return [NSDictionary dictionary];
 	
 	return [NSDictionary dictionaryWithObjectsAndKeys:
-		[NSCursor pointingHandCursor], NSCursorAttributeName,
-		[NSNumber numberWithInt:NSUnderlineStyleSingle], NSUnderlineStyleAttributeName,
-		[NSColor blueColor], NSForegroundColorAttributeName, nil];
+			[NSCursor pointingHandCursor], NSCursorAttributeName,
+			[NSNumber numberWithInt:NSUnderlineStyleSingle], NSUnderlineStyleAttributeName,
+			[self _linkColorForForegroundColor:[[NSApp delegate] foregrndColor] backgroundColor:[[NSApp delegate] backgrndColor]],
+			NSForegroundColorAttributeName, nil];
+	
+	/*
+	 return [NSDictionary dictionaryWithObjectsAndKeys:
+	 [NSCursor pointingHandCursor], NSCursorAttributeName,
+	 [NSNumber numberWithInt:NSUnderlineStyleSingle], NSUnderlineStyleAttributeName,
+	 [self _linkColorForForegroundColor:[prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]],
+	 NSForegroundColorAttributeName, nil];
+	 */
 }
 
 /*
@@ -239,145 +363,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
     return (responder == self && [super isContinuousSpellCheckingEnabled]);
 }
 
-#if DELAYED_LAYOUT
-
-- (void)progressTowardFutureRange:(id)sender {
-	unsigned int farthestLoc = [[self layoutManager] firstUnlaidCharacterIndex];
-	
-	//highlight all words from lastHighlightedIndex to farthestLoc, setting futureRange to range of first occurring found word
-	[self _updateHighlightedRangesToIndex:farthestLoc];
-	
-	if (futureRange.location <= farthestLoc) {
-		
-		[self _setFutureSelectionRangeWithinIndex:farthestLoc];
-	}
-}
-
-- (void)beginInhibitingUpdates {
-	inhibitingUpdates = YES;
-	
-	rectForSuppressedUpdate = NSZeroRect;
-	if (!didRenderFully) {
-		rectForSuppressedUpdate = NSUnionRect(rectForSuppressedUpdate, [self visibleRect]);
-		NSLog(@"probably dirty, so updating everything");
-	}
-}
-
-- (void)setFutureSelectionRange:(NSRange)aRange highlightingWords:(NSString*)words {
-	futureRange = aRange;
-	didSetFutureRange = didInvalidateLayout = NO;
-	lastHighlightedIndex = 0;
-	
-	[futureWordsToHighlight release];
-	futureWordsToHighlight = [words retain];
-	
-	//rectForSuppressedUpdate = NSZeroRect;
-	[(BodyScroller*)[[self enclosingScrollView] verticalScroller] clearSuppressedRects];
-	
-	//if we have focus, just force-scroll?
-	if ([[self window] firstResponder] == self) {
-		[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
-	} else if (!timer && [[self string] length] > 10*1024) {
-		timer = [NSTimer scheduledTimerWithTimeInterval:0.08 target:self selector:@selector(progressTowardFutureRange:) userInfo:nil repeats:YES];
-	}
-	//need to draw loading status here somehow
-}
-
-- (void)_updateHighlightedRangesToIndex:(unsigned)loc {
-	//unsigned loc = [[self string] length];
-	
-	NSString *bodyString = [self string];
-	NSRange scanRange = NSMakeRange(lastHighlightedIndex, loc - lastHighlightedIndex);
-	if (lastHighlightedIndex < loc && [futureWordsToHighlight length] && NSMaxRange(scanRange) <= [bodyString length]) {
-		//find the range with the lowest location
-		
-		//NSLog(@"highlighting from %d to %d", lastHighlightedIndex, loc);
-		CFArrayRef ranges = [bodyString copyRangesOfWordsInString:futureWordsToHighlight inRange:scanRange];
-		if (ranges) {
-			
-			if (!futureRange.length) {
-				CFRange earliestRange = CFRangeMake(NSNotFound, 0);
-				CFIndex rangeIndex;
-				for (rangeIndex = 0; rangeIndex < CFArrayGetCount(ranges); rangeIndex++) {
-					CFRange *range = (CFRange *)CFArrayGetValueAtIndex(ranges, rangeIndex);
-					if (range && range->length > 0 && range->location + range->length <= loc) {
-						if (range->location < earliestRange.location)
-							earliestRange = *range;
-					}
-				}
-				
-				if (earliestRange.location != NSNotFound) {
-					futureRange.location = earliestRange.location;
-					futureRange.length = earliestRange.length;
-					//NSLog(@"set futureRange to found: %@", NSStringFromRange(futureRange));
-				}
-			}
-			
-			[self highlightRangesTemporarily:ranges];
-			CFRelease(ranges);
-		}
-		lastHighlightedIndex = loc;
-	} else {
-		//NSLog(@"not scanning range %@ (max=%d)", NSStringFromRange(scanRange), NSMaxRange(scanRange));
-	}
-}
-
-- (void)_setFutureSelectionRangeWithinIndex:(unsigned)loc {
-	[timer invalidate];
-	timer = nil;
-	
-	//[[[self enclosingScrollView] verticalScroller] setHidden:NO];
-	[self _updateHighlightedRangesToIndex:loc];
-	
-	if (!didSetFutureRange) {
-		//highlight words from lastHighlightedIndex to end of body
-		
-		if (futureRange.location != NSNotFound && NSMaxRange(futureRange) <= [[self string] length]) {
-			didSetFutureRange = YES;
-			[self setAutomaticallySelectedRange:futureRange];
-			[self scrollRangeToVisible:futureRange];
-		}
-		
-		inhibitingUpdates = NO;
-		
-		[self setNeedsDisplayInRect:rectForSuppressedUpdate avoidAdditionalLayout:YES];
-		[(BodyScroller*)[[self enclosingScrollView] verticalScroller] restoreSuppressedRects];
-	}
-	
-	//[(BodyScroller*)[[self enclosingScrollView] verticalScroller] setDisableUpdating:NO];
-}
-
-- (void)layoutManager:(NSLayoutManager *)aLayoutManager didCompleteLayoutForTextContainer:(NSTextContainer *)aTextContainer atEnd:(BOOL)flag {
-	//NSLog(@"completed layout at end: %d", flag);
-	
-	didRenderFully = YES;
-	if (!didInvalidateLayout) {
-		//ideally we want to be able to do this as soon as firstUnlaidCharacterIndex is >= NSMaxRange(futureRange), but how to check other than polling?
-		[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
-		//[self setNeedsDisplayInRect:[self visibleRect] avoidAdditionalLayout:YES];
-	}
-	
-}
-- (void)layoutManagerDidInvalidateLayout:(NSLayoutManager *)aLayoutManager {
-	//NSLog(@"invalidated layout");
-	didInvalidateLayout = YES;
-	didRenderFully = NO;	
-}
-
-- (BOOL)readyToDraw {
-	//return didRenderFully || didInvalidateLayout || didSetFutureRange;
-	return !inhibitingUpdates;
-}
-
-- (void)setNeedsDisplayInRect:(NSRect)aRect avoidAdditionalLayout:(BOOL)flag {
-	if (![self readyToDraw]) {
-		rectForSuppressedUpdate = NSUnionRect(rectForSuppressedUpdate, aRect);
-	} else {
-		[super setNeedsDisplayInRect:aRect avoidAdditionalLayout:flag];
-	}
-}
-#else
-
 - (BOOL)didRenderFully {
 	return didRenderFully;
 }
@@ -388,61 +373,52 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 - (void)layoutManagerDidInvalidateLayout:(NSLayoutManager *)aLayoutManager {
 	didRenderFully = NO;	
 }
-#endif
 
 - (BOOL)readSelectionFromPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
 	//NSLog(@"readSelectionFromPasteboard: %@ (total %@)", type, [[pboard types] description]);
 	
 	if ([type isEqualToString:NSFilenamesPboardType]) {
 		//paste as a file:// URL, so that it can be linked
-		NSArray *files = [pboard propertyListForType:NSFilenamesPboardType];
-		if ([files isKindOfClass:[NSArray class]]) {
-			NSMutableString *allURLsString = [NSMutableString string];
-			unsigned int i;
-			BOOL foundURL = NO;
-			for (i=0; i<[files count]; i++) {
-				NSURL *url = [NSURL fileURLWithPath:[files objectAtIndex:i]];
-				if (url) {
-					[allURLsString appendFormat:@"<%@>", 
-						[[url absoluteString] stringByReplacingOccurrencesOfString:@"file://localhost" withString:@"file://"]];
-					foundURL = YES;
-				}
-				if (i < [files count] - 1) [allURLsString appendString:@"\n"];
-			}
-			if (foundURL) {
-				NSRange selectedRange = [self rangeForUserTextChange];
-				if ([self shouldChangeTextInRange:selectedRange replacementString:allURLsString]) {
-					[self replaceCharactersInRange:selectedRange withString:allURLsString];
-					[self didChangeText];
-					
-					return YES;
-				}
+		NSString *allURLsString = [[NSApp delegate] stringWithNoteURLsOnPasteboard:pboard];
+		
+		if ([allURLsString length]) {
+			NSRange selectedRange = [self rangeForUserTextChange];
+			if ([self shouldChangeTextInRange:selectedRange replacementString:allURLsString]) {
+				[self replaceCharactersInRange:selectedRange withString:allURLsString];
+				[self didChangeText];
+				
+				return YES;
 			}
 		}
 	}
 	
-	if ([type isEqualToString:NSRTFPboardType] || [type isEqualToString:NVPTFPboardType]) {
+	if ([type isEqualToString:NSRTFPboardType] || [type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSHTMLPboardType]) {
 		//strip formatting if RTF and stick it into a new pboard
-		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] initWithRTF:[pboard dataForType:type] 
-																				   documentAttributes:nil] autorelease];
-		NSRange selectedRange = [self rangeForUserTextChange];
-		if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
-			
+		
+		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] performSelector:[type isEqualToString:NSHTMLPboardType] ? 
+												 @selector(initWithHTML:documentAttributes:) : @selector(initWithRTF:documentAttributes:) 
+																						withObject:[pboard dataForType:type] withObject:nil] autorelease];
+		if ([newString length]) {
 			if (![type isEqualToString:NVPTFPboardType]) {
-				//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
-				//and we only want real URLs to be linked
-				[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
-				[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
-			}
-						
-			[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
-								   NSMakeRange(0, [newString length]) documentAttributes:nil]];
+							//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
+							//and we only want real URLs to be linked
+							[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
+							[newString indentTextLists];
+							[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
+						}
 
-			//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
-			//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
-			[self didChangeText];
-			
-			return YES;
+						NSRange selectedRange = [self rangeForUserTextChange];
+						if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
+
+							[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
+																				  NSMakeRange(0, [newString length]) documentAttributes:nil]];
+
+							//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
+							//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
+							[self didChangeText];
+
+							return YES;
+						}
 		}
 	}
 	
@@ -459,17 +435,25 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	
 	if ([prefsController pastePreservesStyle]) {
 		[types insertObject:NSRTFPboardType atIndex:2];
+		[types insertObject:NSHTMLPboardType atIndex:3];
 	}
 	
 	return types;
 }
 
-
 - (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
-
-	if ([type isEqualToString:NVPTFPboardType]) {
+	
+	if ([type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSRTFPboardType]) {
 		//always preserve RTF to allow pasting into ourselves; prejudice against external sources
-		[pboard setData:[self RTFFromRange:[self selectedRange]] forType:NVPTFPboardType];
+		
+		NSMutableAttributedString *newString = [[[self textStorage] attributedSubstringFromRange:[self selectedRange]] mutableCopy];
+		
+		if (![type isEqualToString:NVPTFPboardType])
+			[newString removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [newString length])];
+
+		NSData *rtfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil];;
+		if (rtfData) [pboard setData:rtfData forType:type];
+		[newString release];
 		return YES;
 	}
 	
@@ -491,7 +475,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 			
 			NSAttributedString *newString = [[self textStorage] attributedSubstringFromRange:selectedRange];
 			NSRange effectiveRange = NSMakeRange(0,0);
-			unsigned int stringLength = [newString length];
+			NSUInteger stringLength = [newString length];
 			
 			//iterate over all styles; if any are acceptable, copy as RTF
 			while (NSMaxRange(effectiveRange) < stringLength) {
@@ -502,7 +486,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 					goto copyRTFType;
 				if ([attributes attributesHaveFontTrait:NSItalicFontMask orAttribute:NSObliquenessAttributeName])
 					goto copyRTFType;
-				if ([attributes attributesHaveFontTrait:0 orAttribute:NSUnderlineStyleAttributeName])
+				if ([attributes attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName])
 					goto copyRTFType;
 			}
 #if COPY_PASTE_DEBUG
@@ -529,28 +513,40 @@ copyRTFType:
 	return types;
 }
 
-- (void)underlineNV:(id)sender {
-	
-	//we don't respond to the font panel, so underline it ourselves
-		[self applyStyleOfTrait:0 alternateAttributeName:NSUnderlineStyleAttributeName 
+//font panel is disabled for the note-body, so styles must be applied manually:
+
+- (void)strikethroughNV:(id)sender {
+
+	[self applyStyleOfTrait:0 alternateAttributeName:NSStrikethroughStyleAttributeName 
 	alternateAttributeValue:[NSNumber numberWithInt:NSUnderlineStyleSingle]];
 	
-	[[self undoManager] setActionName:NSLocalizedString(@"Underline",nil)];
+	[[self undoManager] setActionName:NSLocalizedString(@"Strikethrough",nil)];
 }
 
-#define STROKE_WIDTH_FOR_BOLD (-3.50)
-#define OBLIQUENESS_FOR_ITALIC (0.20)
+#define STROKE_WIDTH_FOR_BOLD (-3.50f)
+#define OBLIQUENESS_FOR_ITALIC (0.20f)
+
+
+
 - (void)bold:(id)sender {	
-	[self applyStyleOfTrait:NSBoldFontMask alternateAttributeName:NSStrokeWidthAttributeName 
-	alternateAttributeValue:[NSNumber numberWithFloat:STROKE_WIDTH_FOR_BOLD]];	
-	
-	[[self undoManager] setActionName:NSLocalizedString(@"Bold",nil)];
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        [self changeMarkdownAttribute:@"**"];
+    }else{
+        [self applyStyleOfTrait:NSBoldFontMask alternateAttributeName:NSStrokeWidthAttributeName 
+        alternateAttributeValue:[NSNumber numberWithFloat:(float)STROKE_WIDTH_FOR_BOLD]];
+        [[self undoManager] setActionName:NSLocalizedString(@"Bold",nil)];
+	}
 }
+
 - (void)italic:(id)sender {
-	[self applyStyleOfTrait:NSItalicFontMask alternateAttributeName:NSObliquenessAttributeName 
-	alternateAttributeValue:[NSNumber numberWithFloat:OBLIQUENESS_FOR_ITALIC]];	
-	
-	[[self undoManager] setActionName:NSLocalizedString(@"Italic",nil)];
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        [self changeMarkdownAttribute:@"*"];
+    }else{
+        [self applyStyleOfTrait:NSItalicFontMask alternateAttributeName:NSObliquenessAttributeName 
+        alternateAttributeValue:[NSNumber numberWithFloat:(float)OBLIQUENESS_FOR_ITALIC]];
+        
+        [[self undoManager] setActionName:NSLocalizedString(@"Italic",nil)];
+    }
 }
 
 - (void)applyStyleOfTrait:(NSFontTraitMask)trait alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value {
@@ -607,7 +603,7 @@ copyRTFType:
 //use with rangesOfWordsInString:(NSString*)findString earliestRange:(NSRange*)aRange inRange:
 - (void)highlightRangesTemporarily:(CFArrayRef)ranges {
 	CFIndex rangeIndex;
-	int bodyLength = [[self string] length];
+	NSUInteger bodyLength = [[self string] length];
 	NSDictionary *highlightDict = [prefsController searchTermHighlightAttributes];
 	
 	for (rangeIndex = 0; rangeIndex < CFArrayGetCount(ranges); rangeIndex++) {
@@ -621,7 +617,7 @@ copyRTFType:
 	}
 }
 
-- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString {
+- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString avoidHighlight:(BOOL)noHighlight {
 	
 	//if lengths of respective UTF8-string equivalents for contentString are the same, we should revert to cstring-based algorithm
 	
@@ -646,7 +642,13 @@ copyRTFType:
 					CFRange *range = (CFRange *)CFArrayGetValueAtIndex(ranges, rangeIndex);
 					
 					if (range && range->length > 0 && range->location + range->length <= CFStringGetLength(bodyString)) {
-						if (firstRange.location > (NSUInteger)range->location) firstRange = *(NSRange*)range;
+						if (firstRange.location > (NSUInteger)range->location) {
+							firstRange = *(NSRange*)range;
+							if (noHighlight) {
+								CFRelease(ranges);
+								goto returnEarly;
+							}
+						}
 						[[self layoutManager] addTemporaryAttributes:highlightDict forCharacterRange:*(NSRange*)range];
 					} else {
 						NSLog(@"highlightTermsTemporarily: Invalid range (%@)", range ? NSStringFromRange(*(NSRange*)range) : @"?");
@@ -655,24 +657,27 @@ copyRTFType:
 				CFRelease(ranges);
 			}
 		}
+	returnEarly:
 		CFRelease(terms);
 	}
 	return (firstRange);
 }
 
 - (NSRange)selectionRangeForProposedRange:(NSRange)proposedSelRange granularity:(NSSelectionGranularity)granularity {
+    
+   // [[NSApp delegate] updateWordCount:YES];
 	if (granularity != NSSelectByWord || [[self string] length] == proposedSelRange.location) {
 		// If it's not a double-click return unchanged
 		return [super selectionRangeForProposedRange:proposedSelRange granularity:granularity];
 	}
 	
-	unsigned int location = [super selectionRangeForProposedRange:proposedSelRange granularity:NSSelectByCharacter].location;
+	unsigned int location = (unsigned int)[super selectionRangeForProposedRange:proposedSelRange granularity:NSSelectByCharacter].location;
 	int originalLocation = location;
 	
 	NSString *completeString = [self string];
 	unichar characterToCheck = [completeString characterAtIndex:location];
 	unsigned short skipMatchingBrace = 0;
-	unsigned int lengthOfString = [completeString length];
+	unsigned int lengthOfString = (unsigned int)[completeString length];
 	if (lengthOfString == proposedSelRange.location) { // To avoid crash if a double-click occurs after any text
 		return [super selectionRangeForProposedRange:proposedSelRange granularity:granularity];
 	}
@@ -685,7 +690,7 @@ copyRTFType:
 	
 	char *rightChar = strchr(rightGroupings, (char)characterToCheck);
 	if (rightChar) {
-		groupingIndex = rightChar - rightGroupings;
+		groupingIndex = (int)(rightChar - rightGroupings);
 		
 		triedToMatchBrace = YES;
 		while (location--) {
@@ -705,7 +710,7 @@ copyRTFType:
 	
 	char *leftChar = strchr(leftGroupings, (char)characterToCheck);
 	if (leftChar) {
-		groupingIndex = leftChar - leftGroupings;
+		groupingIndex = (int)(leftChar - leftGroupings);
 		
 		triedToMatchBrace = YES;
 		while (++location < lengthOfString) {
@@ -722,7 +727,8 @@ copyRTFType:
 		}
 		//NSBeep();
 	}
-		
+    
+    
 	// If it has a found a "starting" brace but not found a match, a double-click should only select the "starting" brace and not what it usually would select at a double-click
 	if (triedToMatchBrace) {
 		return [super selectionRangeForProposedRange:NSMakeRange(proposedSelRange.location, 1) granularity:NSSelectByCharacter];
@@ -745,103 +751,80 @@ copyRTFType:
 	[self setSelectedRange:newRange];
 }
 
-- (IBAction)performFindPanelAction:(id)sender {
-	id controller = [NSApp delegate];
-    NSString *typedString = [controller typedString];
-	NSString *currentFindString = nil;
     
-    if (!typedString) typedString = [controlField stringValue];
-	typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
-    
-    NSTextFinder *textFinder = [NSTextFinder sharedTextFinder];
-    if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
-		
-		NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
-		[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-		[pasteboard setString:typedString forType:NSStringPboardType];
-		
-		if ([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)])
-			[textFinder loadFindStringFromPasteboard];
-		else
-			NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
-		
-		[lastImportedFindString release];
-		lastImportedFindString = [typedString retain];
-    }
-	
-	[currentFindString release];
-	if ([textFinder respondsToSelector:@selector(findString)])
-		currentFindString = [[textFinder findString] retain];
-    else
-		NSLog(@"Apple changed NSTextFinder (findString)");
-    
-    int rowNumber = -1;
-    int totalNotes = [notesTableView numberOfRows];
-    int tag = [sender tag];
-    
-    if (![controller selectedNoteObject]) {
-		
-		rowNumber = (tag == NSFindPanelActionPrevious ? totalNotes - 1 : 0);
-		
-    } else if (textFinder && [textFinder nv_lastFindWasSuccessful] == LAST_FIND_NO &&	//if the last find op. didn't work
-			   selectedRangeDuringFind.location == [self selectedRange].location &&	//and user didn't change the selection
-			   noteDuringFind == [controller selectedNoteObject] &&					//or select a different note
-			   [stringDuringFind isEqualToString:currentFindString]) {				//or type a new search string
-			   
-		//then go to next/previous note in the list
-		int selectedRow = [notesTableView selectedRow];
-		rowNumber = (tag == NSFindPanelActionPrevious ? (selectedRow < 1 ? totalNotes - 1 : selectedRow - 1) : 
-					 (selectedRow >= totalNotes - 1 ? 0 : selectedRow + 1));
-    }
-    
-    if (rowNumber > -1 && tag != NSFindPanelActionShowFindPanel) {
-		//when skipping notes, also set the selection depending on find direction
-		[notesTableView selectRowAndScroll:rowNumber];
-		[self setSelectedRange:NSMakeRange((tag == NSFindPanelActionPrevious ? [[self string] length] : 0),0)];
-    }
-    
-	if ([controller selectedNoteObject])
-		[[self window] makeFirstResponder:self];
-	
-    [super performFindPanelAction:sender];
-	
-	[stringDuringFind release];
-	stringDuringFind = [currentFindString retain];
-	noteDuringFind = [controller selectedNoteObject];
-	selectedRangeDuringFind = [self selectedRange];
-	lastAutomaticallySelectedRange = selectedRangeDuringFind;
-}
-
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
-	
-	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
-	
-	if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
+//    [[NSApp delegate] resetModTimers];
+    //    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    NSUInteger modFlags=[anEvent modifierFlags];
+    if((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask)){
+         [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    }
+	if (((modFlags & NSCommandKeyMask)>0)&&([[self window]firstResponder]==self)) {
 		
-		if ([anEvent modifierFlags] & NSCommandKeyMask) {
-			unsigned charIndex = [self selectedRange].location;
+		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
+		if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
+		//	NSLog(@"insertion");
+			NSUInteger charIndex = [self selectedRange].location;
 			
 			id aLink = [self highlightLinkAtIndex:charIndex];
 			if ([aLink isKindOfClass:[NSURL class]]) {
 				[self clickedOnLink:aLink atIndex:charIndex];
 				return YES;
+			}else if (!((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask))){
+                if (modFlags&NSShiftKeyMask) {
+                    [self moveToBeginningOfParagraph:self]; 
+                    [self moveBackward:self];       
+                }else{            
+                    [self moveToEndOfParagraph:self];
+                }
+                [self insertNewline:self];
+//                [self insertNewlineIgnoringFieldEditor:self];  
+                return YES;
+            }
+		} else if (keyChar == NSBackspaceCharacter || keyChar == NSDeleteCharacter)  {
+			if ([[self string] length]) {
+				[self doCommandBySelector:@selector(deleteToBeginningOfLine:)];
+				return YES;
 			}
-		}
+		}else if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]){        
+            NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1]; 
+            if ([firstChar isEqualToString:@"<"]) {
+                [self removeStringAtStartOfSelectedParagraphs:@">"];
+                return YES;
+                //              NSLog(@"cmd-shift-<");   
+            }else if ([firstChar isEqualToString:@">"]){ 
+                [self insertStringAtStartOfSelectedParagraphs:@">"];
+                return YES;
+                //            NSLog(@"cmd-shift->");   
+            }else if (([firstChar isEqualToString:@"+"])||([firstChar isEqualToString:@"="])){ 
+                
+                [self insertStringAtStartOfSelectedParagraphs:@"#"];
+                return YES;
+                //            NSLog(@"cmd-shift-+");   
+            }else if (([firstChar isEqualToString:@"-"])||([firstChar isEqualToString:@"_"])){ 
+                [self removeStringAtStartOfSelectedParagraphs:@"#"];
+                return YES;
+                //            NSLog(@"cmd-shift-MINUS");   
+            } 
+        }
 	}
 	
 	return [super performKeyEquivalent:anEvent];
 }
 
-- (void)keyDown:(NSEvent*)anEvent {
+- (void)keyDown:(NSEvent*)anEvent {	
+    //    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
-
+    
 	if (keyChar == NSBackTabCharacter) {
 		//apparently interpretKeyEvents: on 10.3 does not call insertBacktab
 		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
 	}
+    //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
 	[super keyDown:anEvent];
+    
 }
 
 - (BOOL)jumpToRenaming {
@@ -870,45 +853,111 @@ copyRTFType:
 
 - (void)insertTab:(id)sender {
 	//check prefs for tab behavior
-
-	BOOL wasAutomatic = NO;
-	[self selectedRangeWasAutomatic:&wasAutomatic];
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        NSRange selectedRange=[self selectedRange];
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];   
+        if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
+            NSUInteger insertPt=selectedRange.location;
+            NSRange selRange;//=NSMakeRange(NSNotFound, 0);
+            NSString *insertString;
+            NSString *testString=self.activeParagraphPastCursor;
+            if (closer!=NSNotFound) {
+                closer+=1;
+                if(testString.length>closer) {
+                    testString=[testString substringFromIndex:closer];
+                }
+            }
+            testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
+            if ([self pairIsOnOwnParagraph:@"]"]) {
+                insertString=@": http://";
+                selRange=NSMakeRange((insertPt+2), 7);
+            }else if ([testString hasPrefix:@"http://"]) {
+                NSUInteger spaceDex=[testString rangeOfString:@" "].location;
+                
+                NSUInteger selDex;
+                if (spaceDex!=NSNotFound){
+                    selDex=spaceDex;
+                }else{
+                    selDex=testString.length;
+                }           
+                selDex+=insertPt;
+                selDex+=3;
+                selRange=NSMakeRange(selDex, 0);
+                insertString=@": ";
+            }else{					
+                insertString=@"[]";
+                selRange=NSMakeRange((insertPt+1), 0);
+            }            
+            if (selRange.location!=NSNotFound) {
+                if (closer!=NSNotFound) {
+                    insertPt+=closer;
+                    selRange.location+=closer;  
+                }
+                [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+                [self setSelectedRange:selRange];
+                return;
+            } 
+        }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&(([self.activeParagraphBeforeCursor rangeOfString:@"]: "].location!=NSNotFound)||([self.activeParagraphBeforeCursor hasSuffix:@"]("]))){
+            [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
+            return;
+        }      
+    }
+	BOOL wasAutomatic = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
 	
 	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length] || didChangeIntoAutomaticRange)) {
-		[self insertTabIgnoringFieldEditor:sender];		
+		[self insertTabIgnoringFieldEditor:sender];
 	} else {
 		[[self window] selectNextKeyView:self];
 	}
 }
 
 - (void)insertBacktab:(id)sender {
-	[[self window] selectPreviousKeyView:self];
+	//check temporary NVHiddenBulletIndentAttributeName here first
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        NSRange selectedRange=[self selectedRange];
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+        if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){             
+            NSUInteger insertPt=selectedRange.location;
+            NSString *insertString=@"(http://)";
+            if (closer!=NSNotFound) {
+                closer+=1;
+                insertPt+=closer;
+            }
+            NSRange selRange=NSMakeRange((insertPt+1), 7);
+            [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+            [self setSelectedRange:selRange];
+            return;
+        }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&([self.activeParagraphBeforeCursor hasSuffix:@"]("])){
+            [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
+            return;
+        }
+    }
+	if ([prefsController autoFormatsListBullets] && [self _selectionAbutsBulletIndentRange]) {
+		
+		[self shiftLeftAction:nil];
+	} else {
+	
+		[[self window] selectPreviousKeyView:self];
+	}
 }
 
 - (void)insertTabIgnoringFieldEditor:(id)sender {
 	
-	
-	BOOL shouldShiftText = NO;
-	
-	if ([self selectedRange].length > 0) { // Check to see if the selection is in the text or if it's at the beginning of a line or in whitespace; if one doesn't do this one shifts the line if there's only one suggestion in the auto-complete
-		NSRange rangeOfFirstLine = [[self string] lineRangeForRange:NSMakeRange([self selectedRange].location, 0)];
-		unsigned int firstCharacterOfFirstLine = rangeOfFirstLine.location;
-		while ([[self string] characterAtIndex:firstCharacterOfFirstLine] == ' ' || [[self string] characterAtIndex:firstCharacterOfFirstLine] == '\t') {
-			firstCharacterOfFirstLine++;
-		}
-		if ([self selectedRange].location <= firstCharacterOfFirstLine) {
-			shouldShiftText = YES;
-		}
-	}
-	
-	if (shouldShiftText) {
+	NSRange range = [self selectedRange];
+	if ((range.length > 0 && [[self string] rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] 
+														   options:NSLiteralSearch range:range].location != NSNotFound) ||
+		([prefsController autoFormatsListBullets] && [self _selectionAbutsBulletIndentRange])) {
+		//tab shifts text only if there is more than one line selected (i.e., the selection contains at least one line break), or an indented bullet is near
+		
 		[self shiftRightAction:nil];
+		
 	} else if ([prefsController softTabs]) {
-		int numberOfSpacesPerTab = [prefsController numberOfSpacesInTab];
+		
+		NSUInteger numberOfSpacesPerTab = [prefsController numberOfSpacesInTab];
 
-		int locationOnLine = [self selectedRange].location - [[self string] lineRangeForRange:[self selectedRange]].location;
+		NSUInteger locationOnLine = range.location - [[self string] lineRangeForRange:range].location;
 		if (numberOfSpacesPerTab != 0) {
-			int numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
+			NSUInteger numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
 			numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
 		}
 		NSMutableString *spacesString = [[NSMutableString alloc] initWithCapacity:numberOfSpacesPerTab];
@@ -923,6 +972,7 @@ copyRTFType:
 	}
 }
 
+
 - (void)deleteBackward:(id)sender {
 	
 	NSRange charRange = [self rangeForUserTextChange];
@@ -934,13 +984,15 @@ copyRTFType:
 			if (charRange.location == 0) {
 				// At beginning of text.  Delete normally.
 				[super deleteBackward:sender];
-			} else {
+			}else {
+            
 				NSString *string = [self string];
 				NSRange paraRange = [string lineRangeForRange:NSMakeRange(charRange.location - 1, 1)];
 				if (paraRange.location == charRange.location) {
 					// At beginning of line.  Delete normally.
 					[super deleteBackward:sender];
 				} else {
+                    
 					unsigned tabWidth = [prefsController numberOfSpacesInTab];
 					unsigned indentWidth = 4;
 					BOOL usesTabs = ![prefsController softTabs];
@@ -948,17 +1000,21 @@ copyRTFType:
 					unsigned leadingSpaces = [string numberOfLeadingSpacesFromRange:&leadingSpaceRange tabWidth:tabWidth];
 					
 					if (charRange.location > NSMaxRange(leadingSpaceRange)) {
+                        
+                        if ([self deleteEmptyPairsBetweenRange:charRange inLineRange:paraRange]) {
+                            return;
+                        }
 						// Not in leading whitespace.  Delete normally.
 						[super deleteBackward:sender];
 					} else {
-#if SPECIAL_DELETE_FOR_SPACES_ONLY
-						NSString *leadingSpaceString = [string substringWithRange:leadingSpaceRange];
-						if ([leadingSpaceString rangeOfString:@"\t"].location != NSNotFound) {
-							//thar actually be tabs here; revert to normal backwards-deletion
+						if ([string rangeOfString:@"\t" options:NSLiteralSearch range:leadingSpaceRange].location == NSNotFound) {
+							//if this line was indented only with spaces, then keep the soft-tabbed-indentation
+							usesTabs = NO;
+						} else if ([string rangeOfString:@" " options:NSLiteralSearch range:leadingSpaceRange].location != NSNotFound && ![prefsController _bodyFontIsMonospace]) {
+							//mixed tabs and spaces, and we have a proportional font -- what a mess! just revert to normal backward-deletes
 							[super deleteBackward:sender];
 							return;
 						}
-#endif
 						
 						NSTextStorage *text = [self textStorage];
 						unsigned leadingIndents = leadingSpaces / indentWidth;
@@ -1016,7 +1072,67 @@ copyRTFType:
 		}
 		[self insertText:insertString];
 	}	
-}*/
+}
+*/
+
+- (void)mouseEntered:(NSEvent*)anEvent {
+//	mouseInside = YES;
+	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+    [super mouseEntered:anEvent];
+}
+- (void)mouseExited:(NSEvent*)anEvent {
+	mouseInside = NO;
+	[self fixCursorForBackgroundUpdatingMouseInside:NO];
+    
+    //fix for tooltip hanging around
+    [super mouseExited:anEvent];
+}
+
+- (void)_fixCursorForBackgroundUpdatingMouseInside:(NSNumber*)num {
+	[self fixCursorForBackgroundUpdatingMouseInside:[num boolValue]];
+}
+
+- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)checkMouseLoc {
+	
+	if (IsLeopardOrLater && whiteIBeamCursorIMP && defaultIBeamCursorIMP) {
+        if (checkMouseLoc) {
+            mouseInside=[self mouseIsHere];
+        }
+//          NSLog(@"mouseInside :>%d<",mouseInside);
+		BOOL shouldBeWhite = mouseInside && backgroundIsDark && ![self isHidden];
+      
+		Class class = [NSCursor class];
+		
+		//set method implementation directly; whiteIBeamCursorIMP and defaultIBeamCursorIMP always point to the same respective blocks of code
+		Method defaultIBeamCursorMethod = class_getClassMethod(class, @selector(IBeamCursor));
+		method_setImplementation(defaultIBeamCursorMethod, shouldBeWhite ? whiteIBeamCursorIMP : defaultIBeamCursorIMP);
+		
+		NSCursor *currentCursor = [NSCursor currentCursor];
+		NSCursor *whiteCursor = whiteIBeamCursorIMP(class, @selector(whiteIBeamCursor));
+		NSCursor *defaultCursor = defaultIBeamCursorIMP(class, @selector(IBeamCursor));
+      
+		//if the current cursor is set incorrectly, and and it's not a non-IBeam cursor, then update it (IBeamCursor points to our recently-set implementation)
+		if ((currentCursor == whiteCursor) != shouldBeWhite && (currentCursor == whiteCursor || currentCursor == defaultCursor)) {
+			[[NSCursor IBeamCursor] set];
+		}
+	}
+}
+
+//hiding or showing the view does not always produce mouseEntered/Exited events
+- (void)viewDidUnhide {
+	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
+
+	[super viewDidUnhide];
+}
+- (void)viewDidHide {
+	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+	[super viewDidHide];
+}
+
+- (void)windowBecameOrResignedMain:(NSNotification *)aNotification  {
+	//changing the window ordering seems to occasionally trigger mouseExited events w/o a corresponding mouseEntered
+//	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+}
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	//need to fix this for better style detection
@@ -1025,7 +1141,7 @@ copyRTFType:
 	if (action == @selector(defaultStyle:) ||
 		action == @selector(bold:) ||
 		action == @selector(italic:) ||
-		action == @selector(underlineNV:)) {
+		action == @selector(strikethroughNV:)) {
 		
 		NSRange effectiveRange = NSMakeRange(0,0), range = [self selectedRange];
 		NSDictionary *attrs = nil;
@@ -1050,8 +1166,8 @@ copyRTFType:
 			menuItemState = [attrs attributesHaveFontTrait:NSBoldFontMask orAttribute:NSStrokeWidthAttributeName];
 		} else if (action == @selector(italic:)) {
 			menuItemState = [attrs attributesHaveFontTrait:NSItalicFontMask orAttribute:NSObliquenessAttributeName];
-		} else if (action == @selector(underlineNV:)) {
-			menuItemState = [attrs attributesHaveFontTrait:0 orAttribute:NSUnderlineStyleAttributeName];
+		} else if (action == @selector(strikethroughNV:)) {
+			menuItemState = [attrs attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName];
 		}
 		
 		if (menuItemState && multipleAttributes)
@@ -1059,7 +1175,38 @@ copyRTFType:
 		[menuItem setState:menuItemState];
 
 		return YES;
-	}
+	}else if (action==@selector(performFindPanelAction:)) {
+        //for ElasticThreads Find... fix. Also make sure all Find menuItems point their targets to LinkingEditor instead of firstResponder
+        
+        //hide Find and Replace... on Pre-Lion machines
+        if (!IsLionOrLater){
+            if([menuItem tag]==12) {
+            [menuItem setHidden:YES];
+            return NO;
+            }
+        }else{
+            if ([menuItem tag]==7) {
+                if (![textFinder validateAction:[menuItem tag]]) {
+                    return NO;
+                }
+            }
+        }
+        return YES;
+    }else if (action==@selector(pasteMarkdownLink:)) {
+        
+      //  if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {  
+           // [menuItem setHidden:NO];
+            if ([self clipboardHasLink]) {                
+                return YES;
+            }
+            
+       // }
+//        else{
+//            
+//            [menuItem setHidden:YES];
+//        }
+        return NO;
+    }
 	
 	return [super validateMenuItem:menuItem];
 }
@@ -1079,11 +1226,9 @@ copyRTFType:
 		
 		NSTextStorage *textStorage = [self textStorage];
 		[textStorage beginEditing];
-		
 		[textStorage setAttributes:[prefsController noteBodyAttributes] range:range];
-		[textStorage addLinkAttributesForRange:range];
-		
 		[textStorage endEditing];
+		
 		[self didChangeText];
 	}
 	
@@ -1092,17 +1237,9 @@ copyRTFType:
 	[[self undoManager] setActionName:NSLocalizedString(@"Plain Text Style",nil)];
 }
 
-/*- (void)suggestComplete:(id)sender {
-	NSRange selectedRange = [self selectedRange];
-	NSRange lastWordRange = [self rangeOfWordLocation:selectedRange.location String:[self string] Backwards:YES];
-	if ([self selectedRange].location == lastWordRange.location + lastWordRange.length) {
-		[self complete:sender];
-	}
-}*/
-
-- (id)highlightLinkAtIndex:(unsigned)givenIndex {
-	unsigned totalLength = [[self string] length];
-	unsigned charIndex = givenIndex;
+- (id)highlightLinkAtIndex:(NSUInteger)givenIndex {
+	NSUInteger totalLength = [[self string] length];
+	NSUInteger charIndex = givenIndex;
 	if (charIndex >= totalLength)
 		charIndex = totalLength - 1;
 
@@ -1116,6 +1253,7 @@ copyRTFType:
 
 - (void)clickedOnLink:(id)aLink atIndex:(NSUInteger)charIndex {
 	NSEvent *currentEvent = [[self window] currentEvent];
+//    NSLog(@"clicked:%@",[currentEvent description]);
 	
 	if (![prefsController URLsAreClickable] && [currentEvent modifierFlags] & NSCommandKeyMask) {
 		
@@ -1127,50 +1265,94 @@ copyRTFType:
 		return;
 	}
 	
-	[super clickedOnLink:aLink atIndex:charIndex];
+	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nvalt"]) {
+        NSUInteger flags=[currentEvent modifierFlags];
+        if (((flags&NSDeviceIndependentModifierFlagsMask)==(flags&NSCommandKeyMask))&&((flags&NSDeviceIndependentModifierFlagsMask)>0)) {
+            NSString *newURLString=[[aLink lastPathComponent]stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+            NSString *txtString=[[NSString stringWithFormat:@"[[%@]]",[aLink lastPathComponent]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+            newURLString=[NSString stringWithFormat:@"nvalt://make/?title=%@&txt=%@",newURLString,txtString];
+//            NSLog(@"newurlstring:%@",newURLString);
+            NSURL *newURL=[NSURL URLWithString:newURLString];
+//            NSLog(@"interpret from cmd-keydown OLD URL:||%@||  AND NEW URL:|%@|",[aLink absoluteString],[newURL absoluteString]);
+            aLink=newURL;
+        }
+		[[NSApp delegate] interpretNVURL:aLink];
+	} else {
+		[super clickedOnLink:aLink atIndex:charIndex];
+	}
+}
+
+- (NSRange)rangeForUserCompletion {
+	NSRange completionRange = [super rangeForUserCompletion];
+	//NSLog(@"completionRange: %@", [[self string] substringWithRange:completionRange]);
+	
+	
+	//problem: changedRange.location was 201, but completionRange.location was 195
+	NSRange beginLineRange = NSMakeRange(changedRange.location, completionRange.location - changedRange.location);
+	if (beginLineRange.length > changedRange.length)
+		goto cancelCompetion;
+	
+	NSRange backRange = [[self string] rangeOfString:@"[[" options:NSBackwardsSearch | NSLiteralSearch range:beginLineRange];
+	if (backRange.location == NSNotFound)
+		goto cancelCompetion;
+	
+	backRange.location += 2;
+	backRange.length = completionRange.length + (completionRange.location - backRange.location);
+
+	if ([[NSCharacterSet whitespaceAndNewlineCharacterSet] characterIsMember:[[self string] characterAtIndex:backRange.location]])
+		goto cancelCompetion;
+	
+	if ([[self string] rangeOfString:@"]]" options:NSLiteralSearch range:backRange].location != NSNotFound)
+		goto cancelCompetion;
+		
+	return backRange;
+cancelCompetion:
+	return NSMakeRange(NSNotFound, 0);
+}
+
+- (void)insertCompletion:(NSString *)word forPartialWordRange:(NSRange)charRange movement:(NSInteger)movement isFinal:(BOOL)isFinal {
+	NSString *str = [self string];
+	BOOL finalizedCompletion = NO;
+	
+	isFinal = isFinal && movement != NSRightTextMovement;
+	
+	if (isFinal && [word length] && (movement == NSReturnTextMovement || movement == NSTabTextMovement)) {
+		
+		//automatically add a trailing double-bracket if one does not already exist
+		NSRange endRange = NSMakeRange(charRange.location + [word length], 2);
+		if ([str length] < NSMaxRange(endRange) || ![[str substringWithRange:endRange] isEqualToString:@"]]"]) {
+			word = [word stringByAppendingString:@"]]"];
+		}
+		finalizedCompletion = YES;
+	}
+	
+	//preserve capitalization by transferring charRange substring into word
+	if (!finalizedCompletion && charRange.length <= [word length]) { 
+		NSString *existingWord = [str substringWithRange:charRange];
+		word = [existingWord stringByAppendingString:[word substringFromIndex:[existingWord length]]];
+	}
+	
+	[super insertCompletion:word forPartialWordRange:charRange movement:movement isFinal:isFinal];
 }
 
 - (void)didChangeText {
-	/*NSString *string = [self string];
-	WordEnumerator *enumerator = [WordEnumerator enumeratorForString:[string substringWithRange:changedRange]];
-	NSRange firstWordRange = [enumerator next];
-	if (firstWordRange.location != NSNotFound) {
-		firstWordRange.location += changedRange.location;
-		id link = [[self textStorage] attribute:NSLinkAttributeName atIndex:firstWordRange.location effectiveRange:NULL];
-		if ([link isKindOfClass:[NSURL class]]) {
-			link = [link absoluteURL];
-		}
-		
-		NSString *word = [string substringWithRange:firstWordRange];
-		if (!link || ![link isEqual:word]) {
-			firstWordRange.location = NSNotFound;
-		}
-	}*/
 	
-	[[self textStorage] removeAttribute:NSLinkAttributeName range:changedRange];
-	
-	/*if (firstWordRange.location != NSNotFound) {
-		[self createWikiLinkWithRange:firstWordRange];
-		changedRange.length += changedRange.location - (firstWordRange.location+firstWordRange.length);
-		changedRange.location = firstWordRange.location + firstWordRange.length;
-	}*/
-	
+	//if the text storage was somehow shortened since changedRange was set in -shouldChangeText, at least avoid an out of bounds exception
+	changedRange = NSMakeRange(changedRange.location, (MIN(NSMaxRange(changedRange), [[self string] length]) - changedRange.location));
+
+
+	//-removeAttribute:range: seems slow for some reason; try checking with -attributesAtIndex:effectiveRange: first
+	if ([[self textStorage] attribute:NSLinkAttributeName existsInRange:changedRange])
+		[[self textStorage] removeAttribute:NSLinkAttributeName range:changedRange];
 	[[self textStorage] addLinkAttributesForRange:changedRange];
 	
-	if ([prefsController linksAutoSuggested]) {
-		
-		/*WordEnumerator *words = [WordEnumerator enumeratorForString:[string substringWithRange:changedRange]];
-		NSRange wordRange = [words next];
-		while (wordRange.location != NSNotFound) {
-			wordRange.location += changedRange.location;
-			if ([self isWikiWord: [string substringWithRange:wordRange]]) {
-				[self createWikiLinkWithRange: wordRange];
-			}
-			wordRange = [words next];
-		}*/
-		
-		//[self suggestComplete:nil];
-		//[self complete:nil];
+	[[self textStorage] addStrikethroughNearDoneTagsForRange:changedRange];
+	
+	if (!isAutocompleting && !wasDeleting && [prefsController linksAutoSuggested] && 
+		![[self undoManager] isUndoing] && ![[self undoManager] isRedoing]) {
+		isAutocompleting = YES;
+		[self complete:self];
+		isAutocompleting = NO;
 	}
 	
 	//[[self window] invalidateCursorRectsForView:self];
@@ -1179,48 +1361,33 @@ copyRTFType:
 	
 	//if the result of changing the text caused us to move into the automatic range, then temporarily ignore the automatic range
 	//don't use -selectedRangeWasAutomatic: as it consults didRenderFully, which might not be true here
-	didChangeIntoAutomaticRange = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
+	if (NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]))
+		didChangeIntoAutomaticRange = YES;
 }
 
 - (BOOL)shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
-	NSCharacterSet *separatorCharacterSet = [NSAttributedString antiURLCharacterSet];
+	wasDeleting = ![replacementString length];
 	
 	//it's not exactly proper to alter typing attributes when we don't yet know whether the text should actually be changed, but NV shouldn't cause that to happen, anyway
 	[self fixTypingAttributesForSubstitutedFonts];
 	
 	NSString *string = [self string];
-	
-	//changedRange = NSMakeRange(affectedCharRange.location, affectedCharRange.length);
-	
-	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch
-										  range:NSMakeRange(0, affectedCharRange.location)].location;
+		
+	NSCharacterSet *separatorCharacterSet = [NSCharacterSet newlineCharacterSet];
+	//even when only seeking newlines, this manual line-finding method is less laggy than -[NSString lineRangeForRange:]
+	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch range:NSMakeRange(0, affectedCharRange.location)].location;
 	if (begin == NSNotFound) {
 		begin = 0;
 	}
 	
-	NSUInteger end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0
-										range:NSMakeRange(affectedCharRange.location + affectedCharRange.length, 
-														  [string length] - (affectedCharRange.location + affectedCharRange.length))].location;
+	NSUInteger end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0 range:NSMakeRange(affectedCharRange.location + affectedCharRange.length, 
+																									   [string length] - (affectedCharRange.location + affectedCharRange.length))].location;
 	if (end == NSNotFound) {
 		end = [string length];
 	}
-	
-	changedRange = NSMakeRange(begin, (end-begin));
-	
-	//NSAttributedString *changedText = [[self textStorage] attributedSubstringFromRange:changedRange];
-	changedRange.length += [replacementString length];
-	
-	/*int startIndex = 0;
-	NSRange range;
-	while (startIndex < [changedText length]) {
-		id link = [changedText findNextLinkAtIndex:startIndex effectiveRange:&range];
-		if ([link isKindOfClass:[NSURL class]]) {
-			link = [link absoluteString];
-		}
-		startIndex = range.location+range.length;
-	}*/
-	
-	if (affectedCharRange.length > 0) { // Deleting something
+	changedRange = NSMakeRange(begin, (end - begin) + [replacementString length]);
+		
+	if (affectedCharRange.length > 0 && replacementString != nil) { // Deleting something
 		changedRange.length -= affectedCharRange.length;
 	}
 	
@@ -1291,21 +1458,235 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 								alternateAttributeValue:[NSNumber numberWithFloat:OBLIQUENESS_FOR_ITALIC]];	
 			}
 			[self setTypingAttributes:newTypingAttributes];
+            [newTypingAttributes release];
 		}
 	}
 }
 
-- (void)insertNewline:(id)sender {
-	[super insertNewline:sender];
-	// If we should indent automatically, check the previous line and scan all the whitespace at the beginning of the line into a string and insert that string into the new line
-	//NSString *lastLineString = [[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]];
-	NSString *previousLineWhitespaceString;
-	NSScanner *previousLineScanner = [[NSScanner alloc] initWithString:[[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]]];
-	[previousLineScanner setCharactersToBeSkipped:nil];		
-	if ([previousLineScanner scanCharactersFromSet:[NSCharacterSet whitespaceCharacterSet] intoString:&previousLineWhitespaceString]) {
-		[self insertText:previousLineWhitespaceString];
+- (BOOL)_selectionAbutsBulletIndentRange {
+
+	NSRange range = [self selectedRange];
+	NSRange backBulletRange = NSMakeRange(range.location - 2, 2);
+	NSRange frontBulletRange = NSMakeRange(range.location, 2);
+	
+	return ((backBulletRange.location > 0 && NSMaxRange(backBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:backBulletRange]) || 
+			(NSMaxRange(frontBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:frontBulletRange]));
+}
+
+- (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange {
+	NSRange effectiveRange = NSMakeRange(aRange.location, 0);
+	while (NSMaxRange(effectiveRange) < NSMaxRange(aRange)) {
+		
+		id bulletIndicator = nil;
+		
+		//sometimes the temporary attributes are split across juxtaposing characters for some reason, so longest-effective-range is necessary
+		//unfortunately there is no such method on Tiger, and I'm not about to emulate its coalescing behavior here
+		if (IsLeopardOrLater) {
+			bulletIndicator = [[self layoutManager] temporaryAttribute:NVHiddenBulletIndentAttributeName atCharacterIndex:NSMaxRange(effectiveRange) 
+												 longestEffectiveRange:&effectiveRange inRange:aRange];
+		} else {
+			NSDictionary *dict = [[self layoutManager] temporaryAttributesAtCharacterIndex:NSMaxRange(effectiveRange) effectiveRange:&effectiveRange];
+			bulletIndicator = [dict objectForKey:NVHiddenBulletIndentAttributeName];
+		}
+		if (bulletIndicator && NSEqualRanges(effectiveRange, aRange)) {
+			return YES;
+		}
 	}
-	[previousLineScanner release];
+	
+	return NO;	
+}
+
+- (void)insertNewline:(id)sender {
+	//reset custom styles after each line
+	[self setTypingAttributes:[prefsController noteBodyAttributes]];
+	
+	[super insertNewline:sender];
+	
+	if ([prefsController autoIndentsNewLines]) {
+		// If we should indent automatically, check the previous line and scan all the whitespace at the beginning of the line into a string and insert that string into the new line
+		NSString *previousLineWhitespaceString = nil;
+		NSRange previousLineRange = [[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)];
+		NSScanner *previousLineScanner = [[NSScanner alloc] initWithString:[[self string] substringWithRange:previousLineRange]];
+		[previousLineScanner setCharactersToBeSkipped:nil];
+		
+		if (![previousLineScanner scanCharactersFromSet:[NSCharacterSet whitespaceCharacterSet] intoString:&previousLineWhitespaceString]) {
+            previousLineWhitespaceString = @"";
+        }
+        //for propagating list-element, look for bullet-type-character + 1charWS + at-least-one-nonWSChar
+        
+        NSUInteger loc = [previousLineScanner scanLocation];
+        NSString *str = [previousLineScanner string];
+        unichar bulletChar, wsChar;
+        NSRange realBulletRange = NSMakeRange(loc + previousLineRange.location, 2), carriedBulletRange = NSMakeRange(NSNotFound, 0);
+        BOOL shouldDeleteLastBullet = NO;
+        NSInteger listNumber=NSNotFound;
+        bulletChar = [str characterAtIndex:loc];
+        BOOL isNumberedList=[[NSCharacterSet decimalDigitCharacterSet] characterIsMember:bulletChar];
+        if ([prefsController autoFormatsListBullets]) {
+            
+            NSUInteger keyLoc=loc;
+            NSString *theNum=@"";
+            if (isNumberedList&&([str length]>(keyLoc+1))) {
+                NSRange numRange;
+                theNum=[[self string] firstNumberFromStringWithinRange:previousLineRange isInRange:&numRange];
+                if (numRange.location!=NSNotFound) {
+                    keyLoc+=numRange.length;
+                }else{
+                    isNumberedList=NO;
+                }
+            }
+            if (keyLoc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
+                ([[NSCharacterSet listBulletsCharacterSet] characterIsMember:bulletChar]||isNumberedList) &&
+                [[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:keyLoc + 1])] &&
+                [[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet] characterIsMember:[str characterAtIndex:keyLoc + 2]]) {
+                carriedBulletRange = NSMakeRange(NSMaxRange(previousLineRange) + [previousLineWhitespaceString length], 2);
+                if (isNumberedList) {
+                    
+                    listNumber=[theNum integerValue];
+                    listNumber++;
+                    previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%ld.", listNumber];
+                    
+                }else{
+                    previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%@", [NSString stringWithCharacters:&bulletChar length:1]];
+                }
+                previousLineWhitespaceString=[previousLineWhitespaceString stringByAppendingFormat:@"%@",[NSString stringWithCharacters:&wsChar length:1]];
+            } else if (NSMaxRange(realBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:realBulletRange]) {
+                //should not carry a bullet; also check if one is here that we should delete
+                shouldDeleteLastBullet = YES;
+            }
+        }
+        
+        if (shouldDeleteLastBullet) {
+            //we had carried a bullet, but now it is no carried no more
+            //so instead of inserting the extra space, delete both that previously-carried-bullet and the newline added by -super up there
+            if ([self shouldChangeTextInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1) replacementString:@""]) { // Do it this way to mark it as an Undo
+                [self replaceCharactersInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1) withString:@""];
+                [self didChangeText];
+            }
+        } else {
+            previousLineRange=NSMakeRange(NSMaxRange(previousLineRange), 0);
+            if ([self shouldChangeTextInRange:previousLineRange replacementString:previousLineWhitespaceString]) {
+                [self replaceCharactersInRange:previousLineRange withString:previousLineWhitespaceString];
+                if (carriedBulletRange.length>0) {
+                    if (!isNumberedList) {
+                        [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName]
+                                                   forCharacterRange:carriedBulletRange];
+                        //[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:carriedBulletRange];
+                    }else{
+                        [[self layoutManager]invalidateDisplayForCharacterRange:previousLineRange];
+                        [[self window] resetCursorRects];
+                        [self updateNumberedListFromRange:[self rangeOfActiveParagraph] startingNum:listNumber];
+                        [self setNeedsDisplay:YES];
+                    }
+                }
+                [self didChangeText];
+            }
+        }
+        
+		[previousLineScanner release];
+	}
+}
+
+- (void)setupFontMenu {
+	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"NVFontMenu"] autorelease];
+	NSMenuItem *theMenuItem;
+	if(IsLeopardOrLater){
+        
+        theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Enter Full Screen",@"menu item title for entering fullscreen") action:@selector(switchFullScreen:) keyEquivalent:@""] autorelease];
+        [theMenuItem setTarget:[NSApp delegate]];
+        [theMenu addItem:theMenuItem];         
+	}
+    theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert Link",@"insert link menu item title") action:@selector(insertLink:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+    theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Selection for Find",@"find using selection menu item title") action:@selector(performFindPanelAction:) keyEquivalent:@""] autorelease];
+    [theMenuItem setTag:7];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+    [theMenu addItem:[NSMenuItem separatorItem]];
+    
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut",@"cut menu item title") action:@selector(cut:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy",@"copy menu item title") action:@selector(copy:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Paste",@"paste menu item title") action:@selector(paste:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+	[theMenu addItem:[NSMenuItem separatorItem]];
+	
+	NSMenu *formatMenu = [[[NSMenu alloc] initWithTitle:NSLocalizedString(@"Format", nil)] autorelease];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Plain Text Style",nil) 
+											  action:@selector(defaultStyle:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Bold",nil) action:@selector(bold:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Italic",nil) action:@selector(italic:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Strikethrough",nil) action:@selector(strikethroughNV:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Format",@"format submenu title") action:NULL keyEquivalent:@""] autorelease];
+	[theMenu addItem:theMenuItem];
+	[theMenu setSubmenu:formatMenu forItem:theMenuItem];
+	
+	
+	[self setMenu:theMenu];
+    
+	
+    // Insert Password menus
+    static BOOL additionalEditItems = YES;
+    
+    if (additionalEditItems) {
+        additionalEditItems = NO;
+		
+        NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
+		
+//		if (IsSnowLeopardOrLater) {
+//            
+//			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
+//													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
+//			[theMenuItem setTarget:self];
+//			[editMenu addItem:theMenuItem];
+//			[theMenuItem release];
+//		}
+		theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert Link",@"insert link menu item title") action:@selector(insertLink:) keyEquivalent:@"L"] autorelease];
+        [theMenuItem setTarget:self];
+        [editMenu addItem:theMenuItem];
+        
+		[editMenu addItem:[NSMenuItem separatorItem]];
+        
+#if PASSWORD_SUGGESTIONS
+        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
+												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
+        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
+        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+        [editMenu addItem:theMenuItem];
+        [theMenuItem release];
+#endif
+        
+        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
+												 action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
+#if PASSWORD_SUGGESTIONS
+        [theMenuItem setAlternate:YES];
+#endif
+        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
+        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+        [editMenu addItem:theMenuItem];
+        [theMenuItem release];
+    }
+	
 }
 
 - (void)insertPassword:(NSString*)password
@@ -1315,7 +1696,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     NSPasteboardItem *pbitem = [[[NSPasteboardItem alloc] init] autorelease];
-    [pbitem setData:password forType:@"public.plain-text"];
+    [pbitem setData:[password dataUsingEncoding:NSUTF8StringEncoding] forType:@"public.plain-text"];
     [pb writeObjects:[NSArray arrayWithObject:pbitem]];
     #else
     [pb declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
@@ -1339,6 +1720,979 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     #lse
     [self insertGeneratedPassword:nil];
     #endif
+}
+
+- (void)dealloc {
+	[[NSNotificationCenter defaultCenter] removeObserver: self];
+    if (IsLionOrLater) {
+        [textFinder release];
+    }
+    [activeParagraphPastCursor release];
+    [activeParagraph release];
+    [activeParagraphBeforeCursor release];
+    [beforeString release];
+    [afterString release];
+    [controlField release];
+    [notesTableView release];
+    [prefsController release];
+    [lastImportedFindString release];
+    [stringDuringFind release];
+    [noteDuringFind release];
+    
+	[super dealloc];
+}
+
+
+#pragma mark - nvALT additions
+
+- (BOOL)isOpaque{
+    return YES;
+}
+
+- (void)flagsChanged:(NSEvent *)theEvent{
+	[[NSApp delegate] flagsChanged:theEvent];
+}
+
+- (BOOL)mouseIsHere{
+    NSPoint mPt;
+    NSRect vRect=[[self enclosingScrollView]visibleRect];
+    if (IsLionOrLater) {
+        NSRect aRect=NSZeroRect;
+        aRect.origin=[NSEvent mouseLocation];
+        mPt=[[self enclosingScrollView] convertPoint:[[self window] convertRectFromScreen:aRect].origin fromView:nil];
+        if ([self textFinderIsVisible]) {
+            NSView *fbView=[[self enclosingScrollView]findBarView];
+            if (NSMouseInRect(mPt,[fbView frame],[fbView isFlipped])) {
+                if (backgroundIsDark) {
+                    [[self window]invalidateCursorRectsForView:fbView];
+                }
+                return NO;
+            }
+        }
+    }else{
+        mPt= [[self window]convertScreenToBase:[NSEvent mouseLocation]];
+    }
+    //    vRect.size.width=[[self enclosingScrollView]visibleRect].size.width;
+    //     NSLog(@"mPt:%@     vRect :>%@<",NSStringFromPoint(mPt),NSStringFromRect(vRect));
+    return NSMouseInRect(mPt,vRect,YES);
+}
+
+
+- (void)setMouseInside:(BOOL)inside{
+    mouseInside=inside;
+    [self fixCursorForBackgroundUpdatingMouseInside:NO];
+}
+
+- (void)selectRangeAndRegisterUndo:(NSRange)selRange{
+    if (!NSEqualRanges([self selectedRange], selRange)) {
+        [[[self undoManager] prepareWithInvocationTarget:self]
+         selectRangeAndRegisterUndo:[self selectedRange]];
+        [self setSelectedRange:selRange];
+    }
+}
+
+- (void)insertText:(id)string {
+    if([prefsController useAutoPairing]){
+        NSString *oppositeAppend;
+        NSInteger pairCode;
+        if((pairCode=[string isPairedCharacterWithMatchString:&oppositeAppend])>=0){
+            //             NSLog(@"oppositeAppend:>%@< code:%ld",oppositeAppend,pairCode);
+            NSString *appendString = string;
+            NSRange selRange = [self selectedRange];
+            NSString *postString = self.activeParagraphPastCursor;//[NSString stringWithString:self.activeParagraphPastCursor];
+            
+            NSInteger autoPair=-1;
+            if ((postString.length==0)||(selRange.length>0)||![[NSCharacterSet alphanumericCharacterSet]characterIsMember:[postString characterAtIndex:0]]) {
+                autoPair=0;
+            }
+            NSString *preStr=self.activeParagraphBeforeCursor;
+            if (pairCode==2&&autoPair==0) {
+                NSUInteger closingIdx=[postString rangeOfString:oppositeAppend].location;
+                if (closingIdx!=NSNotFound) {
+                    NSUInteger openingIdx=[[postString substringToIndex:closingIdx] rangeOfString:appendString].location;
+                    if (openingIdx==NSNotFound) {
+                        openingIdx=[preStr rangeOfString:appendString options:NSBackwardsSearch].location;
+                        if (openingIdx!=NSNotFound) {
+                            NSUInteger opIdx=[preStr rangeOfString:oppositeAppend options:NSBackwardsSearch].location;
+                            //                              NSLog(@"opIdx :>%lu<  op:%lu",opIdx,openingIdx);
+                            if ((opIdx==NSNotFound)||(opIdx<openingIdx)) {
+                                closingIdx=NSNotFound;
+                            }
+                        }
+                    }else{
+                        closingIdx=NSNotFound;
+                    }
+                }
+                if (closingIdx==NSNotFound) {
+                    autoPair=1;
+                }
+            }else{
+                NSUInteger openingIdx=[postString rangeOfString:appendString].location;
+                BOOL advance=NO;
+                if (pairCode==1) {
+                    advance=(openingIdx==0);
+                    if (!advance&&autoPair==0) {
+                        NSUInteger aftCt=([[postString componentsSeparatedByString:appendString] count]%2);
+                        NSUInteger befCt=([[preStr componentsSeparatedByString:appendString] count]%2);
+                        if (befCt==aftCt) {
+                            autoPair=1;
+                        }
+                    }
+                }else{
+                    advance=(openingIdx==0);
+                }
+                if (advance&&(selRange.length==0)) {
+                    openingIdx=[preStr rangeOfString:oppositeAppend options:NSBackwardsSearch].location;
+                    NSUInteger clIdx=[preStr rangeOfString:appendString options:NSBackwardsSearch].location;
+                    if ((openingIdx!=NSNotFound)&&((clIdx==NSNotFound)||(openingIdx>=clIdx))) {
+                        selRange.location+=1;
+                        [self selectRangeAndRegisterUndo:selRange];
+                        return;
+                    }
+                }
+            }
+            if (autoPair==1) {
+                if (selRange.length>0) {
+                    [[[self undoManager] prepareWithInvocationTarget:self] setSelectedRange:selRange];
+                    NSRange insRange=selRange;
+                    insRange.length=0;
+                    [super insertText:appendString replacementRange:insRange];
+                    insRange.location+=(selRange.length+1); //add appendstr.length
+                    [super insertText:oppositeAppend replacementRange:insRange];
+                    insRange.location+=1;  //add oppappendstr.length
+                    //                    selRange.length+=2;
+                    [self setSelectedRange:insRange];
+                    return;
+                }else {
+                    [super insertText:[appendString stringByAppendingString:oppositeAppend]];
+                    [self setSelectedRange:NSMakeRange(selRange.location+appendString.length, 0)];
+                    return;
+                }
+            }
+        }
+    }
+    [super insertText:string];
+}
+
+- (IBAction)insertLink:(id)sender{
+    if ([[self window] firstResponder]!=self) {
+        [[self window] makeFirstResponder:self];
+    }
+    
+    [self changeMarkdownAttribute:@"[["];
+//    NSRange selRange = [self selectedRange];
+//    if (selRange.length>0) {
+//        NSString *selString = [[self string] substringWithRange:selRange];
+//        selString = [NSString stringWithFormat:@"[[%@]]",selString];
+//        [super insertText:selString];
+//        
+//    }else{
+//        [super insertText:@"[[]]"];
+//        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
+//    }
+    
+} 
+
+- (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit{
+    NSUInteger syntaxLength=syntaxBit.length;
+    NSRange selRange=[self selectedRange];
+    NSString *bifoString=[NSString stringWithString:self.activeParagraphBeforeCursor];
+    NSString *aftaString=[NSString stringWithString:self.activeParagraphPastCursor];
+    NSString *matchingPair=syntaxBit;
+    if ([matchingPair isEqualToString:@"[["]) {
+        matchingPair=@"]]";
+    }
+    if (selRange.length==0){
+        if([[aftaString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]hasPrefix:matchingPair]){
+            NSString *trimmedBefore=[bifoString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            if ([trimmedBefore hasSuffix:syntaxBit]) {
+                selRange.location-=syntaxLength;
+                NSUInteger diff=syntaxLength*2;
+                if ([bifoString hasSuffix:@" "]) {
+                    diff=(bifoString.length-trimmedBefore.length);
+                    if ([bifoString hasPrefix:@" "]) {
+                        do {
+                            bifoString = [bifoString substringFromIndex:1];
+                            diff-=1;
+                        } while ([bifoString hasPrefix:@" "]);
+                    }
+                    selRange.location-=diff;
+                    diff+=(syntaxLength*2);
+                }
+                selRange.length=diff;
+                [self insertText:@"" replacementRange:selRange];
+            }else{
+                selRange.location+=([aftaString rangeOfString:matchingPair].location+syntaxLength);
+                selRange.length=0;
+                [self setSelectedRange:selRange];
+            }
+            return YES;
+        }
+    }else{
+        NSString *selString=[[self string]substringWithRange:selRange];
+        aftaString=[aftaString substringFromIndex:selRange.length];
+        
+        NSRange beforeSyntax=NSMakeRange(NSNotFound, 0);
+        NSRange afterSyntax=NSMakeRange(NSNotFound, 0);
+        
+        if ([aftaString hasPrefix:matchingPair]) {
+            if([bifoString hasSuffix:syntaxBit]){
+                beforeSyntax=selRange;
+                beforeSyntax.length=syntaxLength;
+                afterSyntax=beforeSyntax;
+                beforeSyntax.location-=syntaxLength;
+                afterSyntax.location+=selRange.length;
+                selRange.location=NSNotFound;
+            }else{
+                afterSyntax.location=NSMaxRange(selRange);
+                afterSyntax.length=syntaxLength;
+                [super insertText:@"" replacementRange:afterSyntax];
+                selRange.length=0;
+                [super insertText:syntaxBit replacementRange:selRange];
+                return YES;
+            }
+        }else if([bifoString hasSuffix:syntaxBit]){
+            beforeSyntax=selRange;
+            beforeSyntax.location-=syntaxLength;
+            beforeSyntax.length=syntaxLength;
+            [super insertText:@"" replacementRange:beforeSyntax];
+            selRange.location=NSMaxRange(selRange);
+            selRange.location-=syntaxLength;
+            selRange.length=0;
+            [super insertText:matchingPair replacementRange:selRange];
+            return YES;
+            
+        } else if(([selString hasPrefix:syntaxBit])&&([selString hasSuffix:matchingPair])){
+            afterSyntax=selRange;
+            afterSyntax.location+=(selRange.length-syntaxLength);
+            afterSyntax.length=syntaxLength;
+            beforeSyntax=selRange;
+            beforeSyntax.length=syntaxLength;
+            selRange.length-=(syntaxLength*2);
+        }else if(([selString rangeOfString:syntaxBit].location!=NSNotFound)||([selString rangeOfString:matchingPair].location!=NSNotFound)){
+            NSUInteger syntCt=[[selString componentsSeparatedByString:syntaxBit] count];
+            if ((syntCt % 2)==0) {//odd number of syntaxBits
+                
+                NSRange insertRange=selRange;
+                insertRange.length=0;
+                NSRange synRange=[selString rangeOfString:syntaxBit];
+                if (synRange.location==0) {
+                    insertRange.location+=(selRange.length-syntaxLength);
+                }
+                synRange.location+=selRange.location;
+                [self insertText:@"" replacementRange:synRange];
+                selRange.length-=syntaxLength;
+                [self insertText:syntaxBit replacementRange:insertRange];
+                [self setSelectedRange:selRange];
+                return YES;
+            }else{
+                NSLog(@"trying to add markdown syntax, but selection string contains an even# of the syntax. haven't dealt with this condition yet");
+            }
+        }
+        
+        if (beforeSyntax.location!=NSNotFound&&afterSyntax.location!=NSNotFound) {
+            [super insertText:@"" replacementRange:afterSyntax];
+            [super insertText:@"" replacementRange:beforeSyntax];
+            if (selRange.location!=NSNotFound) {
+                [self setSelectedRange:selRange];
+            }
+            return YES;
+        }
+    }
+    if (selRange.length>0) {
+        NSRange insertRange=selRange;
+        insertRange.length=0;
+        [super insertText:syntaxBit replacementRange:insertRange];
+        insertRange.location+=(selRange.length+syntaxLength);
+        [super insertText:matchingPair replacementRange:insertRange];
+        insertRange.location+=syntaxLength;
+        selRange.location+=syntaxLength;
+        [self setSelectedRange:selRange];
+        return YES;
+    }else{
+        NSString *doubleString=[syntaxBit stringByAppendingString:matchingPair];
+        [super insertText:doubleString];
+        selRange.location+=syntaxLength;
+        [self setSelectedRange:selRange];
+        return YES;
+    }
+    return NO;
+}
+
+
+
+- (BOOL)updateNumberedListFromRange:(NSRange)currentRange startingNum:(NSInteger)listNum{
+    if ((listNum==NSNotFound)||(currentRange.location==NSNotFound)) {
+        return NO;
+    }
+    NSRange nextRange=NSMakeRange(currentRange.location, 0);
+    NSString *noteText=[self string];
+    NSUInteger noteLen=noteText.length;
+    if (NSMaxRange(nextRange)>noteLen) {
+        return NO;
+    }
+    
+    nextRange=[noteText lineRangeForRange:nextRange];
+    if((nextRange.location==NSNotFound)||(NSMaxRange(nextRange)>noteLen)||(nextRange.length<2)) {
+        return NO;
+    }
+    NSString *wsString=[noteText substringWithRange:nextRange];
+    NSRange txtRange=[wsString rangeOfCharacterFromSet:[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet]];
+    if (txtRange.location==NSNotFound) {
+        return NO;
+    }
+    wsString=[wsString substringToIndex:txtRange.location];
+    
+    nextRange=NSMakeRange(NSMaxRange(currentRange)+1, 0);
+    BOOL success=NO;
+    while (NSMaxRange(nextRange)<noteLen) {
+        nextRange=[noteText lineRangeForRange:nextRange];
+        [noteText firstNumberFromStringWithinRange:nextRange isInRange:&txtRange];
+        if ((txtRange.location==NSNotFound)||(nextRange.length<(NSMaxRange(txtRange)+1))||(![[noteText substringWithRange:NSMakeRange(nextRange.location, txtRange.location)] isEqualToString:wsString])) {
+            break;
+        }
+        
+        listNum++;
+        NSString *nums=[NSString stringWithFormat:@"%ld",listNum];
+        txtRange=NSMakeRange(nextRange.location+txtRange.location, txtRange.length);
+        if ([self shouldChangeTextInRange:txtRange replacementString:nums]) {
+            [self replaceCharactersInRange:txtRange withString:nums];
+            [[self layoutManager]invalidateDisplayForCharacterRange:txtRange];
+            //            [[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] forCharacterRange:txtRange];
+            //            [self didChangeText];
+            success=YES;
+            nextRange=NSMakeRange(NSMaxRange(nextRange), 0);
+            NSUInteger numLen=nums.length;
+            if (txtRange.length<numLen) {
+                numLen-=txtRange.length;
+                nextRange.location+=numLen;
+                noteLen+=numLen;
+            }else if (numLen<txtRange.length){
+                numLen=txtRange.length-numLen;
+                noteLen-=numLen;
+            }
+            continue;
+        }
+        break;
+    }
+    
+    return success;
+}
+
+#pragma mark managing text width
+
+- (void)resetInset{
+    if ([self textContainerInset].width!=kDefaultTextInsetWidth) {
+        [self setTextContainerInset:NSMakeSize(kDefaultTextInsetWidth, kDefaultTextInsetHeight)];
+    }//||didRenderFully
+    //    else if (didRenderFully) {
+    //        NSLog(@"resetting but not");
+    //    }
+}
+
+
+- (void)updateInsetAndForceLayout:(BOOL)force{
+    [self updateInsetForFrame:[self frame] andForceLayout:force];
+}
+
+- (void)updateInsetForFrame:(NSRect)frameRect andForceLayout:(BOOL)force{
+    if (managesTextWidth||([[NSApp delegate]isInFullScreen])) {
+        [self setInsetForFrame:frameRect alwaysSet:force];
+    }else{
+        [self resetInset];
+    }
+}
+
+- (BOOL)setInsetForFrame:(NSRect)frameRect alwaysSet:(BOOL)always{
+    CGFloat insX=kDefaultTextInsetWidth;
+    CGFloat maxWidth=[prefsController maxNoteBodyWidth];
+    if (frameRect.size.width>maxWidth) {
+        insX=kTextMargins;
+        CGFloat theMin=(maxWidth+(insX*1.9));
+        if (frameRect.size.width<=theMin) {
+            CGFloat diff=theMin-frameRect.size.width;
+            diff=diff/2;
+            insX=round(insX-diff);
+            if (insX<kDefaultTextInsetWidth) {
+                insX=kDefaultTextInsetWidth;
+            }
+        }
+    }
+    if (always||([self textContainerInset].width!=insX)) {
+        [self setTextContainerInset:NSMakeSize(insX, kDefaultTextInsetHeight)];
+        return YES;
+    }
+    return NO;
+}
+
+
+- (void)setFrame:(NSRect)frameRect{
+    [self updateInsetForFrame:frameRect andForceLayout:NO];
+    [super setFrame:frameRect];
+}
+
+
+#pragma mark Pairing
+
+- (BOOL)pairIsOnOwnParagraph:(NSString *)closingCharacter{
+    if (![closingCharacter isEqualToString:@"]"]) 
+        return NO;
+    
+    NSString *openingChar=@"[";
+    NSString *thisPar=[[NSString stringWithString:self.activeParagraph] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    if ((thisPar.length>0)&&([thisPar hasSuffix:closingCharacter])&&([thisPar hasPrefix:openingChar])) {
+        return YES;
+    }
+    return NO;
+}
+
+- (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter{
+    if (![closingCharacter isEqualToString:@"]"])
+        return NO;   
+    
+        //||([self isAlreadyNearMarkdownLink]))
+    NSString *testString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    if ([testString hasSuffix:closingCharacter]) {
+        testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:closingCharacter]];
+        NSString *openingCharacter=@"[";
+       
+        NSUInteger openingDex=[testString rangeOfString:openingCharacter options:NSBackwardsSearch].location;
+        NSUInteger closingDex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
+        if ((openingDex!=NSNotFound)&&((closingDex==NSNotFound)||(openingDex>closingDex))) {
+            NSString *aftaTest=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            testString=[[testString substringToIndex:openingDex] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSPredicate *aftaRefPred=[NSPredicate predicateWithFormat:@"SELF BEGINSWITH[cd] %@ OR SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@":",@"[*]*",@"(*)*"];
+             NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"*[*]"];
+            if ((![aftaRefPred evaluateWithObject:aftaTest])&&(![bifoRefPred evaluateWithObject:testString])) {
+                
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+
+
+- (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter{
+    if (![closingCharacter isEqualToString:@"]"])
+        return NSNotFound;
+    
+        //||([self isAlreadyNearMarkdownLink]))
+    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString *testString=self.activeParagraphBeforeCursor;
+    if(([aftaString isEqualToString:@""])||([[testString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""]))
+        return NSNotFound;   
+    
+    NSString *openingChar=@"[";
+    NSUInteger openingIndex=[testString rangeOfString:openingChar options:NSBackwardsSearch].location;
+    NSUInteger closingIndex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
+//     NSLog(@"openingIndex:%lu closingIndex:%lu",openingIndex,closingIndex);
+    if ((openingIndex!=NSNotFound)&&((closingIndex==NSNotFound)||(openingIndex>closingIndex))) {
+        testString=[[testString substringToIndex:openingIndex] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"*[*]"];
+        closingIndex=[aftaString rangeOfString:closingCharacter].location;
+        openingIndex=[aftaString rangeOfString:openingChar].location;
+        if ((closingIndex!=NSNotFound)&&(![bifoRefPred evaluateWithObject:testString])&&((openingIndex==NSNotFound)||(closingIndex<openingIndex))) {  
+            BOOL returnIt=YES;
+            if (aftaString.length>(closingIndex+1)) {
+                aftaString=[[aftaString substringFromIndex:(closingIndex+1)] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                NSPredicate *aftaRefPred=[NSPredicate predicateWithFormat:@"SELF BEGINSWITH[cd] %@ OR SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@":",@"[*]*",@"(*)*"];
+                if([aftaRefPred evaluateWithObject:aftaString]) {
+                    returnIt=NO;
+                }
+            }
+            if(returnIt) {
+                return closingIndex;//+[self selectedRange].location;                
+            }
+        }
+    }
+    return NSNotFound;    
+}
+
+- (BOOL)deleteEmptyPairsBetweenRange:(NSRange)charRange inLineRange:(NSRange)lineRange{
+    if (([prefsController useAutoPairing])&&([self cursorAtRange:charRange isBetweenEmptyPairsInLineRange:lineRange])) {
+        charRange.location-=1;
+        [self selectRangeAndRegisterUndo:charRange];
+        charRange.length=2;
+        [self insertText:@"" replacementRange:charRange];   
+        return YES;
+    }    
+    return NO;
+}
+
+- (BOOL)cursorAtRange:(NSRange)charRange isBetweenEmptyPairsInLineRange:(NSRange)actRange{
+    NSUInteger keyLoc=charRange.location;
+    if ((keyLoc>actRange.location)&&(keyLoc<NSMaxRange(actRange))) {     
+        keyLoc=[@"([{\"'" rangeOfString:[NSString stringWithFormat:@"%C",[[self string] characterAtIndex:keyLoc-1]]].location;
+        if ((keyLoc!=NSNotFound)&&(keyLoc==[@")]}\"'" rangeOfString:[NSString stringWithFormat:@"%C",[[self string] characterAtIndex:charRange.location]]].location)) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+
+#pragma mark Useful properties
+
+- (NSString *)activeParagraphTrimWS:(BOOL)shouldTrim{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    if ((actRange.location!=NSNotFound)&&(actRange.length>0)) {
+        NSString *actPar=[[self string]substringWithRange:actRange];
+        if (shouldTrim) {
+            actPar=[actPar stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        }
+        if (actPar&&(actPar.length>0)) {
+            return actPar;
+        }     
+    }
+    return @"";
+}
+
+- (NSString *)activeParagraph{
+    return [self activeParagraphTrimWS:YES];
+}
+
+- (NSRange)rangeOfActiveParagraph{
+    NSUInteger startDex;
+    NSUInteger contentsEndDex;
+    [[self string] getLineStart:&startDex end:NULL contentsEnd:&contentsEndDex forRange:[self selectedRange]];
+   
+    if (contentsEndDex>startDex) {
+        return NSMakeRange(startDex,(contentsEndDex-startDex));
+    }
+    return NSMakeRange(NSNotFound, 0);
+    
+}
+
+- (NSString *)activeParagraphPastCursor{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    if ((actRange.location!=NSNotFound)&&(actRange.length>0)&&(actRange.location!=[self string].length)) {
+        NSUInteger diff=[self selectedRange].location-actRange.location;
+        if (diff!=NSNotFound) {
+            
+            return [[self string] substringWithRange:NSMakeRange([self selectedRange].location, actRange.length-diff)];
+        }       
+    }      
+    return @"";     
+}
+
+- (NSString *)activeParagraphBeforeCursor{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    if ((actRange.location!=NSNotFound)&&(actRange.length>0)) {
+        NSUInteger diff=[self selectedRange].location-actRange.location;
+        if (diff!=NSNotFound) {
+            return [[self string]substringWithRange:NSMakeRange(actRange.location, diff)];  
+        }       
+    }      
+    return @"";    
+}
+
+- (NSString *)afterString{
+    
+    NSRange selRange=[self selectedRange];
+    if (selRange.location==0) {
+        return [self string];
+    }else if ((selRange.location+selRange.length)==[self string].length){
+        return @"";
+    }
+    afterString=[[self string] substringFromIndex:[self selectedRange].location];
+    if (!afterString) {
+        afterString=@"";
+    }
+    return afterString;
+}
+
+- (NSString *)beforeString{
+    NSRange selRange=[self selectedRange];
+    if (selRange.location==[self string].length) {
+        return [self string];
+    }else if (selRange.location==0){
+        return @"";
+    }
+    beforeString=[[self string] substringToIndex:selRange.location];
+    if (!beforeString) {
+        return @"";
+    }
+    return beforeString;
+}
+
+#pragma mark - ElasticThreads Lion Find... implementation
+- (void)prepareTextFinder{        
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        
+        
+        [self setUsesFindBar:YES];
+        
+        [self setIncrementalSearchingEnabled:YES];
+        textFinder=[[[NSTextFinder alloc]init]retain];
+        [textFinder setClient:self];
+        
+        [textFinder setIncrementalSearchingEnabled:YES];
+//        [textFinder setIncrementalSearchingShouldDimContentView:NO];
+        NSNotificationCenter *dc=[NSNotificationCenter defaultCenter];
+        [dc addObserver:self selector:@selector(textFinderShouldUpdateContext:) name:@"TextFindContextShouldUpdate" object:nil];
+        [dc addObserver:self selector:@selector(textFinderShouldNoteChanges:) name:@"TextFindContextShouldNoteChanges" object:nil];
+        [dc addObserver:self selector:@selector(textFinderShouldResetContext:) name:@"TextFindContextShouldReset" object:nil];
+         [dc addObserver:self selector:@selector(hideTextFinderIfNecessary:) name:@"TextFinderShouldHide" object:nil];
+        return;       
+    }
+#endif
+    [self prepareTextFinderPreLion];
+}
+
+- (void)prepareTextFinderPreLion{
+    [self setUsesFindPanel:YES];
+    textFinder=[NSClassFromString(@"NSTextFinder")sharedTextFinder];
+    [[textFinder findPanel:YES] setDelegate:self];
+    NSArray *sViews = [[[textFinder findPanel:YES] contentView] subviews];
+    for (id thing in sViews){
+        if ([[thing className] isEqualToString:@"NSButton"]) {
+            NSButton *aBut = thing;
+            //            if (![aBut target]==nil) {
+            [aBut setTarget:self];
+            [aBut setAction:@selector(performFindPanelAction:)];
+            //            }
+        }
+    }    
+    [[textFinder findPanel:YES] update];
+}
+
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)textFinderShouldResetContext:(NSNotification *)aNotification{
+    
+    if (IsLionOrLater){
+        [textFinder cancelFindIndicator];
+        [textFinder noteClientStringWillChange];
+    }
+}
+
+- (void)textFinderShouldNoteChanges:(NSNotification *)aNotification{
+    if (IsLionOrLater){
+        [textFinder noteClientStringWillChange];
+    }
+}
+
+- (void)textFinderShouldUpdateContext:(NSNotification *)aNotification{
+    
+    if (IsLionOrLater){
+        [textFinder setFindIndicatorNeedsUpdate:YES];
+    }
+}
+
+- (void)hideTextFinderIfNecessary:(NSNotification *)aNotification{
+    if (IsLionOrLater){        
+        if([self textFinderIsVisible]){            
+            [textFinder setFindIndicatorNeedsUpdate:YES];
+            [textFinder cancelFindIndicator];
+            [textFinder performAction:NSTextFinderActionHideFindInterface];
+        }
+    }
+}
+#endif
+
+- (BOOL)textFinderIsVisible{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if ((IsLionOrLater)&&([[self enclosingScrollView]findBarView]!=nil)) {
+        return [[[self enclosingScrollView] subviews]containsObject:[[self enclosingScrollView]findBarView]];
+    }
+#endif
+    return NO;
+}
+
+- (IBAction)performFindPanelAction:(id)sender {
+    id controller = [NSApp delegate];
+    if(![controller setNoteIfNecessary])
+        return;
+    
+    NSInteger findTag=[sender tag];
+    
+    [sender setTarget:self];
+    if(!IsLionOrLater||([sender tag]!=7)){
+        NSString *pbType;
+        if (IsSnowLeopardOrLater) {
+            pbType=NSPasteboardTypeString;
+        }else{
+            pbType=NSStringPboardType;
+        }
+        NSString *typedString = [controller typedString];
+        if (!typedString) typedString = [controlField stringValue];
+        if (!typedString||([typedString length]==0)) {
+            typedString =[[NSPasteboard generalPasteboard]stringForType:pbType];
+        }
+         if (typedString&&([typedString length]>0)) {
+             typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
+             typedString=[typedString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+             if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
+                 
+                 NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+                 [pasteboard declareTypes:[NSArray arrayWithObject:pbType] owner:nil];
+                 [pasteboard setString:typedString forType:pbType];
+                 [lastImportedFindString release];
+                 lastImportedFindString = [typedString retain];
+             }
+         }       
+    
+    }
+    if ([[self window] firstResponder]!=self) {
+        [[self window]makeFirstResponder:self];
+    }
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        
+        id newSender=[sender copy];
+        if((findTag!=1)&&(findTag!=12)&&(findTag!=7)&&(![self textFinderIsVisible])){            
+            [newSender setTag:NSTextFinderActionShowFindInterface];
+            [super performTextFinderAction:newSender];
+        } 
+        if (findTag==1) {
+            findTag=NSTextFinderActionShowFindInterface;
+        }else if (findTag==2) {            
+            findTag=NSTextFinderActionNextMatch;
+        }else if (findTag==3) {
+            findTag=NSTextFinderActionPreviousMatch;
+        }else if (findTag==4) {
+            findTag=NSTextFinderActionReplaceAll;
+        }else if (findTag==5) {
+            findTag=NSTextFinderActionReplace;
+        }else if (findTag==6) {
+            findTag=NSTextFinderActionReplaceAndFind;
+        }else if (findTag==7) {
+            findTag=(NSTextFinderActionSetSearchString);
+        }else if (findTag==9) {
+            findTag=NSTextFinderActionSelectAll;
+        }else if (findTag==12) {
+            findTag=NSTextFinderActionShowReplaceInterface;
+        }//NSTextFinderActionSelectAll = 9,
+        [newSender setTag:findTag];
+        
+        if ([textFinder validateAction:findTag]) {
+            [super performTextFinderAction:newSender]; 
+            if ((findTag==NSTextFinderActionSetSearchString)&&(![self textFinderIsVisible])) {
+                [newSender setTag:NSTextFinderActionShowFindInterface];
+                [super performTextFinderAction:newSender];
+            }
+            
+//            [textFinder setFindIndicatorNeedsUpdate:YES];
+        }else{
+            NSLog(@"find action was invalid");
+        }
+        [newSender release];
+        return;
+    }
+#endif
+    //not lion do it the old, hacky way
+    if([sender tag]==1){
+        if(lastImportedFindString&&(lastImportedFindString.length>0)&&([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)])){                
+            if(![textFinder loadFindStringFromPasteboard]){
+                [textFinder setFindString:lastImportedFindString writeToPasteboard:YES updateUI:YES];
+            }
+        }
+//        else{
+//            NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
+//        }	
+    }
+    [super performFindPanelAction:sender];    
+}
+
+- (IBAction)toggleLayoutOrientation:(id)sender {
+  /*not ready yet. lots of display bugs. no horizontal scrollers... need to make SELF horizontally scrollable and switch to default scrollers or add ETTRANSPARENTHORIZONTAL BOYS. ALSO preference, binding, tag switching, etc.*/
+    
+//    [super changeLayoutOrientation:sender];
+    
+}
+
+# pragma mark some markdown trickery methods
+
+- (BOOL)clipboardHasLink{      
+    NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+    NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+    if (type) {
+        NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+        NSURL *pUrl=[NSURL URLWithString:pString];
+        if (pUrl) {
+            NSString *urlString =[pUrl absoluteString];
+            NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+            if ([urlMatch evaluateWithObject:urlString]) {
+                
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+
+- (IBAction)pasteMarkdownLink:(id)sender{
+    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" https://"]];
+    NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*]",@"*[*]("];
+    if((![bifoRefPred evaluateWithObject:bifoString])&&((![aftaString hasPrefix:@"]"])&&(![bifoString hasSuffix:@"["]))&&((![aftaString hasPrefix:@"\""])&&(![bifoString hasSuffix:@"\""]))&&((![aftaString hasPrefix:@">"])&&(![bifoString hasSuffix:@"<"]))&&((![aftaString hasPrefix:@"'"])&&(![bifoString hasSuffix:@"'"]))&&((![aftaString hasPrefix:@")"])&&(![bifoString hasSuffix:@"("]))){ 
+        NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+        NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+        if (type) {
+            NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+            NSURL *pUrl=[NSURL URLWithString:pString];
+            if (pUrl) {
+                NSString *urlString =[pUrl absoluteString];
+                // NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+                //if ([urlMatch evaluateWithObject:urlString]) {
+                NSString *selString=@"";
+                NSRange selRange=[self selectedRange];
+                if (selRange.length>0) {
+                    selString=[[[self string]substringWithRange:selRange]stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                }
+                NSString *paraString=[self.activeParagraph stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                if (([paraString isEqualToString:@""])||([paraString isEqualToString:selString])) {
+                    urlString=[NSString stringWithFormat:@"[%@]: %@",selString,urlString];
+                }else{
+                    urlString=[NSString stringWithFormat:@"[%@](%@)",selString,urlString];            
+                }
+                [super insertText:urlString];
+                selRange.location=[self selectedRange].location;
+                selRange.location-=(urlString.length-1);
+                [self setSelectedRange:selRange];
+                return;
+                // }
+                //            else  if ([urlString hasPrefix:@"http"]) {
+                //                NSLog(@"not match but has prefix:%@",urlString);
+                //            }
+            }
+        }
+    }
+    [super paste:sender];
+    
+}
+
+
+- (void)insertStringAtStartOfSelectedParagraphs:(NSString *)insertString{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    NSRange selRange=[self selectedRange];
+    if((actRange.location==NSNotFound)&&(selRange.length==0)){
+        actRange=selRange;
+    }    
+    actRange.length=0;        
+    if (actRange.location!=NSNotFound) {        
+        NSString *actPar=[self activeParagraphTrimWS:NO];
+        if (selRange.length==0) {
+            if ((![actPar hasPrefix:insertString])&&(![actPar hasPrefix:@" "])) {
+                insertString=[insertString stringByAppendingString:@" "];
+            }
+            if ([self shouldChangeTextInRange:actRange replacementString:insertString]) {
+                [self replaceCharactersInRange:actRange withString:insertString];
+                [self didChangeText]; 
+            }
+        }else{
+            BOOL didIt=NO;
+            NSArray *paragraphArray=[actPar componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+            NSMutableCharacterSet *trimSet=[NSCharacterSet characterSetWithCharactersInString:insertString];            
+            [trimSet formUnionWithCharacterSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            NSString *replaceString;
+            NSUInteger xtraLength=0;
+            NSInteger i=0;
+            NSUInteger charCt=0;
+            for (NSString *thisPar in paragraphArray) {                
+                if ([thisPar stringByTrimmingCharactersInSet:trimSet].length>0) {
+                    replaceString=insertString;
+                    if ((![thisPar hasPrefix:replaceString])&&(![thisPar hasPrefix:@" "])) {
+                        replaceString=[replaceString stringByAppendingString:@" "];
+                    }
+                    NSRange thisRange=actRange;
+                    if (i>0) {
+                        thisRange.location+=charCt;
+                    }else{
+                        selRange.location+=replaceString.length;
+                        selRange.length-=replaceString.length;
+                    }
+                    if ([self shouldChangeTextInRange:thisRange replacementString:replaceString]) {
+                        didIt=YES;
+                        [self replaceCharactersInRange:thisRange withString:replaceString];
+                        charCt+=replaceString.length;
+                        xtraLength+=replaceString.length;
+                    }
+                }                
+                charCt++;
+                charCt+=thisPar.length;
+                i++;
+            }
+            if (didIt) {
+                selRange.length+=xtraLength;
+                [self setSelectedRange:selRange];
+                [self didChangeText];    
+            }
+        }        
+    }
+}
+
+- (void)removeStringAtStartOfSelectedParagraphs:(NSString *)removeString{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    NSRange selRange=[self selectedRange];
+    if((actRange.location==NSNotFound)&&(selRange.length==0)){
+        actRange=selRange;
+    }
+    if (actRange.location!=NSNotFound){
+        NSString *actPar=[self activeParagraphTrimWS:NO];
+        if (selRange.length==0) {
+            if (![actPar hasPrefix:removeString]) {
+                removeString=@" ";
+            }
+            if ([actPar hasPrefix:removeString]) {
+                if ([actPar hasPrefix:[removeString stringByAppendingString:@" "]]) {
+                    actRange.length=2;
+                }else{
+                    actRange.length=1;
+                }
+                if ([self shouldChangeTextInRange:actRange replacementString:@""]) {
+                    [self replaceCharactersInRange:actRange withString:@""];
+                    [self didChangeText];
+                }
+            }
+        }else{
+            BOOL didIt=NO;
+            NSArray *paragraphArray=[actPar componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+            NSString *removerStr;
+            NSUInteger xtraLength=0;
+            NSInteger i=0;
+            NSUInteger charCt=0;
+            for (NSString *thisPar in paragraphArray) {
+                if ([thisPar stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length>0) {
+                    removerStr=removeString;
+                    NSRange thisRange=actRange;
+                    if (![thisPar hasPrefix:removerStr]) {
+                        removerStr=@" ";
+                    }
+                    if ([thisPar hasPrefix:removerStr]) {                       
+                        if ([thisPar hasPrefix:[removerStr stringByAppendingString:@" "]]) {
+                            thisRange.length=2;
+                        }else{
+                            thisRange.length=1;
+                        }
+                        if (i>0) {                            
+                            thisRange.location+=charCt;
+                        }else{
+                            selRange.location-=thisRange.length;
+                            selRange.length+=thisRange.length;
+                        }
+                        
+                        if ([self shouldChangeTextInRange:thisRange replacementString:@""]) {
+                            didIt=YES;
+                            [self replaceCharactersInRange:thisRange withString:@""];
+                            xtraLength+=thisRange.length;                            
+                            charCt-=thisRange.length;
+                        }
+                    }
+                } 
+                charCt++;
+                charCt+=thisPar.length; 
+                i++;
+            }            
+            if (didIt) {
+                selRange.length-=xtraLength;
+                [self setSelectedRange:selRange];
+                [self didChangeText];
+            } 
+        }        
+    }
 }
 
 @end

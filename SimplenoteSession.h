@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/4/09.
-//  Copyright 2009 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import <Cocoa/Cocoa.h>
 #import "SyncResponseFetcher.h"
@@ -19,15 +29,19 @@
 extern NSString *SimplenoteServiceName;
 extern NSString *SimplenoteSeparatorKey;
 
+extern NSString * const kSimperiumAPIKey;
+
 @interface SimplenoteSession : NSObject <SyncServiceSession, NSCopying> {
 
-	NSString *emailAddress, *password, *authToken;
+	NSString *emailAddress, *password, *simperiumToken;
 	
-	NSDate *lastSyncedTime;
-	BOOL lastIndexAuthFailed;
+	CFAbsoluteTime lastSyncedTime;
+	BOOL lastIndexAuthFailed, reachabilityFailed;
 	NSString *lastErrorString;
 	
-	SyncResponseFetcher *loginFetcher, *listFetcher;
+	SCNetworkReachabilityRef reachableRef;
+	
+	SyncResponseFetcher *loginFetcher, *listFetcher, *changesFetcher;
 	
 	//used for scheduling mutations:
 	//e.g., controlling whether a given note should be scheduled
@@ -43,6 +57,11 @@ extern NSString *SimplenoteSeparatorKey;
 	
 	NSMutableSet *collectorsInProgress;
 	
+	//used to span multiple partial index fetches (when mark is present in response)
+	NSMutableArray *indexEntryBuffer;
+	NSString *indexMark;
+	NSString *lastCV;
+	
 	id delegate;
 }
 
@@ -51,12 +70,18 @@ extern NSString *SimplenoteSeparatorKey;
 + (NSString*)localizedServiceTitle;
 + (NSString*)serviceName;
 + (NSString*)nameOfKeyElement;
-+ (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
++ (NSURL*)authURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
++ (NSURL*)simperiumURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget;
+//+ (NSString*)localizedNetworkDiagnosticMessage;
+- (void)invalidateReachabilityRefs;
+- (BOOL)reachabilityFailed;
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
+-(void)applyMetadataUpdatesToNote:(id <SynchronizedNote>)aNote localEntry:(NSDictionary *)localEntry remoteEntry: (NSDictionary *)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry;
+- (BOOL)tagsShouldBeMergedForEntry:(NSDictionary*)entry;
 
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote;
 
@@ -80,10 +105,11 @@ extern NSString *SimplenoteSeparatorKey;
 
 - (SyncResponseFetcher*)loginFetcher;
 - (SyncResponseFetcher*)listFetcher;
+- (SyncResponseFetcher*)changesFetcher;
 
 - (void)_stoppedWithErrorString:(NSString*)aString;
 - (void)_updateSyncTime;
-- (void)_clearAuthTokenAndDependencies;
+- (void)_clearTokenAndDependencies;
 - (BOOL)_checkToken;
 
 - (NSArray*)_notesWithEntries:(NSArray*)entries;

@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 4/1/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import <Cocoa/Cocoa.h>
 #import "NotationController.h"
@@ -12,11 +22,11 @@
 /* this class is responsible for managing all preferences specific to a notational database,
 including encryption, file formats, synchronization, passwords management, and others */
 
-#define EPOC_ITERATION 3
+#define EPOC_ITERATION 4
 
 enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, WordDocFormat, WordXMLFormat };
 
-extern NSString *SyncPrefsDidChangeNotification;
+extern NSString *NotationPrefsDidChangeNotification;
 
 @interface NotationPrefs : NSObject {
 	BOOL doesEncryption, storesPasswordInKeychain, secureTextEntry;
@@ -27,14 +37,18 @@ extern NSString *SyncPrefsDidChangeNotification;
 	
 	unsigned int hashIterationCount, keyLengthInBits;
 	
+	NSColor *foregroundColor;
 	NSFont *baseBodyFont;
-	int notesStorageFormat;
+	NSInteger notesStorageFormat;
 	BOOL confirmFileDeletion;
 	
+	unsigned int chosenExtIndices[4];
     NSMutableArray *typeStrings[4], *pathExtensions[4];
     OSType *allowedTypes;
 	
 	NSData *masterSalt, *dataSessionSalt, *verifierKey;
+	
+	NSMutableArray *seenDiskUUIDEntries;
 	
 	UInt32 epochIteration;
 	BOOL firstTimeUsed;
@@ -52,11 +66,13 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 + (NSMutableArray*)defaultTypeStringsForFormat:(int)formatID;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
 - (BOOL)preferencesChanged;
+- (void)setForegroundTextColor:(NSColor*)aColor;
+- (NSColor*)foregroundColor;
 - (void)setBaseBodyFont:(NSFont*)aFont;
 - (NSFont*)baseBodyFont;
 
 - (BOOL)storesPasswordInKeychain;
-- (int)notesStorageFormat;
+- (NSInteger)notesStorageFormat;
 - (BOOL)confirmFileDeletion;
 - (BOOL)doesEncryption;
 - (NSDictionary*)syncServiceAccounts;
@@ -89,8 +105,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (BOOL)decryptDataWithCurrentSettings:(NSMutableData*)data;
 - (NSData*)WALSessionKey;
 
-- (void)setNotesStorageFormat:(int)formatID;
-- (BOOL)shouldDisplaySheetForProposedFormat:(int)proposedFormat;
+- (void)setNotesStorageFormat:(NSInteger)formatID;
+- (BOOL)shouldDisplaySheetForProposedFormat:(NSInteger)proposedFormat;
 - (void)noteFilesCleanupSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
 - (void)setConfirmsFileDeletion:(BOOL)value;
 - (void)setDoesEncryption:(BOOL)value;
@@ -104,23 +120,29 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
+- (NSUInteger)tableIndexOfDiskUUID:(CFUUIDRef)UUIDRef;
 - (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath;
 
 + (NSString*)pathExtensionForFormat:(int)format;
 
 //used to view tableviews
-- (NSString*)typeStringAtIndex:(int)typeIndex;
-- (NSString*)pathExtensionAtIndex:(int)pathIndex;
+- (NSString*)typeStringAtIndex:(NSInteger)typeIndex;
+- (NSString*)pathExtensionAtIndex:(NSInteger)pathIndex;
+- (unsigned int)indexOfChosenPathExtension;
+- (NSString*)chosenPathExtensionForFormat:(int)format;
 - (int)typeStringsCount;
 - (int)pathExtensionsCount;
 
 //used to edit tableviews
 - (void)addAllowedPathExtension:(NSString*)extension;
-- (void)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex;
-- (void)addAllowedType:(NSString*)type;
-- (void)removeAllowedTypeAtIndex:(unsigned int)index;
+- (BOOL)removeAllowedPathExtensionAtIndex:(NSUInteger)extensionIndex;
+- (BOOL)setChosenPathExtensionAtIndex:(NSUInteger)extensionIndex;
+- (BOOL)addAllowedType:(NSString*)type;
+- (void)removeAllowedTypeAtIndex:(NSUInteger)index;
 - (BOOL)setExtension:(NSString*)newExtension atIndex:(unsigned int)oldIndex;
 - (BOOL)setType:(NSString*)newType atIndex:(unsigned int)oldIndex;
+
+- (BOOL)pathExtensionAllowed:(NSString*)anExtension forFormat:(int)formatID;
 
 //actually used while searching for files
 - (void)updateOSTypesArray;

@@ -3,46 +3,47 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/19/05.
-//  Copyright 2005 Zachary Schneirov. All rights reserved.
-//
 
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+    This file is part of Notational Velocity.
+
+    Notational Velocity is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Notational Velocity is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
+
+
+#import "AppController.h"
 #import "NotationController.h"
 #import "NSCollection_utils.h"
 #import "NoteObject.h"
 #import "DeletedNoteObject.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "BufferUtils.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
 #import "NoteAttributeColumn.h"
 #import "FrozenNotation.h"
+#import "AlienNoteImporter.h"
+#import "ODBEditor.h"
 #import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
+#import "NotationDirectoryManager.h"
 #import "SyncSessionController.h"
-#import "DeletionManager.h"
 #import "BookmarksController.h"
+#import "DeletionManager.h"
+#import "nvaDevConfig.h"
 
 @implementation NotationController
-
-NSInteger compareCatalogEntryName(const void *one, const void *two) {
-    return (int)CFStringCompare((CFStringRef)((*(NoteCatalogEntry **)one)->filename), 
-				(CFStringRef)((*(NoteCatalogEntry **)two)->filename), kCFCompareCaseInsensitive);
-}
-
-NSInteger compareCatalogValueNodeID(id *a, id *b) {
-	NoteCatalogEntry* aEntry = (NoteCatalogEntry*)[*(id*)a pointerValue];
-	NoteCatalogEntry* bEntry = (NoteCatalogEntry*)[*(id*)b pointerValue];
-	
-    return aEntry->nodeID - bEntry->nodeID;
-}
-
-NSInteger compareCatalogValueFileSize(id *a, id *b) {
-	NoteCatalogEntry* aEntry = (NoteCatalogEntry*)[*(id*)a pointerValue];
-	NoteCatalogEntry* bEntry = (NoteCatalogEntry*)[*(id*)b pointerValue];
-	
-    return aEntry->logicalSize - bEntry->logicalSize;
-}
-
 
 - (id)init {
     if ([super init]) {
@@ -53,6 +54,7 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		labelsListController = [[LabelsListController alloc] init];
 		prefsController = [GlobalPrefs defaultPrefs];
 		notesListDataSource = [[FastListDataSource alloc] init];
+		deletionManager = [[DeletionManager alloc] initWithNotationController:self];
 		
 		allNotesBuffer = NULL;
 		allNotesBufferSize = 0;
@@ -60,19 +62,21 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		lastWordInFilterStr = 0;
 		selectedNoteIndex = NSNotFound;
 		
-		subscriptionCallback = NewFNSubscriptionUPP(NotesDirFNSubscriptionProc);
-		
 		fsCatInfoArray = NULL;
 		HFSUniNameArray = NULL;
 		catalogEntries = NULL;
 		sortedCatalogEntries = NULL;
 		catEntriesCount = totalCatEntriesCount = 0;
-		
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+		subscriptionCallback = NewFNSubscriptionUPP(NotesDirFNSubscriptionProc);
 		bzero(&noteDirSubscription, sizeof(FNSubscriptionRef));
+#endif
 		bzero(&noteDatabaseRef, sizeof(FSRef));
 		bzero(&noteDirectoryRef, sizeof(FSRef));
 		volumeSupportsExchangeObjects = -1;
 		
+		lastLayoutStyleGenerated = -1;
 		lastCheckedDateInHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
 		blockSize = 0;
 		
@@ -150,6 +154,8 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		}
 		
 		[self upgradeDatabaseIfNecessary];
+		
+		[self updateTitlePrefixConnections];
     }
     
     return self;
@@ -168,26 +174,42 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 - (void)upgradeDatabaseIfNecessary {
 	if (![notationPrefs firstTimeUsed]) {
 		
+		const UInt32 epochIteration = [notationPrefs epochIteration];
+		
 		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
-		if ([notationPrefs epochIteration] < 2) {
+		if (epochIteration < 2) {
 			//this would have to be a database from epoch 1, where the default file-encoding was system-default
 			NSLog(@"trying to upgrade note encodings");
 			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
 			//move aside the old database as the new format breaks compatibility
 			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
 		}
-		if ([notationPrefs epochIteration] < 3) {
+		if (epochIteration < 3) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
 		}
+		if (epochIteration < 4) {
+			if ([self removeSpuriousDatabaseFileNotes]) {
+				NSLog(@"found and removed spurious DB notes");
+				[self refilterNotes];
+			}
+			
+			//TableColumnsVisible was renamed NoteAttributesVisible to coincide with shifted emphasis; remove old key to declutter prefs
+			[[NSUserDefaults standardUserDefaults] removeObjectForKey:@"TableColumnsVisible"];
+			
+			//remove and re-add link attributes for all notes
+			//remove underline attribute for all notes
+			//add automatic strike-through attribute for all notes
+			[allNotes makeObjectsPerformSelector:@selector(_resanitizeContent)];
+		}
 		
-		if ([notationPrefs epochIteration] < EPOC_ITERATION) {
-			NSLog(@"epociteration was upgraded from %u to %u", [notationPrefs epochIteration], EPOC_ITERATION);
+		if (epochIteration < EPOC_ITERATION) {
+			NSLog(@"epochIteration was upgraded from %u to %u", epochIteration, EPOC_ITERATION);
 			notesChanged = YES;
 			[self flushEverything];
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
 			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
 										NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil), 
-										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn);
+										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn)
 			exit(0);
 		}
 	}	
@@ -242,7 +264,7 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		}
 	}
 	
-	NSLog(@"verified %u notes in %g s", [notesToVerify count], (float)[[NSDate date] timeIntervalSinceDate:date]);
+	NSLog(@"verified %lu notes in %g s", [notesToVerify count], (float)[[NSDate date] timeIntervalSinceDate:date]);
 returnResult:
 	if (notesData) free(notesData);
 	return [NSNumber numberWithInt:result];
@@ -285,6 +307,10 @@ returnResult:
 	if (!(notationPrefs = [[frozenNotation notationPrefs] retain]))
 		notationPrefs = [[NotationPrefs alloc] init];
 	[notationPrefs setDelegate:self];
+
+	//notationPrefs will have the index of the current disk UUID (or we will add it otherwise) 
+	//which will be used to determine which attr-mod-time to use for each note after decoding
+	[self initializeDiskUUIDIfNecessary];
 	
 	[allNotes release];
 	
@@ -300,15 +326,15 @@ returnResult:
 		allNotes = [[NSMutableArray alloc] init];
 	} else {
 		[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:self];
-		//[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)]; //not until we get an actual tag browser
 	}
 	
 	[deletedNotes release];
-	
 	if (!(deletedNotes = [[frozenNotation deletedNotes] retain]))
 	    deletedNotes = [[NSMutableSet alloc] init];
-		
+			
 	[prefsController setNotationPrefs:notationPrefs sender:self];
+	
+	[self makeForegroundTextColorMatchGlobalPrefs];
 	
 	if(notesData)
 	    free(notesData);
@@ -322,8 +348,15 @@ returnResult:
     UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
     OSStatus err = noErr;
 	NSData *walSessionKey = [notationPrefs WALSessionKey];
-	
+    
+    //nvALT change to store Interim Note-Changes in ~/Library/Caches/
+#if kUseCachesFolderForInterimNoteChanges
+    NSString *cPath=[self createCachesFolder];
+    if (cPath) {
+        convertedPath=[cPath UTF8String];
+#else
     if ((err = FSRefMakePath(&noteDirectoryRef, convertedPath, maxPathSize)) == noErr) {
+#endif
 		//initialize the journal if necessary
 		if (!(walWriter = [[WALStorageController alloc] initWithParentFSRep:(char*)convertedPath encryptionKey:walSessionKey])) {
 			//journal file probably already exists, so try to recover it
@@ -395,7 +428,7 @@ bail:
 - (void)processRecoveredNotes:(NSDictionary*)dict {
     const unsigned int vListBufCount = 16;
     void* keysBuffer[vListBufCount], *valuesBuffer[vListBufCount];
-    unsigned int i, count = [dict count];
+    NSUInteger i, count = [dict count];
     
     void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * count);
     void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * count);
@@ -416,7 +449,7 @@ bail:
 					
 					NoteObject *existingNote = [allNotes objectAtIndex:existingNoteIndex];
 					if ([existingNote youngerThanLogObject:obj]) {
-						NSLog(@"got a newer deleted note");
+						NSLog(@"got a newer deleted note %@", obj);
 						//except that normally the undomanager doesn't exist by this point			
 						[self _registerDeletionUndoForNote:existingNote];
 						[allNotes removeObjectAtIndex:existingNoteIndex];
@@ -424,8 +457,13 @@ bail:
 						[self _addDeletedNote:obj];
 						notesChanged = YES;
 					} else {
-						NSLog(@"got an older deleted note");
+						NSLog(@"got an older deleted note %@", obj);
 					}
+				} else {
+					NSLog(@"got a deleted note with a UUID that doesn't match anything in allNotes, adding to deletedNotes only");
+					//must remember that this was deleted; b/c it could've been added+synced and then deleted before syncing the deletion
+					//and it might not be in allNotes because the WALreader would have already coalesced by UUID, and so the next sync might re-add the note
+					[self _addDeletedNote:obj];
 				}
 			} else if (existingNoteIndex != NSNotFound) {
 				
@@ -501,6 +539,10 @@ bail:
 			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
 		}
 		
+		//purge attr-mod-times for old disk uuids here
+		[self purgeOldPerDiskInfoFromNotes];
+		
+		
 		NSData *serializedData = [FrozenNotation frozenDataWithExistingNotes:allNotes deletedNotes:deletedNotes prefs:notationPrefs];
 		if (!serializedData) {
 			
@@ -545,12 +587,14 @@ bail:
 - (void)databaseEncryptionSettingsChanged {
 	//we _must_ re-init the journal (if fmt is single-db and jrnl exists) in addition to flushing DB
 	[self flushEverything];
+	
+	//called whenever note-storage format or encryption-activation changes
+	[[ODBEditor sharedODBEditor] initializeDatabase:notationPrefs];
 }
 
 //notation prefs delegate method
-- (void)databaseSettingsChangedFromOldFormat:(int)oldFormat {
-    OSStatus err = noErr;
-	int currentStorageFormat = [notationPrefs notesStorageFormat];
+- (void)databaseSettingsChangedFromOldFormat:(NSInteger)oldFormat {
+	NSInteger currentStorageFormat = [notationPrefs notesStorageFormat];
     
 	if (!walWriter && ![self initializeJournaling]) {
 		[self performSelector:@selector(handleJournalError) withObject:nil afterDelay:0.0];
@@ -578,401 +622,17 @@ bail:
 				[self closeJournal];
 		}*/
 		//notationPrefs should call flushAllNoteChanges after this method, anyway
-				
-		if (IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
-			
-			err = FNSubscribe(&noteDirectoryRef, subscriptionCallback, self, kFNNoImplicitAllSubscription | kFNNotifyInBackground, &noteDirSubscription);
-			if (err != noErr) {
-				NSLog(@"Could not subscribe to changes in notes directory!");
-				//just check modification time of directory?
-			}
-		}
+		
+		[self startFileNotifications];
 		
 		[self synchronizeNotesFromDirectory];
     }
+	//perform after delay because this could trigger the mounting of a RAM disk in a background  NSTask
+	[[ODBEditor sharedODBEditor] performSelector:@selector(initializeDatabase:) withObject:notationPrefs afterDelay:0.0];
 }
 
 - (int)currentNoteStorageFormat {
     return [notationPrefs notesStorageFormat];
-}
-
-- (void)stopFileNotifications {
-	OSStatus err = noErr;
-    if (!IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
-		
-		if ((err = FNUnsubscribe(noteDirSubscription)) != noErr) {
-			NSLog(@"Could not unsubscribe from note changes callback: %d", err);
-		} else {
-			bzero(&noteDirSubscription, sizeof(FNSubscriptionRef));
-		}
-		
-		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNotesFromDirectory) object:nil];
-    }
-    
-}
-
-void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription) {
-    //this only works for the Finder and perhaps the navigation manager right now
-    if (kFNDirectoryModifiedMessage == message) {
-		//NSLog(@"note directory changed");
-		if (refcon) {
-			[NSObject cancelPreviousPerformRequestsWithTarget:(id)refcon selector:@selector(synchronizeNotesFromDirectory) object:nil];
-			[(id)refcon performSelector:@selector(synchronizeNotesFromDirectory) withObject:nil afterDelay:0.0];
-		}
-		
-    } else {
-		NSLog(@"we received an FNSubscr. callback and the directory didn't actually change?");
-    }
-}
-
-
-- (BOOL)synchronizeNotesFromDirectory {
-    if ([self currentNoteStorageFormat] == SingleDatabaseFormat) {
-		//NSLog(@"%s: called when storage format is singledatabase", _cmd);
-		return NO;
-	}
-	
-    //NSDate *date = [NSDate date];
-    if ([self _readFilesInDirectory]) {
-		//NSLog(@"read files in directory");
-		
-		directoryChangesFound = NO;
-		if (catEntriesCount && [allNotes count]) {
-			[self makeNotesMatchCatalogEntries:sortedCatalogEntries ofSize:catEntriesCount];
-		} else {
-			unsigned int i;
-			
-			if (![allNotes count]) {
-				//no notes exist, so every file must be new
-				for (i=0; i<catEntriesCount; i++) {
-					if ([notationPrefs catalogEntryAllowed:sortedCatalogEntries[i]])
-						[self addNoteFromCatalogEntry:sortedCatalogEntries[i]];
-				}
-			}
-			
-			if (!catEntriesCount) {
-				//there is nothing at all in the directory, so remove all the notes
-				//we probably shouldn't get here; there should be at least a database file and random .DS_Store-like crap
-				[[DeletionManager sharedManager] addDeletedNotes:allNotes];
-			}
-		}
-		
-		if (directoryChangesFound) {
-			[self resortAllNotes];
-		    [self refilterNotes];
-		}
-		
-		//NSLog(@"file sync time: %g, ",[[NSDate date] timeIntervalSinceDate:date]);
-		return YES;
-    }
-    
-    return NO;
-}
-
-//scour the notes directory for fresh meat
-- (BOOL)_readFilesInDirectory {
-    
-    OSStatus status = noErr;
-    FSIterator dirIterator;
-    ItemCount totalObjects = 0, dirObjectCount = 0;
-    unsigned int i = 0, catIndex = 0;
-    
-    //something like 16 VM pages used here?
-    if (!fsCatInfoArray) fsCatInfoArray = (FSCatalogInfo *)calloc(kMaxFileIteratorCount, sizeof(FSCatalogInfo));
-    if (!HFSUniNameArray) HFSUniNameArray = (HFSUniStr255 *)calloc(kMaxFileIteratorCount, sizeof(HFSUniStr255));
-	
-    if ((status = FSOpenIterator(&noteDirectoryRef, kFSIterateFlat, &dirIterator)) == noErr) {
-	//catEntriesCount = 0;
-	
-        do {
-            // Grab a batch of source files to process from the source directory
-            status = FSGetCatalogInfoBulk(dirIterator, kMaxFileIteratorCount, &dirObjectCount, NULL,
-					  kFSCatInfoNodeFlags | kFSCatInfoFinderInfo | kFSCatInfoContentMod | kFSCatInfoDataSizes | kFSCatInfoNodeID,
-					  fsCatInfoArray, NULL, NULL, HFSUniNameArray);
-	    
-            if ((status == errFSNoMoreItems || status == noErr) && dirObjectCount) {
-                status = noErr;
-		
-		totalObjects += dirObjectCount;
-		if (totalObjects > totalCatEntriesCount) {
-		    unsigned int oldCatEntriesCount = totalCatEntriesCount;
-		    
-		    totalCatEntriesCount = totalObjects;
-		    catalogEntries = (NoteCatalogEntry *)realloc(catalogEntries, totalObjects * sizeof(NoteCatalogEntry));
-		    sortedCatalogEntries = (NoteCatalogEntry **)realloc(sortedCatalogEntries, totalObjects * sizeof(NoteCatalogEntry*));
-
-		    //clear unused memory to make filename and filenameChars null
-		    
-		    size_t newSpace = (totalCatEntriesCount - oldCatEntriesCount) * sizeof(NoteCatalogEntry);
-		    bzero(catalogEntries + oldCatEntriesCount, newSpace);
-		}
-		
-		for (i = 0; i < dirObjectCount; i++) {
-		    // Only read files, not directories
-		    if (!(fsCatInfoArray[i].nodeFlags & kFSNodeIsDirectoryMask)) { 
-			//filter these only for files that will be added
-			//that way we can catch changes in files whose format is still being lazily updated
-			
-			NoteCatalogEntry *entry = &catalogEntries[catIndex];
-			HFSUniStr255 *filename = &HFSUniNameArray[i];
-			
-			entry->fileType = ((FileInfo *)fsCatInfoArray[i].finderInfo)->fileType;
-			entry->logicalSize = (UInt32)(fsCatInfoArray[i].dataLogicalSize & 0xFFFFFFFF);
-			entry->nodeID = (UInt32)fsCatInfoArray[i].nodeID;
-			entry->lastModified = fsCatInfoArray[i].contentModDate;
-			
-			if (filename->length > entry->filenameCharCount) {
-			    entry->filenameCharCount = filename->length;
-			    entry->filenameChars = (UniChar*)realloc(entry->filenameChars, entry->filenameCharCount * sizeof(UniChar));
-			}
-			
-			memcpy(entry->filenameChars, filename->unicode, filename->length * sizeof(UniChar));
-			
-			if (!entry->filename)
-			    entry->filename = CFStringCreateMutableWithExternalCharactersNoCopy(NULL, entry->filenameChars, filename->length, entry->filenameCharCount, kCFAllocatorNull);
-			else
-			    CFStringSetExternalCharactersNoCopy(entry->filename, entry->filenameChars, filename->length, entry->filenameCharCount);
-			
-			catIndex++;
-                    }
-                }
-		
-		catEntriesCount = catIndex;
-            }
-            
-        } while (status == noErr);
-	
-	FSCloseIterator(dirIterator);
-	
-	for (i=0; i<catEntriesCount; i++) {
-	    sortedCatalogEntries[i] = &catalogEntries[i];
-	}
-	
-	return YES;
-    }
-    
-    NSLog(@"Error opening FSIterator: %d", status);
-    
-    return NO;
-}
-
-- (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {
-	//check dates
-	UTCDateTime lastReadDate = fileModifiedDateOfNote(aNoteObject);
-	UTCDateTime fileModDate = catEntry->lastModified;
-	
-	//should we always update the note's stored inode here regardless?
-	
-	if (lastReadDate.lowSeconds != fileModDate.lowSeconds ||
-		lastReadDate.highSeconds != fileModDate.highSeconds ||
-		lastReadDate.fraction != fileModDate.fraction) {
-		//assume the file on disk was modified by someone other than us
-		
-		//figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
-		//if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
-
-		//check if this note has changes in memory that still need to be committed -- that we _know_ the other writer never had a chance to see
-		if (![unwrittenNotes containsObject:aNoteObject]) {
-
-			if (![aNoteObject updateFromCatalogEntry:catEntry]) {
-				NSLog(@"file %@ was modified but could not be updated", catEntry->filename);
-				//return NO;
-			}
-			//do not call makeNoteDirty because use of the WAL in this instance would cause redundant disk activity
-			//in the event of a crash this change could still be recovered; 
-			
-			[aNoteObject registerModificationWithOwnedServices];
-			[self schedulePushToAllSyncServicesForNote:aNoteObject];
-			
-			[self note:aNoteObject attributeChanged:NotePreviewString]; //reverse delegate?
-			
-			[delegate contentsUpdatedForNote:aNoteObject];
-			
-			[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:NoteDateModifiedColumnString afterDelay:0.0];
-			
-			notesChanged = YES;
-			NSLog(@"FILE WAS MODIFIED: %@", catEntry->filename);
-
-			return YES;
-		} else {
-			//it's a conflict! we win.
-			NSLog(@"%@ was modified with unsaved changes in NV! Deciding the conflict in favor of NV.", catEntry->filename); 
-		}
-
-	}
-	
-	return NO;
-}
-
-- (void)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount {
-    
-    unsigned int aSize = [allNotes count];
-    unsigned int bSize = catCount;
-    
-	ResizeBuffer((void***)&allNotesBuffer, aSize, &allNotesBufferSize);
-	
-	assert(allNotesBuffer != NULL);
-	
-    NoteObject **currentNotes = allNotesBuffer;
-    [allNotes getObjects:(id*)currentNotes];
-	
-	mergesort((void *)allNotesBuffer, (size_t)aSize, sizeof(id), (int (*)(const void *, const void *))compareFilename);
-	mergesort((void *)catEntriesPtrs, (size_t)bSize, sizeof(NoteCatalogEntry*), (int (*)(const void *, const void *))compareCatalogEntryName);
-	    
-    NSMutableArray *addedEntries = [NSMutableArray arrayWithCapacity:5];
-    NSMutableArray *removedEntries = [NSMutableArray arrayWithCapacity:5];
-	
-    //oldItems(a,i) = currentNotes
-    //newItems(b,j) = catEntries;
-    
-    unsigned int i, j, lastInserted = 0;
-    
-    for (i=0; i<aSize; i++) {
-	
-	BOOL exitedEarly = NO;
-	for (j=lastInserted; j<bSize; j++) {
-	    
-	    CFComparisonResult order = CFStringCompare((CFStringRef)(catEntriesPtrs[j]->filename),
-												   (CFStringRef)filenameOfNote(currentNotes[i]), 
-												   kCFCompareCaseInsensitive);
-	    if (order == kCFCompareGreaterThan) {    //if (A[i] < B[j])
-		lastInserted = j;
-		exitedEarly = YES;
-
-		//NSLog(@"FILE DELETED (during): %@", filenameOfNote(currentNotes[i]));
-		[removedEntries addObject:currentNotes[i]];
-		break;
-	    } else if (order == kCFCompareEqualTo) {			//if (A[i] == B[j])
-							//the name matches, so add this to changed iff its contents also changed
-		lastInserted = j + 1;
-		exitedEarly = YES;
-	    
-		[self modifyNoteIfNecessary:currentNotes[i] usingCatalogEntry:catEntriesPtrs[j]];
-		
-		break;
-	    }
-	    
-	    //NSLog(@"FILE ADDED (during): %@", catEntriesPtrs[j]->filename);
-	    if ([notationPrefs catalogEntryAllowed:catEntriesPtrs[j]])
-		[addedEntries addObject:[NSValue valueWithPointer:catEntriesPtrs[j]]];
-	}
-	
-	if (!exitedEarly) {
-
-	    //element A[i] "appended" to the end of list B
-	    if (CFStringCompare((CFStringRef)filenameOfNote(currentNotes[i]),
-				(CFStringRef)(catEntriesPtrs[MIN(lastInserted, bSize-1)]->filename), 
-				kCFCompareCaseInsensitive) == kCFCompareGreaterThan) {
-		lastInserted = bSize;
-		
-		//NSLog(@"FILE DELETED (after): %@", filenameOfNote(currentNotes[i]));
-		[removedEntries addObject:currentNotes[i]];
-	    }
-	}
-	
-    }
-    
-    for (j=lastInserted; j<bSize; j++) {
-
-	//NSLog(@"FILE ADDED (after): %@", catEntriesPtrs[j]->filename);
-	if ([notationPrefs catalogEntryAllowed:catEntriesPtrs[j]])
-	    [addedEntries addObject:[NSValue valueWithPointer:catEntriesPtrs[j]]];
-    }
-    
-	if ([addedEntries count] && [removedEntries count]) {
-		[self processNotesAdded:addedEntries removed:removedEntries];
-	} else {
-		
-		if (![removedEntries count]) {
-			for (i=0; i<[addedEntries count]; i++) {
-				[self addNoteFromCatalogEntry:(NoteCatalogEntry*)[[addedEntries objectAtIndex:i] pointerValue]];
-			}
-		}
-		
-		if (![addedEntries count]) {			
-			[[DeletionManager sharedManager] addDeletedNotes:removedEntries];
-		}
-	}
-
-}
-
-//find renamed notes through unique file IDs
-//TODO: reconcile the "actually" added/deleted files into renames for files with identical content (sort by size)
-- (void)processNotesAdded:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
-	unsigned int aSize = [removedEntries count], bSize = [addedEntries count];
-    
-    //sort on nodeID here
-	[addedEntries sortUnstableUsingFunction:compareCatalogValueNodeID];
-	[removedEntries sortUnstableUsingFunction:compareNodeID];
-	
-    //oldItems(a,i) = currentNotes
-    //newItems(b,j) = catEntries;
-    
-    unsigned int i, j, lastInserted = 0;
-    
-    for (i=0; i<aSize; i++) {
-		NoteObject *currentNote = [removedEntries objectAtIndex:i];
-		
-		BOOL exitedEarly = NO;
-		for (j=lastInserted; j<bSize; j++) {
-			
-			NoteCatalogEntry *catEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:j] pointerValue];
-			int order = catEntry->nodeID - fileNodeIDOfNote(currentNote);
-			
-			if (order > 0) {    //if (A[i] < B[j])
-				lastInserted = j;
-				exitedEarly = YES;
-				
-				NSLog(@"File _actually_ deleted: %@", filenameOfNote(currentNote));
-				[[DeletionManager sharedManager] addDeletedNote:currentNote];
-				
-				break;
-			} else if (order == 0) {			//if (A[i] == B[j])
-				lastInserted = j + 1;
-				exitedEarly = YES;
-				
-				
-				//note was renamed!
-				NSLog(@"File %@ was renamed to %@", filenameOfNote(currentNote), catEntry->filename);
-				if (![self modifyNoteIfNecessary:currentNote usingCatalogEntry:catEntry]) {
-					//at least update the file name, because we _know_ that changed
-					
-					directoryChangesFound = YES;
-
-					[currentNote setFilename:(NSString*)catEntry->filename withExternalTrigger:YES];
-				}
-				
-				notesChanged = YES;
-				
-				break;
-			}
-			
-			//a new file was found on the disk! read it into memory!
-			
-			NSLog(@"File _actually_ added: %@", catEntry->filename);
-			[self addNoteFromCatalogEntry:catEntry];
-		}
-		
-		if (!exitedEarly) {
-			
-			//element A[i] "appended" to the end of list B
-			
-			NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:MIN(lastInserted, bSize-1)] pointerValue];
-			if (fileNodeIDOfNote(currentNote) - appendedCatEntry->nodeID > 0) {
-				lastInserted = bSize;
-				
-				//file deleted from disk; 
-				NSLog(@"File _actually_ deleted: %@", filenameOfNote(currentNote));
-				[[DeletionManager sharedManager] addDeletedNote:currentNote];
-			}
-		}
-    }
-    
-    for (j=lastInserted; j<bSize; j++) {
-		NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:j] pointerValue];
-		NSLog(@"File _actually_ added: %@", appendedCatEntry->filename);
-		[self addNoteFromCatalogEntry:appendedCatEntry];
-    }
 }
 
 - (void)noteDidNotWrite:(NoteObject*)note errorCode:(OSStatus)error {
@@ -992,7 +652,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     if ([unwrittenNotes count] > 0) {
 		lastWriteError = noErr;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
-			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
+			//to avoid mutation enumeration if writing this file triggers a filename change which then triggers another makeNoteDirty which then triggers another scheduleWriteForNote:
+			//loose-coupling? what?
+			[[[unwrittenNotes copy] autorelease] makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
 			
 			//this always seems to call ourselves
 			FNNotify(&noteDirectoryRef, kFNDirectoryModifiedMessage, kFNNoImplicitAllSubscription);
@@ -1055,12 +717,23 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	return aliasNeedsUpdating;
 }
 
+- (void)closeAllResources {
+	[allNotes makeObjectsPerformSelector:@selector(abortEditingInExternalEditor)];
+	
+	[deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
+	[self stopSyncServices];
+	[self stopFileNotifications];
+	if ([self flushAllNoteChanges])
+		[self closeJournal];
+	[allNotes makeObjectsPerformSelector:@selector(disconnectLabels)];
+}
+
 - (void)checkIfNotationIsTrashed {
 	if ([self notesDirectoryIsTrashed]) {
 		
-		NSString *trashLocation = [[NSString pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
+		NSString *trashLocation = [[[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
 		if (!trashLocation) trashLocation = @"unknown";
-		int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
+		NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
 											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),
 											 NSLocalizedString(@"Relocate Notes",nil), NSLocalizedString(@"Quit",nil), NULL);
 		if (result == NSAlertDefaultReturn)
@@ -1079,24 +752,39 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     //O(n)
 }
 
-//for making notes that we don't already own
-- (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title {
-    if (!title || ![title length])
-		title = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
-    
-    if (!attributedContents)
-		attributedContents = [[[NSAttributedString alloc] initWithString:@"" attributes:[prefsController noteBodyAttributes]] autorelease];
-    
-    NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedContents title:title
-											 uniqueFilename:[self uniqueFilenameForTitle:title fromNote:nil]
-													 format:[self currentNoteStorageFormat]];
-    
-    [self addNewNote:note];
-    
-    //we are the the owner of this note
-    [note release];
-    
-    return note;
+- (void)updateTitlePrefixConnections {
+	//used to auto-complete titles to the first, shortest title of the same prefix--
+	//to prevent auto-completing "Chicago Brauhaus" before "Chicago" when search string is "Chi", for example.
+	//builds a tree-overlay in the list of notes, to find, for any given note, 
+	//all other notes whose complete titles are a prefix of it
+	
+	//***
+	//*** this method must run after any note is added, deleted, or retitled **
+	//***
+	
+	if (![prefsController autoCompleteSearches] || ![allNotes count])
+		return;
+	
+	//sort alphabetically to find shorter prefixes first
+	NSMutableArray *allNotesAlpha = [allNotes mutableCopy];
+	[allNotesAlpha sortStableUsingFunction:compareTitleString usingBuffer:&allNotesBuffer ofSize:&allNotesBufferSize];
+	[allNotes makeObjectsPerformSelector:@selector(removeAllPrefixParentNotes)];
+
+	NSUInteger j, i = 0, count = [allNotesAlpha count];
+	for (i=0; i<count - 1; i++) {
+		NoteObject *shorterNote = [allNotesAlpha objectAtIndex:i];
+		BOOL isAPrefix = NO;
+		//scan all notes sorted beneath this one for matching prefixes
+		j = i + 1;
+		do {
+			NoteObject *longerNote = [allNotesAlpha objectAtIndex:j];
+			if ((isAPrefix = noteTitleIsAPrefixOfOtherNoteTitle(longerNote, shorterNote))) {
+				[longerNote addPrefixParentNote:shorterNote];
+			}
+		} while (isAPrefix && ++j<count);
+	}
+
+	[allNotesAlpha release];
 }
 
 - (void)addNewNote:(NoteObject*)note {
@@ -1109,6 +797,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	//[note removeAllSyncServiceMD];
     
 	[note makeNoteDirtyUpdateTime:YES updateFile:YES];
+	
+	[self updateTitlePrefixConnections];
+	
 	//force immediate update
 	[self synchronizeNoteChanges:nil];
 	
@@ -1123,7 +814,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	[self resortAllNotes];
     [self refilterNotes];
     
-    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];
+    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];	
 }
 
 //do not update the view here (why not?)
@@ -1160,10 +851,12 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
 	//don't need to reverse-register undo because removeNote/s: will never use this method
 	
+	[self updateTitlePrefixConnections];
+	
 	[self synchronizeNoteChanges:nil];
 		
 	[self resortAllNotes];
-	[self refilterNotes];	
+	[self refilterNotes];
 }
 
 - (void)addNotes:(NSArray*)noteArray {
@@ -1181,6 +874,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	}
 	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
+	
+	[self updateTitlePrefixConnections];
 	
 	[self synchronizeNoteChanges:nil];
 	
@@ -1217,9 +912,48 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:attribute afterDelay:0.0];
 
 	//special case for title requires this method, as app controller needs to know a few note-specific things
-	if ([attribute isEqualToString:NoteTitleColumnString])
+	if ([attribute isEqualToString:NoteTitleColumnString]) {
 		[delegate titleUpdatedForNote:note];
+		
+		//also update notationcontroller's psuedo-prefix tree for autocompletion
+		[self updateTitlePrefixConnections];
+		//should perhaps instead trigger a coalesced notification that also updates wiki-link-titles
+	}
 }
+
+- (BOOL)openFiles:(NSArray*)filenames {
+	//reveal notes that already exist with any of these filenames
+	//for paths left over that weren't in the notes-folder/database, import those files as new notes
+	
+	if (![filenames count]) return NO;
+	
+	NSArray *unknownPaths = filenames; //(this is not a requirement for -notesWithFilenames:unknownFiles:)
+	
+	if ([self currentNoteStorageFormat] != SingleDatabaseFormat) {
+		//notes are stored as separate files, so if these paths are in the notes folder then NV can claim ownership over them
+		
+		//probably should sync directory here to make sure notesWithFilenames has the freshest data
+		[self synchronizeNotesFromDirectory];
+		
+		NSSet *existingNotes = [self notesWithFilenames:filenames unknownFiles:&unknownPaths];
+		if ([existingNotes count] > 1) {
+			[delegate notation:self revealNotes:[existingNotes allObjects]];
+			return YES;
+		} else if ([existingNotes count] == 1) {
+			[delegate notation:self revealNote:[existingNotes anyObject] options:NVEditNoteToReveal];
+			return YES;
+		}
+	}
+	//NSLog(@"paths not found in DB: %@", unknownPaths);
+	NSArray *createdNotes = [[[[AlienNoteImporter alloc] initWithStoragePaths:unknownPaths] autorelease] importedNotes];
+	if (!createdNotes) return NO;
+	
+	[self addNotes:createdNotes];
+	
+	return YES;
+}
+
+
 
 - (void)scheduleUpdateListForAttribute:(NSString*)attribute {
 	
@@ -1255,32 +989,37 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (void)scheduleWriteForNote:(NoteObject*)note {
 
-	BOOL immediately = NO;
-	notesChanged = YES;
+	if ([allNotes containsObject:note]) {
 	
-	[unwrittenNotes addObject:note];
-	
-	//always synchronize absolutely no matter what 15 seconds after any change
-	if (!changeWritingTimer)
-	    changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
-								 selector:@selector(synchronizeNoteChanges:)
-								 userInfo:nil repeats:NO] retain];
-	
-	//next user change always invalidates queued write from performSelector, but not queued write from timer
-	//this avoids excessive writing and any potential and unnecessary disk access while user types
-	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
-	
-	if (walWriter) {
-		//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
-		[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
-		//fsyncing WAL to disk can cause noticeable interruption when run from main thread
-		[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
-	}
-	
-	if (!immediately) {
-		//timer is already scheduled if immediately is true
-		//queue to write 2.7 seconds after last user change; 
-		[self performSelector:@selector(synchronizeNoteChanges:) withObject:nil afterDelay:2.7];
+		BOOL immediately = NO;
+		notesChanged = YES;
+		
+		[unwrittenNotes addObject:note];
+		
+		//always synchronize absolutely no matter what 15 seconds after any change
+		if (!changeWritingTimer)
+			changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
+									 selector:@selector(synchronizeNoteChanges:)
+									 userInfo:nil repeats:NO] retain];
+		
+		//next user change always invalidates queued write from performSelector, but not queued write from timer
+		//this avoids excessive writing and any potential and unnecessary disk access while user types
+		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
+		
+		if (walWriter) {
+			//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
+			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
+			//fsyncing WAL to disk can cause noticeable interruption when run from main thread
+			[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
+		}
+		
+		if (!immediately) {
+			//timer is already scheduled if immediately is true
+			//queue to write 2.7 seconds after last user change; 
+			[self performSelector:@selector(synchronizeNoteChanges:) withObject:nil afterDelay:2.7];
+		}
+	} else {
+		NSLog(@"not writing note %@ because it is not controlled by NoteController", note);
 	}
 }
 
@@ -1313,8 +1052,14 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     //reset linking labels and their notes
     
 	[aNoteObject retain];
+	
+	[aNoteObject disconnectLabels];
+	[aNoteObject abortEditingInExternalEditor];
+	
     [allNotes removeObjectIdenticalTo:aNoteObject];
 	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];
+	
+	updateForVerifiedDeletedNote(deletionManager, aNoteObject);
     
     notesChanged = YES;
 	
@@ -1340,6 +1085,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		
 	//delete note from bookmarks, too
 	[[prefsController bookmarksController] removeBookmarkForNote:aNoteObject];
+	
+	//rebuild the prefix tree, as this note may have been a prefix of another, or vise versa
+	[self updateTitlePrefixConnections];
     
     [aNoteObject release];
     
@@ -1375,6 +1123,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		//it is important to use the actual deleted note if one is passed
 		DeletedNoteObject *deletedNote = [aNote isKindOfClass:[DeletedNoteObject class]] ? aNote : [DeletedNoteObject deletedNoteWithNote:aNote];
 		[deletedNotes addObject:deletedNote];
+		notesChanged = YES;
 		return deletedNote;
 	}
 	return nil;
@@ -1404,15 +1153,40 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)updateDateStringsIfNecessary {
 	
 	unsigned int currentHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
+	BOOL isHorizontalLayout = [prefsController horizontalLayout];
 	
-	if (currentHours != lastCheckedDateInHours) {
+	if (currentHours != lastCheckedDateInHours || isHorizontalLayout != lastLayoutStyleGenerated) {
 		lastCheckedDateInHours = currentHours;
+		lastLayoutStyleGenerated = (int)isHorizontalLayout;
 		
 		[delegate notationListMightChange:self];
 		resetCurrentDayTime();
 		[allNotes makeObjectsPerformSelector:@selector(updateDateStrings)];
 		[delegate notationListDidChange:self];
 	}
+}
+
+- (void)makeForegroundTextColorMatchGlobalPrefs {
+	NSColor *prefsFGColor = [notationPrefs foregroundColor];
+	if (prefsFGColor) {
+		NSColor *fgColor = [[NSApp delegate] foregrndColor];
+		[self setForegroundTextColor:fgColor];
+		//NSColor *fgColor = [prefsController foregroundTextColor];
+		
+		//if (!ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {			
+		//	[self setForegroundTextColor:fgColor];
+		//}
+	}
+}
+
+- (void)setForegroundTextColor:(NSColor*)fgColor {
+	//do not update the notes in any other way, nor the database, other than also setting this color in notationPrefs
+	//foreground color is archived only for practicality, and should be for display only
+	NSAssert(fgColor != nil, @"foreground color cannot be nil");
+
+	[allNotes makeObjectsPerformSelector:@selector(setForegroundTextColorOnly:) withObject:fgColor];
+	
+	[notationPrefs setForegroundTextColor:fgColor];
 }
 
 - (void)restyleAllNotes {
@@ -1430,6 +1204,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	NSUInteger noteIndex = [allNotes indexOfNoteWithUUIDBytes:bytes];
 	if (noteIndex != NSNotFound) return [allNotes objectAtIndex:noteIndex];
 	return nil;	
+}
+
+- (void)updateLabelConnectionsAfterDecoding {
+	[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)];
 }
 
 //re-searching for all notes each time a label is added or removed is unnecessary, I think
@@ -1551,7 +1329,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		
 		if (!touchedNotes) {
 			//I can't think of any situation where notes were filtered and not touched--EXCEPT WHEN REMOVING A NOTE (>= vs. ==)
-			assert(filteredNoteCount >= [allNotes count]);
+			NSAssert(filteredNoteCount >= [allNotes count], @"filtered notes were claimed to be filtered but were not");
 			
 			//reset found-ptr values; the search string was effectively blank and so no notes were examined
 			for (i=0; i<filteredNoteCount; i++)
@@ -1568,11 +1346,28 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	selectedNoteIndex = NSNotFound;
 	
     if (newLen && [prefsController autoCompleteSearches]) {
-		//TODO: this should match the note with the shortest title first
+
 		for (i=0; i<filteredNoteCount; i++) {			
 			//because we already searched word-by-word up there, this is just way simpler
 			if (noteTitleHasPrefixOfUTF8String(notesBuffer[i], searchString, newLen)) {
 				selectedNoteIndex = i;
+				//this note matches, but what if there are other note-titles that are prefixes of both this one and the search string?
+				//find the first prefix-parent of which searchString is also a prefix
+				NSUInteger j = 0, prefixParentIndex = NSNotFound;
+				NSArray *prefixParents = prefixParentsOfNote(notesBuffer[i]);
+				
+				for (j=0; j<[prefixParents count]; j++) {
+					NoteObject *obj = [prefixParents objectAtIndex:j];
+					
+					if (noteTitleHasPrefixOfUTF8String(obj, searchString, newLen) &&
+						(prefixParentIndex = [notesListDataSource indexOfObjectIdenticalTo:obj]) != NSNotFound) {
+						//figure out where this prefix parent actually is in the list--if it actually is in the list, that is
+						//otherwise look at the next prefix parent, etc.
+						//the prefix parents array should always be alpha-sorted, so the shorter prefixes will always be first
+						selectedNoteIndex = prefixParentIndex;
+						break;
+					}
+				}
 				break;
 			}
 		}
@@ -1589,10 +1384,24 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (NSUInteger)preferredSelectedNoteIndex {
     return selectedNoteIndex;
 }
-- (BOOL)preferredSelectedNoteMatchesSearchString {
-	NoteObject *obj = [self noteObjectAtFilteredIndex:selectedNoteIndex];
-	if (obj) return noteTitleMatchesUTF8String(obj, currentFilterStr);
-	return NO;
+
+- (NSArray*)noteTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex {
+	NSMutableArray *objs = [NSMutableArray arrayWithCapacity:[allNotes count]];
+	const char *searchString = [prefixString lowercaseUTF8String];
+	NSUInteger i, titleLen, strLen = strlen(searchString), j = 0, shortestTitleLen = UINT_MAX;
+
+	for (i=0; i<[allNotes count]; i++) {
+		NoteObject *thisNote = [allNotes objectAtIndex:i];
+		if (noteTitleHasPrefixOfUTF8String(thisNote, searchString, strLen)) {
+			[objs addObject:titleOfNote(thisNote)];
+			if (anIndex && (titleLen = CFStringGetLength((CFStringRef)titleOfNote(thisNote))) < shortestTitleLen) {
+				*anIndex = j;
+				shortestTitleLen = titleLen;
+			}
+			j++;
+		}
+	}
+	return objs;
 }
 
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex {
@@ -1724,6 +1533,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	[allNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
 }
 
+- (NotationPrefs*)notationPrefs {
+	return notationPrefs;
+}
+
 - (id)labelsListDataSource {
     return labelsListController;
 }
@@ -1737,8 +1550,14 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 - (void)dealloc {
-    
+ 
+	[walWriter setDelegate:nil];
+	[notationPrefs setDelegate:nil];
+	[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
     DisposeFNSubscriptionUPP(subscriptionCallback);
+#endif
 	if (fsCatInfoArray)
 		free(fsCatInfoArray);
 	if (HFSUniNameArray)
@@ -1754,12 +1573,36 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     [notesListDataSource release];
     [labelsListController release];
 	[syncSessionController release];
+	[deletionManager release];
     [allNotes release];
 	[deletedNotes release];
 	[notationPrefs release];
 	[unwrittenNotes release];
     
     [super dealloc];
+}
+
+#pragma mark nvALT stuff
+- (NSString *)createCachesFolder{
+    NSString *path = nil;
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    if ([paths count])
+    {
+        NSString *bundleName =
+        [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleIdentifier"];
+        path = [[paths objectAtIndex:0] stringByAppendingPathComponent:bundleName];
+        NSError *theError;
+        if ((path)&&([[NSFileManager defaultManager]createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&theError])) {
+//           NSLog(@"cache folder :>%@<",path);
+            return path;
+
+        }else{
+            NSLog(@"error creating cache folder :>%@<",[theError description]);
+        }
+    }else{
+        NSLog(@"Unable to find or create cache folder:\n%@", path);
+    }
+    return nil;
 }
 
 @end

@@ -3,13 +3,30 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 1/16/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "AttributedPlainText.h"
 #import "NSCollection_utils.h"
 #import "GlobalPrefs.h"
 #import "NSString_NV.h"
+#import <AutoHyperlinks/AutoHyperlinks.h>
+
+
+NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
+NSString *NVHiddenBulletIndentAttributeName = @"NVBulletIndentTag";
+
+static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange);
 
 @implementation NSMutableAttributedString (AttributedPlainText)
 
@@ -27,6 +44,34 @@
 			[self deleteCharactersInRange:NSMakeRange(0, [scanner scanLocation])];
 			//NSLog(@"deleting %d chars", [scanner scanLocation]);
 		}
+	}
+}
+- (void)indentTextLists {
+	//contributed by tewe
+	@try {
+		NSString *string = [self string];
+		NSUInteger paraStart, paraEnd, contentsEnd;
+		paraEnd = 0;
+		while (paraEnd < [self length]) {
+			[string getParagraphStart:&paraStart end:&paraEnd contentsEnd:&contentsEnd
+							 forRange:NSMakeRange(paraEnd, 0)];
+			NSParagraphStyle *style = [self attribute:NSParagraphStyleAttributeName
+											  atIndex:paraStart effectiveRange:NULL];
+			NSArray *textLists = [style textLists];
+			if ([textLists count] > 0) {
+				NSUInteger level = [textLists count] - 1;
+				NSString *indent = [@"" stringByPaddingToLength:level withString: @"\t" startingAtIndex:0];
+				/* Covered by restyleTextToFont
+				 NSRange paraRange = NSMakeRange(paraStart, contentsEnd - paraStart);
+				 [self removeAttribute:NSParagraphStyleAttributeName range:paraRange];
+				 */
+				[self replaceCharactersInRange:NSMakeRange(paraStart, 1) withString:@" "]; /* Leading tab to space */
+				[self replaceCharactersInRange:NSMakeRange(paraStart, 0) withString:indent]; /* Changes length */
+				paraEnd += level;
+			}
+		}
+	} @catch (NSException *e) {
+		NSLog(@"indentTextLists: %@", e);
 	}
 }
 
@@ -51,17 +96,29 @@
 	}
 }
 
+- (NSString*)trimLeadingSyntheticTitle {
+	NSUInteger bodyLoc = 0;
+	
+	NSString *title = [[self string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc maxTitleLen:60];
 
-- (void)prefixWithSourceString:(NSString*)source {
-	source = [NSString stringWithFormat:@"From <%@>:\n\n", source];
-	[self insertAttributedString:[[[NSAttributedString alloc] initWithString:source] autorelease] atIndex:0];
+	if (bodyLoc > 0 && [self length] >= bodyLoc) [self deleteCharactersInRange:NSMakeRange(0, bodyLoc)];
+
+	return title;
+}
+
+- (NSString*)prefixWithSourceString:(NSString*)source {
+	NSString *sourceWContext = [NSString stringWithFormat:@"%@ <%@>:\n\n", NSLocalizedString(@"From", @"prefix for source-URLs inserted into imported notes; e.g., 'From <http://www.apple.com>: ...'"), source];
+	[self insertAttributedString:[[[NSAttributedString alloc] initWithString:sourceWContext] autorelease] atIndex:0];
+	return sourceWContext;
 }
 
 - (void)santizeForeignStylesForImporting {
 	NSRange range = NSMakeRange(0, [self length]);
 	[self removeAttribute:NSLinkAttributeName range:range];
+	[self indentTextLists];
 	[self restyleTextToFont:[[GlobalPrefs defaultPrefs] noteBodyFont] usingBaseFont:nil];
 	[self addLinkAttributesForRange:range];
+	[self addStrikethroughNearDoneTagsForRange:range];
 }
 
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont {
@@ -73,7 +130,7 @@
 	
 	NSAssert(currentFont != nil, @"restyleTextToFont needs a current font!");
 	
-	NS_DURING
+	@try {
 			
 		while (NSMaxRange(effectiveRange) < stringLength) {
 			// Get the attributes for the current range
@@ -136,54 +193,179 @@
 			
 			rangesChanged++;
 		}
-		
-	NS_HANDLER
-		NSLog(@"Error trying to re-style text (%@, %@)", [localException name], [localException reason]);
-	NS_ENDHANDLER
+	}	
+	@catch (NSException *e) {
+		NSLog(@"Error trying to re-style text (%@, %@)", [e name], [e reason]);
+	}
 		
 	return rangesChanged > 0;
 }
 
 - (void)addLinkAttributesForRange:(NSRange)changedRange {
-	NSCharacterSet *antiURLSpace = [NSAttributedString antiURLCharacterSet];
+	
+	if (!changedRange.length)
+		return;
+	
+	//lazily loads Adium's BSD-licensed Auto-Hyperlinks:
+	//http://trac.adium.im/wiki/AutoHyperlinksFramework
+	
+	static Class AHHyperlinkScanner = Nil;
+	static Class AHMarkedHyperlink = Nil;
+	if (!AHHyperlinkScanner || !AHMarkedHyperlink) {
+		if (![[NSBundle bundleWithPath:[[[NSBundle mainBundle] privateFrameworksPath] stringByAppendingPathComponent:@"AutoHyperlinks.framework"]] load]) {
+			NSLog(@"Could not load AutoHyperlinks framework");
+			return;
+		}
+		AHHyperlinkScanner = NSClassFromString(@"AHHyperlinkScanner");
+		AHMarkedHyperlink = NSClassFromString(@"AHMarkedHyperlink");
+	}
+	
+	id scanner = [AHHyperlinkScanner hyperlinkScannerWithString:[[self string] substringWithRange:changedRange]];
+	id markedLink = nil;
+	while ((markedLink = [scanner nextURI])) {
+		NSURL *markedLinkURL = nil;
+		if ((markedLinkURL = [markedLink URL]) && !([markedLinkURL isFileURL] && [[markedLinkURL absoluteString] 
+																				  rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound)) {
+			[self addAttribute:NSLinkAttributeName value:markedLinkURL 
+						 range:NSMakeRange([markedLink range].location + changedRange.location, [markedLink range].length)];
+		}
+	}
+
+	//also detect double-bracketed URLs here
+	[self _addDoubleBracketedNVLinkAttributesForRange:changedRange];
+}
+
+- (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange {
+	//add link attributes for [[wiki-style links to other notes or search terms]] 
+	
+	static NSMutableCharacterSet *antiInteriorSet = nil;
+	if (!antiInteriorSet) {
+		antiInteriorSet = [[NSMutableCharacterSet characterSetWithCharactersInString:@"[]"] retain];
+		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet whitespaceCharacterSet]];
+		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet illegalCharacterSet]];
+		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet controlCharacterSet]];
+	}
 	
 	NSString *string = [self string];
-	NSRange totalRange = NSMakeRange(0, [string length]);
-	NSString *substring = string;
-	if (!NSEqualRanges(totalRange, changedRange)) {
-		substring = [string substringWithRange:changedRange];
-	}
+	NSUInteger nextScanLoc = 0;
+	NSRange scanRange = changedRange;
+	
+	while (NSMaxRange(scanRange) <= NSMaxRange(changedRange)) {
 		
-	if ([substring rangeOfCharacterFromSet:antiURLSpace options:NSLiteralSearch].location == NSNotFound)
-		substring = [substring stringByAppendingString:@" "];
-	
-	
-	NSScanner *wordScanner = [NSScanner scannerWithString:substring];
-	
-	//loop until end of string
-	while (![wordScanner isAtEnd]) {
-		NSRange wordRange = NSMakeRange(NSNotFound, 0);
-		NSString *word = nil;
-		
-		while ([wordScanner scanUpToCharactersFromSet:antiURLSpace intoString:&word]) {
-			if (word) {
-				wordRange.length = [word length];
-				wordRange.location = changedRange.location + [wordScanner scanLocation] - wordRange.length;
-				
-				NSAssert([word isEqualToString:[string substringWithRange:wordRange]], @"derived range is wrong!");
-				
-				NSURL *url = nil;
-				if (wordRange.length && NSMaxRange(wordRange) <= [string length] && (url = [word linkForWord])) {
-					if (url) [self addAttribute:NSLinkAttributeName value:url range:wordRange];
-				}
-			}
+		NSUInteger begin = [string rangeOfString:@"[[" options:NSLiteralSearch range:scanRange].location;
+		if (begin == NSNotFound) break;
+		begin += 2;
+		NSUInteger end = [string rangeOfString:@"]]" options:NSLiteralSearch 
+										 range:NSMakeRange(begin, changedRange.length - (begin - changedRange.location))].location;
+		if (end == NSNotFound) break;
+
+		NSRange blockRange = NSMakeRange(begin, (end - begin));
+
+		//double-braces must directly abut the search terms
+		//capture inner invalid "[["s, but not inner invalid "]]"s;
+		//because scanning, which is left to right, could be cancelled prematurely otherwise
+		if ([antiInteriorSet characterIsMember:[string characterAtIndex:begin]]) {
+			nextScanLoc = begin;
+			goto nextBlock;
 		}
-		unsigned int newLocation = [wordScanner scanLocation] + 1;
-		if (newLocation >= [substring length])
-			break;
-		[wordScanner setScanLocation:newLocation];
+		//when encountering a newline in the midst of opposing double-brackets, 
+		//continue scanning after the newline instead of after the end-brackets; avoid certain traps that change the behavior of multi- vs single-line scans
+		NSRange newlineRange = [string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] options:NSLiteralSearch range:blockRange];
+		if (newlineRange.location != NSNotFound) {
+			nextScanLoc = newlineRange.location + 1;
+			goto nextBlock;
+		}
+
+		if (![antiInteriorSet characterIsMember:[string characterAtIndex:NSMaxRange(blockRange) - 1]] && !_StringWithRangeIsProbablyObjC(string, blockRange)) {
+			
+			[self addAttribute:NSLinkAttributeName value:
+			 [NSURL URLWithString:[@"nvalt://find/" stringByAppendingString:[[string substringWithRange:blockRange] stringWithPercentEscapes]]] range:blockRange];
+		}
+		//continue the scan starting at the end of the current block
+		nextScanLoc = NSMaxRange(blockRange) + 2;
+
+	nextBlock:
+		scanRange = NSMakeRange(nextScanLoc, changedRange.length - (nextScanLoc - changedRange.location));
 	}
 }
+
+static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange) {
+	//assuming this range is bookended with matching double-brackets,
+	//does the block contain unbalanced inner square brackets?
+	
+	NSUInteger rightBracketLoc = [string rangeOfString:@"]" options:NSLiteralSearch range:blockRange].location;
+	NSUInteger leftBracketLoc = [string rangeOfString:@"[" options:NSLiteralSearch range:blockRange].location; 
+	
+	//no brackets of either variety
+	if (rightBracketLoc == NSNotFound && leftBracketLoc == NSNotFound) return NO;
+	
+	//has balanced inner brackets; right bracket exists and is actually to the right of the left bracket
+	if (rightBracketLoc != NSNotFound && rightBracketLoc > leftBracketLoc) return NO;
+	
+	//no right bracket or no left bracket
+	return YES;
+	
+	//this still doesn't catch something like "[[content prefixWithSourceString:[[getter url] absoluteString]] length];"
+	//an improvement would be to use rangeOfCharacterFromSet:@"[]" to count all the left and right brackets from left to right;
+	//a leftbracket would increment a count, a right bracket would decrement it; at the end of blockRange, the count should be 0
+	//this is left as an exercise to the anal-retentive reader
+}
+
+- (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange {
+	//scan line by line
+	//if the line ends in " @done", then strikethrough everything prior and add NVHiddenDoneTagAttributeName
+	//if the line doesn't end in " @done", and it has NVHiddenDoneTagAttributeName + NSStrikethroughStyleAttributeName,
+	//  then remove both attributes
+	//all other NSStrikethroughStyleAttributeName by itself will be ignored
+	
+	if (![[GlobalPrefs defaultPrefs] autoFormatsDoneTag])
+		return;
+		
+	NSString *doneTag = @" @done";
+	NSCharacterSet *newlineSet = [NSCharacterSet newlineCharacterSet];
+	
+	NSRange lineEndRange, scanRange = changedRange;
+	
+	@try {
+		do {
+			if ((lineEndRange = [[self string] rangeOfCharacterFromSet:newlineSet options:NSLiteralSearch range:scanRange]).location == NSNotFound) {
+				//no newline; this is the end of the range, so set line-end to an imaginary position there
+				lineEndRange = NSMakeRange(NSMaxRange(scanRange), 1);
+			}
+			
+			NSRange thisLineRange = NSMakeRange(scanRange.location, lineEndRange.location - scanRange.location);
+			
+			//this detection is improved. Handles @done mid line, allowing @done(date) or @done - date
+            NSRange doneTagFound = [[[self string] substringWithRange:thisLineRange] rangeOfString:doneTag];
+			if (doneTagFound.location != NSNotFound) {
+                
+				//add strikethrough and NVHiddenDoneTagAttributeName attributes, because this line contains @done
+				[self addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:NSUnderlineStyleSingle],
+									 NSStrikethroughStyleAttributeName, [NSNull null], NVHiddenDoneTagAttributeName, nil]
+							  range:NSMakeRange(thisLineRange.location, doneTagFound.location)];
+                
+				//and the done tag itself should never be struck-through; remove that just in case typing attributes had carried over from elsewhere
+				[self removeAttribute:NSStrikethroughStyleAttributeName range:NSMakeRange(thisLineRange.location + doneTagFound.location, NSMaxRange(thisLineRange) - (thisLineRange.location + doneTagFound.location)) ];
+				
+			} else if ([self attribute:NVHiddenDoneTagAttributeName existsInRange:thisLineRange]) {
+				
+				//assume that this line was previously struck-through by NV due to the presence of a @done tag; remove those attrs now
+				[self removeAttribute:NVHiddenDoneTagAttributeName range:thisLineRange];
+				[self removeAttribute:NSStrikethroughStyleAttributeName range:thisLineRange];
+			}
+			//if scanRange has a non-zero length, then advance it further
+			if ((scanRange = NSMakeRange(NSMaxRange(thisLineRange), changedRange.length - (NSMaxRange(thisLineRange) - changedRange.location))).length)
+				scanRange = NSMakeRange(scanRange.location + 1, scanRange.length - 1);
+			else {
+				break;
+			}
+		} while (NSMaxRange(scanRange) <= NSMaxRange(changedRange));
+	}
+	@catch (NSException *e) {
+		NSLog(@"_%s(%@): %@", _cmd, NSStringFromRange(changedRange), e);
+	}
+}
+
 
 #if SEPARATE_ATTRS
 #define VLISTBUFCOUNT 32
@@ -232,16 +414,18 @@
 
 @implementation NSAttributedString (AttributedPlainText)
 
-+ (NSCharacterSet*)antiURLCharacterSet {
-	static NSMutableCharacterSet *antiURLSpace = nil;
-	if (!antiURLSpace) {
-		antiURLSpace = [[NSMutableCharacterSet alloc] init];
-		[antiURLSpace formUnionWithCharacterSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		[antiURLSpace addCharactersInString:@"<>[]\""];
-	}
-	return antiURLSpace;
-}
 
+- (BOOL)attribute:(NSString*)anAttribute existsInRange:(NSRange)aRange {
+	NSRange effectiveRange = NSMakeRange(aRange.location, 0);
+	
+	while (NSMaxRange(effectiveRange) < NSMaxRange(aRange)) {
+		if ([self attribute:anAttribute atIndex:NSMaxRange(effectiveRange) effectiveRange:&effectiveRange]) {
+			return YES;
+		}
+	}
+
+	return NO;
+}
 
 - (NSArray*)allLinks {
 	NSRange range;

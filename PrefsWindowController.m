@@ -1,21 +1,41 @@
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+#import "AppController.h"
 #import "PrefsWindowController.h"
 #import "PTKeyComboPanel.h"
 #import "PTKeyCombo.h"
 #import "NotationPrefsViewController.h"
+#import "ExternalEditorListController.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
+#import "NSBezierPath_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
+
+#define SYSTEM_LIST_FONT_SIZE 12.0f
 
 @implementation PrefsWindowController
 
 - (id)init {
-    if ([super init]) {
+    if (self=[super init]) {
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
-		
-		[prefsController registerForSettingChange:@selector(resolveNoteBodyFontFromNotationPrefsFromSender:) withTarget:self];
-		[prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
+      // remove opacity slider from color pickers -bt
+    [[NSColorPanel sharedColorPanel] setShowsAlpha:NO];
+		[prefsController registerWithTarget:self forChangesInSettings:
+		 @selector(resolveNoteBodyFontFromNotationPrefsFromSender:), 
+		 @selector(setCheckSpellingAsYouType:sender:), 
+		 @selector(setConfirmNoteDeletion:sender:), nil];
     }
     return self;
 }
@@ -109,6 +129,11 @@
 	}
 
 	NSFont *font = [prefsController noteBodyFont];
+    CGFloat lh=[font pointSize];
+    if (lh<27.0) {
+        lh=floorf(27.0-((27.0-lh)/2));
+    }
+    [centerStyle setMaximumLineHeight:lh];
 	NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:font ? font : [NSFont systemFontOfSize:12.0],
 		NSFontAttributeName, [NSColor blackColor], NSForegroundColorAttributeName, centerStyle, NSParagraphStyleAttributeName, nil];
 
@@ -122,8 +147,21 @@
 	
 }
 
+- (IBAction)changedUseETScrollbarsOnLion:(id)sender{
+    [prefsController setUseETScrollbarsOnLion:[useETScrollbarsOnLionButton state] sender:self];
+}
+
+- (IBAction)changedBackgroundTextColorWell:(id)sender {
+	[prefsController setBackgroundTextColor:[backgroundColorWell color] sender:self];
+}
+- (IBAction)changedForegroundTextColorWell:(id)sender {
+	[prefsController setForegroundTextColor:[foregroundColorWell color] sender:self];
+}
 - (IBAction)changedSearchHighlightColorWell:(id)sender {
 	[prefsController setSearchTermHighlightColor:[searchHighlightColorWell color] sender:self];
+}
+- (IBAction)changedHighlightSearchTerms:(id)sender {
+	[prefsController setShouldHighlightSearchTerms:[highlightSearchTermsButton state] sender:self];
 }
 - (IBAction)changedStyledTextBehavior:(id)sender {
     [prefsController setPastePreservesStyle:[styledTextButton state] sender:self];
@@ -160,6 +198,19 @@
 	[prefsController setTabIndenting:[[tabKeyRadioMatrix cellAtRow:0 column:0] state] sender:self];
 }
 
+- (IBAction)changedExternalEditorsMenu:(id)sender {
+  //not currently called as an action in practice
+  [self _selectDefaultExternalEditor];
+}
+
+- (void)_selectDefaultExternalEditor {
+  ExternalEditor *ed = [[ExternalEditorListController sharedInstance] defaultExternalEditor];
+  NSInteger idx = ed ? [externalEditorMenuButton indexOfItemWithRepresentedObject:ed] : 0;
+  if (idx > -1) {
+    [externalEditorMenuButton selectItemAtIndex:idx];
+  }
+}
+
 - (IBAction)changedTableText:(id)sender {
 	if (sender == tableTextMenuButton) {
 		if ([tableTextSizeField selectedTag] != 3) [tableTextSizeField setFloatValue:[prefsController tableFontSize]];
@@ -172,7 +223,7 @@
 				newFontSize = [NSFont smallSystemFontSize];
 				break;
 			case 2:
-				newFontSize = [NSFont systemFontSize];
+				newFontSize = /*[NSFont systemFontSize]*/ SYSTEM_LIST_FONT_SIZE;
 				break;
 			case 3:
 				newFontSize = [tableTextSizeField floatValue];
@@ -198,6 +249,8 @@
 		[self previewNoteBodyFont];
 	} else if ([selectorString isEqualToString:SEL_STR(setCheckSpellingAsYouType:sender:)]) {
 		[checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
+	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
+		[confirmDeletionButton setState:[prefsController confirmNoteDeletion]];
 	}
 }
 
@@ -209,7 +262,9 @@
     if (!name)
 		name = NSLocalizedString(@"<Directory unknown>", nil);
 	
-    NSImage *iconImage = [prefsController iconForDefaultDirectoryWithFSRef:&targetRef];
+	NSImage *iconImage = nil;
+	if (!IsZeros(&targetRef, sizeof(FSRef)) || [[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&targetRef])
+	    iconImage = [NSImage smallIconForFSRef:&targetRef];
 	
     NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:name action:nil keyEquivalent:@""] autorelease];
     
@@ -259,6 +314,11 @@
 		[folderLocationsMenuButton selectItemAtIndex:0];
 }
 
+- (IBAction)changedRTL:(id)sender {
+	[prefsController setRTL:[rtlButton state] sender:self];
+	[[NSApp delegate] updateRTL];
+}
+
 - (BOOL)getNewNotesRefFromOpenPanel:(FSRef*)notesDirectoryRef returnedPath:(NSString**)path {
     NSString *startingDirectory = nil;
 	
@@ -270,7 +330,7 @@
     FSRef currentNotesDirectoryRef;
     //resolve alias to fsref; get path from fsref
     if ([[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&currentNotesDirectoryRef]) {
-		NSString *resolvedPath = [NSString pathWithFSRef:&currentNotesDirectoryRef];
+		NSString *resolvedPath = [[NSFileManager defaultManager] pathWithFSRef:&currentNotesDirectoryRef];
 		if (resolvedPath) startingDirectory = resolvedPath;
     }
     
@@ -346,10 +406,15 @@
     float fontSize = [prefsController tableFontSize];
     int fontButtonIndex = 3;
     if (fontSize == [NSFont smallSystemFontSize]) fontButtonIndex = 0;
-    else if (fontSize == [NSFont systemFontSize]) fontButtonIndex = 1;
+    else if (fontSize == /*[NSFont systemFontSize]*/ SYSTEM_LIST_FONT_SIZE) fontButtonIndex = 1;
     [tableTextMenuButton selectItemAtIndex:fontButtonIndex];
     [tableTextSizeField setFloatValue:fontSize];
     [tableTextSizeField setHidden:(fontButtonIndex != 3)];
+    
+    [externalEditorMenuButton setMenu:[[ExternalEditorListController sharedInstance] addEditorPrefsMenu]];
+    [self _selectDefaultExternalEditor];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changedExternalEditorsMenu:) 
+                           name:ExternalEditorsChangedNotification object:nil];
     
     [completeNoteTitlesButton setState:[prefsController autoCompleteSearches]];
     [checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
@@ -359,15 +424,45 @@
     [autoSuggestLinksButton setState:[prefsController linksAutoSuggested]];
 	[softTabsButton setState:[prefsController softTabs]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
-	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
+    [rtlButton setState:[prefsController rtl]];
     [self previewNoteBodyFont];
 	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
-    
+	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColorRaw:YES]];
+	[highlightSearchTermsButton setState:[prefsController highlightSearchTerms]];
+	[foregroundColorWell setColor:[prefsController foregroundTextColor]];
+	[backgroundColorWell setColor:[prefsController backgroundTextColor]];
+    [maxWidthSlider setDoubleValue:[[NSUserDefaults standardUserDefaults] doubleForKey:@"NoteBodyMaxWidth"]];
+	//for elasticthreads' hide dock icon option, check if OS compatible
+	if (IsSnowLeopardOrLater) {
+		[togDockButton setEnabled:YES];
+		
+		if ([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]) {
+            [togDockButton setTitle:@"Hide Dock Icon"];
+//			[togDockLabel setStringValue:@"This will immediately restart NV"];		
+		}else {
+            [togDockButton setTitle:@"Show Dock Icon"];
+//			[togDockLabel setStringValue:@""];
+		}
+
+	}else {	
+		[togDockButton setEnabled:NO];
+		[togDockButton setHidden:YES];
+//		[togDockLabel setHidden:YES];
+	}
+    //for Brett's Markdownify/Readability import
+	[useMarkdownImportButton setState:[prefsController useMarkdownImport]];
+	[useReadabilityButton setState:[prefsController useReadability]];
+	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
+	
+    [altRowsButton setState:[prefsController alternatingRows]];
+    [showGridButton setState:[prefsController showGrid]];
+    [autoPairButton setState:[prefsController useAutoPairing]];
     items = [[NSMutableDictionary alloc] init];
     
     [self addToolbarItemWithName:@"General"];
     [self addToolbarItemWithName:@"Notes"];	
     [self addToolbarItemWithName:@"Editing"];
+	[self addToolbarItemWithName:@"Fonts & Colors"];
 		
     toolbar = [[NSToolbar alloc] initWithIdentifier:@"preferencePanes"];
     [toolbar setDelegate:self];
@@ -377,7 +472,8 @@
     [toolbar release];  //setToolbar retains the toolbar we pass, so release the one we used.
 	
 	[window setShowsToolbarButton:NO];
-
+    [useETScrollbarsOnLionButton setState:[prefsController useETScrollbarsOnLion]];
+    [useETScrollbarsOnLionButton setHidden:!IsLionOrLater];
     [self switchViews:nil];  //select last selected pane by default
     
 }
@@ -392,7 +488,7 @@
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", nil];
+    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", @"Fonts & Colors", nil];
 }
 
 - (NSArray *)toolbarSelectableItemIdentifiers: (NSToolbar *)toolbar {
@@ -421,7 +517,9 @@
         prefsView = [self databaseView];
     } else if([sender isEqualToString:@"Editing"]) {
         prefsView = editingView;
-    } else {
+    } else if([sender isEqualToString:@"Fonts & Colors"]) {
+        prefsView = fontsColorsView;
+	} else {
 		NSLog(@"unknown sender: %@", sender);
 	}
     
@@ -465,6 +563,75 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 	//these may still need to be rounded up
 	
 	return newRect;
+}
+
+//elasticwork
+
+- (IBAction)toggleHideDockIcon:(id)sender{
+    NSUserDefaults *stdDefaults=[NSUserDefaults standardUserDefaults];
+    BOOL showIt=![stdDefaults boolForKey:@"ShowDockIcon"];
+    if (showIt) {
+        [stdDefaults setBool:YES forKey:@"ShowDockIcon"];
+        [togDockButton setTitle:@"Hide Dock Icon"];        
+//        [togDockLabel setStringValue:@"This will immediately restart NV"];	
+    }else{
+        [stdDefaults setBool:YES forKey:@"StatusBarItem"];
+        [stdDefaults setBool:NO forKey:@"ShowDockIcon"];
+        [togDockButton setTitle:@"Show Dock Icon"];
+    }
+    [stdDefaults synchronize];
+	[[NSNotificationCenter defaultCenter]postNotificationName:@"AppShouldToggleDockIcon" object:[NSNumber numberWithBool:showIt]];
+}
+
+- (IBAction)toggleStatusItem:(id)sender{
+//    NSUserDefaults *stdDefaults=[NSUserDefaults standardUserDefaults];
+//    BOOL showIt=[stdDefaults boolForKey:@"StatusBarItem"];
+//    if (showIt) {
+//        [stdDefaults setBool:NO forKey:@"StatusBarItem"];
+//        //        [togDockLabel setStringValue:@"This will immediately restart NV"];
+//    }else{
+//        [stdDefaults setBool:YES forKey:@"StatusBarItem"];
+//    }
+//    [stdDefaults synchronize];
+	[[NSNotificationCenter defaultCenter]postNotificationName:@"AppShouldToggleStatusItem" object:nil];
+}
+
+
+- (IBAction)toggleKeepsTextWidthInWindow:(id)sender{
+   
+    [prefsController setManagesTextWidthInWindow:[sender state] sender:self];
+//		[[NSApp delegate] setMaxNoteBodyWidth];
+}
+
+- (IBAction)setMaxWidth:(id)sender{
+	CGFloat dbWidth = [maxWidthSlider floatValue];	
+	dbWidth = dbWidth - fmod(dbWidth,2.0);
+	[prefsController setMaxNoteBodyWidth:dbWidth sender:self];
+//	[[NSApp delegate] setMaxNoteBodyWidth];
+}
+
+- (IBAction)changedUseMarkdownImport:(id)sender {
+	[prefsController setUseMarkdownImport:[useMarkdownImportButton state] sender:self];
+	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
+}
+
+- (IBAction)changedUseReadability:(id)sender {
+	[prefsController setUseReadability:[useReadabilityButton state] sender:self];
+}
+
+- (IBAction)changedAltRows:(id)sender {
+	[prefsController setAlternatingRows:[altRowsButton state] sender:self];
+    [[NSApp delegate] refreshNotesList];
+}
+
+- (IBAction)changedAutoPairing:(id)sender{
+	[prefsController setUseAutoPairing:[autoPairButton state]];
+    //  [[NSApp delegate] refreshNotesList];
+}
+
+- (IBAction)changedShowGrid:(id)sender {
+	[prefsController setShowGrid:[showGridButton state] sender:self];
+    [[NSApp delegate] refreshNotesList];
 }
 
 @end

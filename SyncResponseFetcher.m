@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 11/29/09.
-//  Copyright 2009 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "SyncResponseFetcher.h"
 #import "NSData_transformations.h"
@@ -33,13 +43,22 @@
 	return [self initWithURL:aURL POSTData:B64Data delegate:aDelegate];
 }
 
+- (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData headers:(NSDictionary *)aHeaders delegate:(id)aDelegate {
+	return [self initWithURL:aURL POSTData:POSTData headers:aHeaders contentType:nil delegate:aDelegate];
+}
+
 - (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData delegate:(id)aDelegate {
-	
+	return [self initWithURL:aURL POSTData:POSTData headers:nil contentType:nil delegate:aDelegate];
+}
+
+- (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData headers:(NSDictionary *)aHeaders contentType:(NSString*)contentType delegate:(id)aDelegate {
 	if ([self init]) {
 		receivedData = [[NSMutableData alloc] init];
 		requestURL = [aURL retain];
 		delegate = aDelegate;
 		dataToSend = [POSTData retain];
+		dataToSendContentType = [contentType copy];
+		requestHeaders = [aHeaders retain];
 	}
 	return self;
 }
@@ -74,10 +93,19 @@
 	}
 	
 	[request setHTTPShouldHandleCookies:NO];
-	[request addValue:@"Sinus cardinalis NV 2.0B3" forHTTPHeaderField:@"User-agent"];
+	[request addValue:@"Sinus cardinalis nvALT 2.2B" forHTTPHeaderField:@"User-agent"];
 	
+	if (requestHeaders) {
+		for (NSString *field in [requestHeaders allKeys]) {
+			[request addValue:[requestHeaders objectForKey:field] forHTTPHeaderField:field];
+		}
+	}
 	//if POSTData is nil, do a plain GET request
 	if (dataToSend) {
+		if (dataToSendContentType) {
+			[request addValue:dataToSendContentType forHTTPHeaderField:@"Content-Type"];
+		}
+		
 		[request setHTTPBody:dataToSend];
 		[request setHTTPMethod:@"POST"];
 	}
@@ -121,6 +149,7 @@
 - (void)dealloc {
 	
 	[dataToSend release];
+	[dataToSendContentType release];
 	[requestURL release];
 	[receivedData release];
 	[urlConnection release];
@@ -191,8 +220,8 @@
 	
 	lastStatusCode = 0;
 	BOOL responseValid = [response isKindOfClass:[NSHTTPURLResponse class]];
-	if (!responseValid || (lastStatusCode = [(NSHTTPURLResponse*)response statusCode]) != 200) {
-		
+	lastStatusCode = [(NSHTTPURLResponse*)response statusCode];
+	if (!responseValid) {
 		[urlConnection cancel];
 		[self _fetchDidFinishWithError:[NSHTTPURLResponse localizedStringForStatusCode:lastStatusCode]];
 	} else if (responseValid) {

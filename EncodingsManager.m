@@ -1,3 +1,15 @@
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+
 #import "EncodingsManager.h"
 #import "NoteObject.h"
 #import "NotationFileManager.h"
@@ -188,17 +200,8 @@ static const NSStringEncoding AllowedEncodings[] = {
 		if (![self tryToUpdateTextForEncoding:newEncoding]) {
 			
 			//set it back to the current encoding--this one doesn't work
-			int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:(int)currentEncoding];
-			if (encodingIndex > -1)
-				[encodingsPopUpButton selectItemAtIndex:encodingIndex];
-			else
-				NSLog(@"(setting it back) encoding %u not found", currentEncoding);
-		}
-		
-		//if ([[[self contentString] string] canBeConvertedToEncoding:encoding]) {
-		
-		
-		//}
+			[encodingsPopUpButton selectItemWithTag:(int)currentEncoding];
+		}		
 	} else {  
 		NSLog(@"Unknown class sent msg to change encoding: %@", [sender description]);
 	}
@@ -218,16 +221,13 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		currentEncoding = encoding;
 		
-		int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:(int)currentEncoding];
-		if (encodingIndex > -1)
-			[encodingsPopUpButton selectItemAtIndex:encodingIndex];
-		else
-			NSLog(@"encoding %u not found", currentEncoding);
+		[encodingsPopUpButton selectItemWithTag:(int)currentEncoding];
 		
 		return YES;
 	} else {
 		NSRunAlertPanel([NSString stringWithFormat:@"%@ is not a valid encoding for this text file.", 
-			[NSString localizedNameOfStringEncoding:encoding]], @"Please try another encoding.", @"OK", NULL, NULL);
+			[NSString localizedNameOfStringEncoding:encoding]], NSLocalizedString(@"Please try another encoding.", @"prompt for choosing an incompatible text encoding"), 
+						NSLocalizedString(@"OK",nil), NULL, NULL);
 	}
 	
 	

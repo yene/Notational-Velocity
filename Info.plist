@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleDocumentTypes</key>
@@ -130,40 +132,52 @@
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
-	<string>Notational Velocity</string>
+	<string>nvALT</string>
 	<key>CFBundleGetInfoString</key>
-	<string>2.0 β3, Copyright © 2010 Zachary Schneirov, All Rights Reserved.</string>
+	<string>nvALT by ElasticThreads and Brett Terpstra, based on NV 2.0 β5 Copyright © 2010 Zachary Schneirov, All Rights Reserved.</string>
 	<key>CFBundleIconFile</key>
-	<string>Notality</string>
+	<string>Notality.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>net.notational.velocity</string>
+	<string>net.elasticthreads.nv</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string></string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.0 β3</string>
+	<string>2.2b</string>
 	<key>CFBundleSignature</key>
 	<string>N†l√</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>net.elasticthreads.nv</string>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nvalt</string>
+				<string>nv</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
-	<string>6</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>10.4</string>
-	<key>LSMinimumSystemVersionByArchitecture</key>
-	<dict>
-		<key>i386</key>
-		<string>10.4.4</string>
-		<key>x86_64</key>
-		<string>10.6.0</string>
-		<key>ppc</key>
-		<string>10.4</string>
-	</dict>
+	<string>105</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
 	<key>LSArchitecturePriority</key>
 	<array>
 		<string>x86_64</string>
 		<string>i386</string>
-		<string>ppc</string>
 	</array>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.6.8</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
@@ -179,30 +193,35 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>NV: New Note With Selection</string>
+				<string>nvALT: New Note from Selection</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>createFromSelection</string>
 			<key>NSPortName</key>
-			<string>Notational Velocity</string>
+			<string>nvALT</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.text</string>
+				<string>com.apple.rtfd</string>
+				<string>com.apple.webarchive</string>
+				<string>com.adobe.pdf</string>
+			</array>
 			<key>NSSendTypes</key>
 			<array>
-				<string>NSRTFDPboardType</string>
-				<string>NSRTFPboardType</string>
-				<string>NSStringPboardType</string>
-				<string>NSURLPboardType</string>
-				<string>NSFilenamesPboardType</string>
-				<string>Apple Web Archive pasteboard type</string>
-				<string>com.apple.webarchive</string>
+				<string>com.apple.flat-rtfd</string>
+				<string>public.rtf</string>
+				<string>public.plain-text</string>
 			</array>
 		</dict>
 	</array>
+	<key>OSAScriptingDefinition</key>
+	<string>Notation.sdef</string>
 	<key>SUCheckAtStartup</key>
 	<false/>
+	<key>SUPublicDSAKeyFile</key>
+	<string>dsa_pub.pem</string>
 	<key>SUScheduledCheckInterval</key>
 	<real>345600</real>
-	<key>SUFeedURL</key>
-	<string>http://notational.net/nvupdates.xml</string>
 	<key>SmartCrashReports_CompanyName</key>
 	<string>Notational.net</string>
 	<key>SmartCrashReports_EmailTicket</key>

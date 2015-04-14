@@ -21,7 +21,7 @@ _NSInvalidArgumentException
 _NSLinkAttributeName
 _NSBackgroundColorAttributeName
 _NSForegroundColorAttributeName
-_NSUnderlineStyleAttributeName
+_NSStrikethroughStyleAttributeName
 _NSObliquenessAttributeName
 _NSCursorAttributeName
 _NSFindPboard
@@ -206,7 +206,7 @@ _FSCreateFileIfNotPresentInDirectory
 _FSRefMakeInDirectoryWithString
 _statfs
 _BlockSizeForNotation
-_getOptimalBlockSize
+_GetVolumeInfo
 _FSGetDataForkName
 _FSOpenFork
 _FSGetForkSize
@@ -341,9 +341,7 @@ _replaceString
 -[NoteObject uniqueNoteIDBytes]
 -[AppController windowWillReturnUndoManager]
 -[NotationController setUndoManager]
-+[DeletionManager sharedManager]
--[DeletionManager init]
--[DeletionManager setDelegate]
+-[DeletionManager initWithNotationController]
 -[NotationController aliasNeedsUpdating]
 +[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation]
 -[GlobalPrefs triedToImportBlor]

@@ -3,9 +3,21 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/4/09.
-//  Copyright 2009 Zachary Schneirov. All rights reserved.
-//
 
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+// SimplenoteConfig.h should be copied from SimplenoteConfig-example.h and set up with your Simperium API key
+// If you choose not to use Simperium, just include an empty string in the file.
+#import "SimperiumConfig.h"
 #import "SimplenoteSession.h"
 #import "SyncResponseFetcher.h"
 #import "SimplenoteEntryCollector.h"
@@ -13,7 +25,7 @@
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
 #import "NSString_NV.h"
-#import "NSArray+BSJSONAdditions.h"
+#import "NSDictionary+BSJSONAdditions.h"
 #import "AttributedPlainText.h"
 #import "InvocationRecorder.h"
 #import "SynchronizedNoteProtocol.h"
@@ -26,8 +38,16 @@
 
 NSString *SimplenoteServiceName = @"SN";
 NSString *SimplenoteSeparatorKey = @"SepStr";
+#define kSimplenoteSessionIndexBatchSize 100
+
+// Set in SimperiumConfig.h
+// If you're building from source and want to sync with Simplenote, you can request your own API key
+// For now, please email: fred@simperium.com
+NSString * const kSimperiumAPIKey = kSimperiumAPIKeyString;
 
 @implementation SimplenoteSession
+
+static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info);
 
 + (NSString*)localizedServiceTitle {
 	return NSLocalizedString(@"Simplenote", @"human-readable name for the Simplenote service");
@@ -41,18 +61,43 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return @"key";
 }
 
-+ (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params {
++ (NSURL*)authURLWithPath:(NSString*)path parameters:(NSDictionary*)params {
 	NSAssert(path != nil, @"path is required");
-	//path example: "/api/note"
+	//path example: "/authorize"
 	
 	NSString *queryStr = params ? [NSString stringWithFormat:@"?%@", [params URLEncodedString]] : @"";
-	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
+	return [NSURL URLWithString:[NSString stringWithFormat:@"https://auth.simperium.com/1/chalk-bump-f49%@%@", path, queryStr]];
 }
+
++ (NSURL*)simperiumURLWithPath:(NSString*)path parameters:(NSDictionary*)params {
+	NSAssert(path != nil, @"path is required");
+	//path example: "/Note/index"
+
+	NSString *queryStr = params ? [NSString stringWithFormat:@"?%@", [params URLEncodedString]] : @"";
+    return [NSURL URLWithString:[NSString stringWithFormat:@"https://api.simperium.com/1/chalk-bump-f49%@%@", path, queryStr]];
+}
+
+#if 0
++ (NSString*)localizedNetworkDiagnosticMessage {
+	
+	CFNetDiagnosticRef networkDiagnosticRef = CFNetDiagnosticCreateWithURL(kCFAllocatorDefault, (CFURLRef)[self authURLWithPath:@"/" parameters:nil]);
+	if (networkDiagnosticRef) {
+		
+		CFStringRef localizedDiagnosticString = NULL;
+		(void)CFNetDiagnosticCopyNetworkStatusPassively(networkDiagnosticRef, &localizedDiagnosticString);
+		CFRelease(networkDiagnosticRef);
+		
+		return [(id)localizedDiagnosticString autorelease];
+	}
+	return nil;
+}
+#endif
+
 
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget {
 	SCNetworkReachabilityRef reachableRef = NULL;
 	
-	if ((reachableRef = SCNetworkReachabilityCreateWithName(NULL, [[[SimplenoteSession servletURLWithPath:
+	if ((reachableRef = SCNetworkReachabilityCreateWithName(NULL, [[[SimplenoteSession authURLWithPath:
 																   @"/" parameters:nil] host] UTF8String]))) {
 		SCNetworkReachabilityContext context = {0, aTarget, NULL, NULL, NULL};
 		if (SCNetworkReachabilitySetCallback(reachableRef, callout, &context)) {
@@ -66,44 +111,130 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return reachableRef;
 }
 
+- (void)invalidateReachabilityRefs {
+	
+	if (reachableRef) {
+		SCNetworkReachabilityUnscheduleFromRunLoop(reachableRef, CFRunLoopGetCurrent(),kCFRunLoopDefaultMode); 
+		CFRelease(reachableRef);
+		reachableRef = NULL;
+	}
+}
+
+static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info) {
+    
+	SimplenoteSession *self = (SimplenoteSession *)info;
+	BOOL reachable = ((flags & kSCNetworkFlagsReachable) && (!(flags & kSCNetworkFlagsConnectionRequired) || (flags & kSCNetworkFlagsConnectionAutomatic)));
+	
+	self->reachabilityFailed = !reachable;
+	
+	if (reachable) {
+		[self startFetchingListForFullSyncManual];
+	}
+	//NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
+}
+
+- (BOOL)reachabilityFailed {
+	return reachabilityFailed;
+}
+
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry {
 	//simplenote-specific logic to determine whether to upload localEntry as a newer version of remoteEntry
-	NSNumber *modifiedLocalNumber = [localEntry objectForKey:@"modify"];
-	NSNumber *modifiedRemoteNumber = [remoteEntry objectForKey:@"modify"];
-	
-	if ([modifiedLocalNumber isKindOfClass:[NSNumber class]] && [modifiedRemoteNumber isKindOfClass:[NSNumber class]]) {
-		CFAbsoluteTime localAbsTime = floor([modifiedLocalNumber doubleValue]);
-		CFAbsoluteTime remoteAbsTime = floor([modifiedRemoteNumber doubleValue]);
+	//all dirty local notes are to be sent to the server
+	if ([self entryHasLocalChanges: localEntry]) {
+		return NSOrderedDescending;
+	}
+	Class numberClass = [NSNumber class];
+	//local notes lacking syncnum MD are either completely new or were synced with api1
+	if (![localEntry objectForKey:@"version"]) {
+		NSNumber *modifiedLocalNumber = [localEntry objectForKey:@"modify"];
+		NSNumber *modifiedRemoteNumber = [remoteEntry objectForKey:@"modify"];
 		
-		if (localAbsTime > remoteAbsTime) {
-			return NSOrderedDescending;
-		} else if (localAbsTime < remoteAbsTime) {
-			return NSOrderedAscending;
+		if ([modifiedLocalNumber isKindOfClass:numberClass] && [modifiedRemoteNumber isKindOfClass:numberClass]) {
+			CFAbsoluteTime localAbsTime = floor([modifiedLocalNumber doubleValue]);
+			CFAbsoluteTime remoteAbsTime = floor([modifiedRemoteNumber doubleValue]);
+			
+			if (localAbsTime > remoteAbsTime) {
+				return NSOrderedDescending;
+			} else if (localAbsTime < remoteAbsTime) {
+				return NSOrderedAscending;
+			}
+			return NSOrderedSame;
 		}
-		return NSOrderedSame;
+		return NSOrderedDescending;
+	} else {
+		NSNumber *syncnumLocalNumber = [localEntry objectForKey:@"version"];
+		NSNumber *syncnumRemoteNumber = [remoteEntry objectForKey:@"version"];
+		
+		if ([syncnumLocalNumber isKindOfClass:numberClass] && [syncnumRemoteNumber isKindOfClass:numberClass]) {
+			int localSyncnum = [syncnumLocalNumber intValue];
+			int remoteSyncnum = [syncnumRemoteNumber intValue];
+			if (localSyncnum < remoteSyncnum) {
+				return NSOrderedAscending;
+			}
+			return NSOrderedSame; // NSOrderedDescending is not possible with syncnum versioning
+		}
 	}
 	//no comparison posible is the same as no comparison necessary for this method; 
 	//the locally-added or remotely-added cases should not need to look at modification dates
-	NSLog(@"%@ or %@ are lacking a date-modified property!", localEntry, remoteEntry);
+	//TODO: Should we default to NSOrderedDescending (to force server-side sync) when in doubt??
+	NSLog(@"%@ or %@ are lacking syncnum property and date-modified property!", localEntry, remoteEntry);
 	return NSOrderedSame;
+}
+
+-(void)applyMetadataUpdatesToNote:(id <SynchronizedNote>)aNote localEntry:(NSDictionary *)localEntry remoteEntry: (NSDictionary *)remoteEntry {
+	//tags may have updated even if content wasn't, or we may never have synced tags
+	NSSet *localTagset = [NSSet setWithArray:[(NoteObject *)aNote orderedLabelTitles]];
+	NSSet *remoteTagset = [NSSet setWithArray:[remoteEntry objectForKey:@"tags"]];
+	if (![localTagset isEqualToSet:remoteTagset]) {
+		NSLog(@"Tagsets differ. Updating.");
+		NSString *newLabelString = nil;
+		if ([self tagsShouldBeMergedForEntry:localEntry]) {
+			NSMutableSet *mergedTags = [NSMutableSet setWithSet:localTagset];
+			[mergedTags unionSet:remoteTagset];
+			if ([mergedTags count]) {
+				newLabelString = [[mergedTags allObjects] componentsJoinedByString:@" "];
+			}
+		} else {
+			if ([remoteTagset count]) {
+				newLabelString = [[remoteTagset allObjects] componentsJoinedByString:@" "];
+			}
+		}
+		[(NoteObject *)aNote setLabelString:newLabelString];
+	}
+
+	//set the metadata from the server if this is the first time syncing with api2
+	if (![localEntry objectForKey:@"version"]) {
+		NSDictionary *updatedMetadata = [NSDictionary dictionaryWithObjectsAndKeys:[remoteEntry objectForKey:@"version"], @"version", [remoteEntry objectForKey:@"modify"], @"modify", nil];
+		
+		[aNote setSyncObjectAndKeyMD: updatedMetadata forService: SimplenoteServiceName];
+	}
 }
 
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry {
 	return [[remoteEntry objectForKey:@"deleted"] intValue] == 1;
 }
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry {
-	return [[entry objectForKey:@"dirty"] intValue] == 1;
+	return [[entry objectForKey:@"dirty"] boolValue];
+}
+- (BOOL)tagsShouldBeMergedForEntry:(NSDictionary*)entry {
+	// If the local note doesn't have a syncnum, then it has not been synced with sn-api2
+	return ([entry objectForKey:@"version"] == nil);
 }
 
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote {
 	//if this note has been synced with this service at least once, mirror the mod date
+	//mod date should no longer be necessary with SN api2, but doesn't hurt. what's really important is marking the note dirty.
 	NSDictionary *aDict = [[aNote syncServicesMD] objectForKey:SimplenoteServiceName];
 	if (aDict) {
 		NSAssert([aNote isKindOfClass:[NoteObject class]], @"can't modify a non-note!");
-		[aNote setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObject:
-									  [NSNumber numberWithDouble:modifiedDateOfNote((NoteObject*)aNote)] forKey:@"modify"]
+		NSNumber *modDate = [NSNumber numberWithDouble:modifiedDateOfNote((NoteObject*)aNote)];
+		if ([modDate compare:[aDict objectForKey:@"modify"]] != NSOrderedSame) {
+			[aNote setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObjectsAndKeys:
+									  [NSNumber numberWithDouble:modifiedDateOfNote((NoteObject*)aNote)], @"modify",
+									  [NSNumber numberWithBool:YES], @"dirty",
+									  nil]
 						  forService:SimplenoteServiceName];
-		
+		}
 	} //if note has no metadata for this service, mod times don't matter because it will be added, anyway
 }
 
@@ -115,6 +246,10 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	if ([self initWithUsername:[[prefs syncAccountForServiceName:SimplenoteServiceName] objectForKey:@"username"] 
 				   andPassword:[prefs syncPasswordForServiceName:SimplenoteServiceName]]) {
+		
+		//create a reachability ref to trigger a sync upon network reestablishment
+		reachableRef = [[self class] createReachabilityRefWithCallback:SNReachabilityCallback target:self];
+
 		return self;
 	}
 	return nil;
@@ -123,6 +258,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (id)initWithUsername:(NSString*)aUserString andPassword:(NSString*)aPassString {
 	
 	if ([super init]) {
+		lastSyncedTime = 0.0;
+		reachabilityFailed = NO;
+
 		if (![(emailAddress = [aUserString retain]) length]) {
 			NSLog(@"%s: empty email address", _cmd);
 			return nil;
@@ -145,8 +283,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (id)copyWithZone:(NSZone *)zone {
 	
 	SimplenoteSession *newSession = [[SimplenoteSession alloc] initWithUsername:emailAddress andPassword:password];
-	newSession->authToken = [authToken copyWithZone:zone];
-	newSession->lastSyncedTime = [lastSyncedTime copyWithZone:zone];
+	newSession->simperiumToken = [simperiumToken copyWithZone:zone];
+	newSession->lastSyncedTime = lastSyncedTime;
 	newSession->delegate = delegate;
 	
 	//may not want these to come with the copy, as they are specific to transactions-in-progress
@@ -161,33 +299,59 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	//init fetcher for login method; credentials POSTed in body
 	if (!loginFetcher) {
-		NSURL *loginURL = [SimplenoteSession servletURLWithPath:@"/api/login" parameters:nil];
-		loginFetcher = [[SyncResponseFetcher alloc] initWithURL:loginURL bodyStringAsUTF8B64:
-						[[NSDictionary dictionaryWithObjectsAndKeys: 
-						  emailAddress, @"email", password, @"password", nil] URLEncodedString] delegate:self];
+		NSURL *loginURL = [SimplenoteSession authURLWithPath:@"/authorize/" parameters:nil];
+		NSDictionary *headers = [NSDictionary dictionaryWithObject:kSimperiumAPIKey forKey:@"X-Simperium-API-Key"];
+		NSDictionary *login = [NSDictionary dictionaryWithObjectsAndKeys:
+							   emailAddress, @"username", password, @"password", nil];
+		loginFetcher = [[SyncResponseFetcher alloc] initWithURL:loginURL POSTData:[[login jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] headers:headers contentType:@"application/json" delegate:self];
 	}
 	return loginFetcher;
 }
 
 - (SyncResponseFetcher*)listFetcher {
 	if (!listFetcher) {
-		NSAssert(authToken != nil, @"no authtoken found");
-		NSURL *listURL = [SimplenoteSession servletURLWithPath:@"/api/index" parameters:
-						  [NSDictionary dictionaryWithObjectsAndKeys: emailAddress, @"email", authToken, @"auth", nil]];
-		listFetcher = [[SyncResponseFetcher alloc] initWithURL:listURL POSTData:nil delegate:self];
+		NSAssert(simperiumToken != nil, @"no simperium token found");
+		NSURL *listURL = nil;
+		NSMutableDictionary *params = [NSMutableDictionary dictionaryWithCapacity: 2];
+		[params setObject:[NSString stringWithFormat:@"%u", kSimplenoteSessionIndexBatchSize] forKey:@"limit"];
+		if (indexMark) {
+			[params setObject:indexMark forKey:@"mark"];
+		}
+		listURL = [SimplenoteSession simperiumURLWithPath:@"/Note/index" parameters:params];
+
+		NSDictionary *headers = [NSMutableDictionary dictionaryWithObject:simperiumToken forKey:@"X-Simperium-Token"];
+		listFetcher = [[SyncResponseFetcher alloc] initWithURL:listURL POSTData:nil headers:headers delegate:self];
 	}
 	return listFetcher;
 }
 
+- (SyncResponseFetcher*)changesFetcher {
+	if (!changesFetcher) {
+		NSAssert(simperiumToken != nil, @"no simperium token found");
+		NSURL *changesURL = nil;
+		NSMutableDictionary *params = [NSMutableDictionary dictionaryWithCapacity: 2];
+		[params setObject:lastCV forKey:@"cv"];
+		[params setObject:@"0" forKey:@"wait"];
+		changesURL = [SimplenoteSession simperiumURLWithPath:@"/Note/changes" parameters:params];
+
+		NSDictionary *headers = [NSMutableDictionary dictionaryWithObject:simperiumToken forKey:@"X-Simperium-Token"];
+		changesFetcher = [[SyncResponseFetcher alloc] initWithURL:changesURL POSTData:nil headers:headers delegate:self];
+	}
+	return changesFetcher;
+}
+
 - (BOOL)_checkToken {
-	return authToken != nil;
+	return simperiumToken != nil;
 }
 
 - (NSString*)statusText {
 	//current status (logging-in, getting index, etc.) minus any info. about collectorsInProgress
 	//one line only
+	if ([changesFetcher isRunning]) {
+
+		return NSLocalizedString(@"Getting note changes...", nil);
 		
-	if ([listFetcher isRunning]) {
+	} else if ([listFetcher isRunning]) {
 		
 		return NSLocalizedString(@"Getting the list of notes...", nil);
 		
@@ -196,13 +360,15 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		return NSLocalizedString(@"Logging in...", nil);
 		
 	} else if (lastErrorString) {
+
+		if (reachabilityFailed)
+			return NSLocalizedString(@"Internet unavailable.", @"message to report when sync service is not reachable over internet");
+		else
+			return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
 		
-		return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
-		
-	} else if (lastSyncedTime) {
-		//I suppose -descriptionWithLocale: returns a localized description?
+	} else if (lastSyncedTime > 0.0) {
 		return [NSLocalizedString(@"Last sync: ", @"label to prefix last sync time in the status menu") 
-				stringByAppendingString:[lastSyncedTime descriptionWithLocale:nil]];
+				stringByAppendingString:[NSString relativeDateStringWithAbsoluteTime:lastSyncedTime]];
 	} else if ([collectorsInProgress count]) {
 		//probably won't display this very often
 		return [NSString stringWithFormat:NSLocalizedString(@"%u update(s) in progress", nil), [collectorsInProgress count]];
@@ -212,8 +378,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)_updateSyncTime {
-	[lastSyncedTime release];
-	lastSyncedTime = [[NSDate date] retain];
+	lastSyncedTime = CFAbsoluteTimeGetCurrent();
 }
 
 
@@ -232,7 +397,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (BOOL)isRunning {
-	return [loginFetcher isRunning] || [listFetcher isRunning] || [collectorsInProgress count];
+	return [loginFetcher isRunning] || [listFetcher isRunning] || [changesFetcher isRunning] || [collectorsInProgress count];
 }
 
 - (NSSet*)activeTasks {
@@ -249,6 +414,13 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	[[[collectorsInProgress copy] autorelease] makeObjectsPerformSelector:@selector(stop)];
 	[loginFetcher cancel];
 	[listFetcher cancel];
+	[changesFetcher cancel];
+	[indexEntryBuffer release];
+	indexEntryBuffer = nil;
+	[indexMark release];
+	indexMark = nil;
+	[lastCV release];
+	lastCV = nil;
 }
 
 //these two methods and probably more are general enough to be abstracted into NotationSyncServiceManager
@@ -296,7 +468,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	if ([unsyncedServiceNotes count] > 0) {
 		
-		if ([listFetcher isRunning]) {
+		if ([listFetcher isRunning] || [changesFetcher isRunning]) {
 			NSLog(@"%s: not pushing because a full sync index is in progress", _cmd);
 			return NO;
 		}
@@ -357,11 +529,13 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return NO;
 }
 
-- (void)_clearAuthTokenAndDependencies {
+- (void)_clearTokenAndDependencies {
 	[listFetcher autorelease];
 	listFetcher = nil;
-	[authToken autorelease];
-	authToken = nil;	
+	[changesFetcher autorelease];
+	changesFetcher = nil;
+	[simperiumToken autorelease];
+	simperiumToken = nil;
 }
 
 - (void)clearErrors {
@@ -369,8 +543,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	lastIndexAuthFailed = NO;
 	[lastErrorString autorelease];
 	lastErrorString = nil;
-	[lastSyncedTime autorelease];
-	lastSyncedTime = nil;
+	lastSyncedTime = 0.0;
+	lastCV = nil;
 }
 
 - (BOOL)startFetchingListForFullSyncManual {
@@ -393,10 +567,14 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[[invRecorder prepareWithInvocationTarget:self] startFetchingListForFullSync];
 		didStart = [[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 		
-	} else if (![notesBeingModified count] && ![listFetcher isRunning] && ![collectorsInProgress count]) {
+	} else if (![notesBeingModified count] && ![listFetcher isRunning] && ![changesFetcher isRunning] && ![collectorsInProgress count]) {
 		
 		//token already exists; just fetch the list directly
-		didStart = [[self listFetcher] start];
+		if (lastCV && !indexMark) {
+			didStart = [[self changesFetcher] start];
+		} else {
+			didStart = [[self listFetcher] start];
+		}
 		
 	} else {
 		if ([collectorsInProgress count]) {
@@ -406,7 +584,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		}
 	}
 	
-	if (didStart && !lastSyncedTime) {
+	if (didStart && lastSyncedTime == 0.0) {
 		//don't report that we started syncing _here_ unless it was the first time doing so; 
 		//after the first time alert the user only when actual modifications are occurring
 		[delegate syncSessionProgressStarted:self];
@@ -429,7 +607,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		
 		if ([notesToMerge count]) [notesBeingModified addObjectsFromArray:notesToMerge];
 		
-		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] initWithEntriesToCollect:entries authToken:authToken email:emailAddress];
+		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] initWithEntriesToCollect:entries simperiumToken:simperiumToken];
 		[collector setRepresentedObject:notesToMerge];
 		[self _registerCollector:collector];
 		
@@ -440,10 +618,24 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)addedEntryCollectorDidFinish:(SimplenoteEntryCollector *)collector {
-	NSArray *newNotes = [self _notesWithEntries:[collector entriesCollected]];
+	NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[[collector entriesCollected] count]];
+	NSMutableArray *deletedEntries = [NSMutableArray arrayWithCapacity:[[collector entriesCollected] count]];
+	for (NSDictionary *entry in [collector entriesCollected]) {
+		if ([self remoteEntryWasMarkedDeleted:entry]) {
+			[deletedEntries addObject:entry];
+		} else {
+			[entries addObject:entry];
+		}
+	}
+
+	NSArray *newNotes = [self _notesWithEntries:entries];
 	
 	if ([newNotes count]) {
 		[delegate syncSession:self receivedAddedNotes:newNotes];		
+	}
+
+	if ([deletedEntries count]) {
+		[delegate syncSession:self receivedPartialNoteList:deletedEntries withRemovedList:nil];
 	}
 	
 	[self _unregisterCollector:collector];
@@ -453,12 +645,12 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	if (![entries count]) {
 		return;
 	}
-	if (!authToken) {
+	if (![self _checkToken]) {
 		InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
 		[[invRecorder prepareWithInvocationTarget:self] startCollectingChangedNotesWithEntries:entries];
 		[[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 	} else {
-		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] initWithEntriesToCollect:entries authToken:authToken email:emailAddress];
+		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] initWithEntriesToCollect:entries simperiumToken:simperiumToken];
 		[self _registerCollector:collector];
 		[collector startCollectingWithCallback:@selector(changedEntryCollectorDidFinish:) collectionDelegate:self];
 		[collector autorelease];
@@ -466,11 +658,22 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)changedEntryCollectorDidFinish:(SimplenoteEntryCollector *)collector {
+	NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[[collector entriesCollected] count]];
+	NSMutableArray *deletedEntries = [NSMutableArray arrayWithCapacity:[[collector entriesCollected] count]];
+	for (NSDictionary *entry in [collector entriesCollected]) {
+		if ([self remoteEntryWasMarkedDeleted:entry]) {
+			[deletedEntries addObject:entry];
+		} else {
+			[entries addObject:entry];
+		}
+	}
+	if ([deletedEntries count]) {
+		[delegate syncSession:self receivedPartialNoteList:deletedEntries withRemovedList:nil];
+	}
 	
 	//use the corresponding "NoteObject" keys to modify the original notes appropriately,
 	//building a new array that documents our efforts
 	
-	NSArray *entries = [collector entriesCollected];
 	NSMutableArray *changedNotes = [NSMutableArray arrayWithCapacity:[entries count]];
 		
 	NSUInteger i = 0;
@@ -493,15 +696,23 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			NSUInteger bodyLoc = 0;
 			NSString *separator = nil;
 			NSString *combinedContent = [info objectForKey:@"content"];
-			NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote)];
+			NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote) maxTitleLen:60];
 			
 			[aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
+			NSMutableSet *labelTitles = [NSMutableSet setWithArray:[info objectForKey:@"tags"]];
+			if ([self tagsShouldBeMergedForEntry:[[aNote syncServicesMD] objectForKey:SimplenoteServiceName]]) {
+				[labelTitles addObjectsFromArray:[aNote orderedLabelTitles]];
+			}
+			if ([labelTitles count]) {
+				[aNote setLabelString:[[labelTitles allObjects] componentsJoinedByString:@" "]];
+			} else {
+				[aNote setLabelString:nil];
+			}
 			
 			NSNumber *modNum = [info objectForKey:@"modify"];
 			//NSLog(@"updating mod time for note %@ to %@", aNote, modNum);
 			[aNote setDateModified:[modNum doubleValue]];
-			[aNote setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObjectsAndKeys:modNum, @"modify", separator, SimplenoteSeparatorKey, nil] 
-							  forService:SimplenoteServiceName];
+			[aNote setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObjectsAndKeys:[info objectForKey:@"version"], @"version", modNum, @"modify", separator, SimplenoteSeparatorKey, [NSNumber numberWithBool: NO], @"dirty", nil] forService:SimplenoteServiceName];
 			[changedNotes addObject:aNote];
 		}
 		[self stopSuppressingPushingForNotes:[NSArray arrayWithObject:aNote]];
@@ -547,9 +758,21 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		NSLog(@"%s: not merging notes because collection was cancelled", _cmd);
 		return;
 	}
+	NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[[collector entriesCollected] count]];
+	NSMutableArray *deletedEntries = [NSMutableArray arrayWithCapacity:[[collector entriesCollected] count]];
+	for (NSDictionary *entry in [collector entriesCollected]) {
+		if ([self remoteEntryWasMarkedDeleted:entry]) {
+			[deletedEntries addObject:entry];
+		} else {
+			[entries addObject:entry];
+		}
+	}
+	if ([deletedEntries count]) {
+		[delegate syncSession:self receivedPartialNoteList:deletedEntries withRemovedList:nil];
+	}
 	
 	//serverNotes and entriesCollected should be parallel arrays
-	NSArray *serverNotes = [self _notesWithEntries:[collector entriesCollected]];
+	NSArray *serverNotes = [self _notesWithEntries:entries];
 	NSArray *localNotes = [collector representedObject];
 	NSAssert([localNotes isKindOfClass:[NSArray class]], @"list of locally-added notes must be an array!");
 	
@@ -565,7 +788,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	NSUInteger i = 0;
 	for (i=0; i<[serverNotes count]; i++) {
 		NoteObject *serverNote = [serverNotes objectAtIndex:i];
-		NSDictionary *info = [[collector entriesCollected] objectAtIndex:i];
+		NSDictionary *info = [entries objectAtIndex:i];
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
 		NSNumber *contentHashNum = [NSNumber numberWithUnsignedInteger:[[info objectForKey:@"content"] hash]];
 #else
@@ -630,21 +853,21 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		NSString *fullContent = [info objectForKey:@"content"];
 		NSUInteger bodyLoc = 0;
 		NSString *separator = nil;
-		NSString *title = [fullContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:nil];
+		NSString *title = [fullContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:nil maxTitleLen:60];
 		NSString *body = [fullContent substringFromIndex:bodyLoc];
 		//get title and body, incl. separator
 		NSMutableAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:body attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 		[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
+		[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
 		
-		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title uniqueFilename:nil format:SingleDatabaseFormat];
+		NSString *labelString = [[info objectForKey:@"tags"] count] ? [[info objectForKey:@"tags"] componentsJoinedByString:@" "] : nil;
+		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title delegate:delegate format:SingleDatabaseFormat labels:labelString];
 		if (note) {
 			NSNumber *modNum = [info objectForKey:@"modify"];
 			[note setDateAdded:[[info objectForKey:@"create"] doubleValue]];
 			[note setDateModified:[modNum doubleValue]];
-			//also set mod time, key, and sepWCtx for this note's syncServicesMD
-			[note setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObjectsAndKeys:modNum, @"modify", 
-										 [info objectForKey:@"key"], @"key", separator, SimplenoteSeparatorKey, nil] 
-							 forService:SimplenoteServiceName];
+			//also set version, mod time, key, and sepWCtx for this note's syncServicesMD
+			[note setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObjectsAndKeys:[info objectForKey:@"version"], @"version", modNum, @"modify", [info objectForKey:@"key"], @"key", separator, SimplenoteSeparatorKey, nil] forService:SimplenoteServiceName];
 			
 			[newNotes addObject:note];
 			[note release];
@@ -669,6 +892,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[self _stoppedWithErrorString:[NSString stringWithFormat:NSLocalizedString(@"%@ %u note(s) failed", @"e.g., Downloading 2 note(s) failed"), 
 									   [collector localizedActionDescription], [[collector entriesToCollect] count]]];
 	} else {
+		reachabilityFailed = NO;
 		
 		if ([self isRunning]) {
 			[self _updateSyncTime];
@@ -760,7 +984,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		if ([currentlyIdleNotes count]) {
 			//NSLog(@"%s(%@)", opSEL, currentlyIdleNotes);
 			//now actually start processing those notes
-			SimplenoteEntryModifier *modifier = [[SimplenoteEntryModifier alloc] initWithEntries:currentlyIdleNotes operation:opSEL authToken:authToken email:emailAddress];
+			SimplenoteEntryModifier *modifier = [[SimplenoteEntryModifier alloc] initWithEntries:currentlyIdleNotes operation:opSEL simperiumToken:simperiumToken];
 			SEL callback = (@selector(fetcherForCreatingNote:) == opSEL ? @selector(entryCreatorDidFinish:) :
 							(@selector(fetcherForUpdatingNote:) == opSEL ? @selector(entryUpdaterDidFinish:) : 
 							(@selector(fetcherForDeletingNote:) == opSEL ? @selector(entryDeleterDidFinish:) : NULL) ));
@@ -843,36 +1067,103 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 
 - (void)syncResponseFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data returningError:(NSString*)errString {
-	
 	if (errString) {
-		if (fetcher == listFetcher && [fetcher statusCode] == 401 && !lastIndexAuthFailed) {
+		if ((fetcher == listFetcher || fetcher == changesFetcher) && [fetcher statusCode] == 401 && !lastIndexAuthFailed) {
 			//token might have expired, and the only reason we would be asked to fetch the list would be if it were for a full sync
 			//trying again should not cause a loop, unless the login method consistently returns an incorrect token
 			lastIndexAuthFailed = YES;
-			[self _clearAuthTokenAndDependencies];
+			[self _clearTokenAndDependencies];
 			[self performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
 		}
-		NSLog(@"%@ returned %@", fetcher, errString);
+		if (!reachabilityFailed)
+			NSLog(@"%@ returned %@", fetcher, errString);
 		
 		//report error to delegate
 		[self _stoppedWithErrorString:[fetcher didCancel] ? nil : errString];
 		return;
 	}
 	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
-	
+	NSDictionary *responseDictionary = nil;
+	NSArray *rawEntries = nil;
+	NSMutableArray *entries = nil;
+	NSUInteger i = 0;
+
 	if (fetcher == loginFetcher) {
-		if ([bodyString length]) {
-			[authToken autorelease];
-			authToken = [bodyString retain];
+		@try {
+			responseDictionary = [NSDictionary dictionaryWithJSONString:bodyString];
+		} @catch (NSException *e) {
+			NSLog(@"Exception while parsing Simplenote user: %@", [e reason]);
+		}
+		if ([responseDictionary objectForKey:@"access_token"]) {
+			[simperiumToken autorelease];
+			simperiumToken = [[responseDictionary objectForKey:@"access_token"] retain];
 		} else {
 			[self _stoppedWithErrorString:NSLocalizedString(@"No authorization token", @"Simplenote-specific error")];
 		}
-	} else if (fetcher == listFetcher) {
-		
-		lastIndexAuthFailed = NO;
-		NSArray *rawEntries = nil;
+	} else if (fetcher == changesFetcher) {
+		bodyString = [NSString stringWithFormat:@"{\"changes\":%@}", bodyString];
 		@try {
-			rawEntries = [NSArray arrayWithJSONString:bodyString];
+			responseDictionary = [NSDictionary dictionaryWithJSONString:bodyString];
+			if (responseDictionary) {
+				rawEntries = [responseDictionary objectForKey:@"changes"];
+			}
+		} @catch (NSException *e) {
+			NSLog(@"Exception while parsing Simplenote JSON index: %@", [e reason]);
+		} @finally {
+			if (!rawEntries) {
+				[self _stoppedWithErrorString:NSLocalizedString(@"The index of notes could not be parsed.", @"Simplenote-specific error")];
+			}
+		}
+		if ([fetcher statusCode] == 400 || [fetcher statusCode] == 401 || [fetcher statusCode] == 404) {
+			NSLog(@"changes fetcher error code: %u", [fetcher statusCode]);
+			[lastCV release];
+			lastCV = nil;
+			[changesFetcher autorelease];
+			changesFetcher = nil;
+			return;
+		}
+		if (!rawEntries) {
+			return;
+		}
+		lastIndexAuthFailed = NO;
+		NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
+		NSMutableArray *removedEntries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
+		NSMutableDictionary *entriesDict = [NSMutableDictionary dictionaryWithCapacity:[rawEntries count]];
+
+		// roll these up in a dict, there may be multiple change entries per note, we only want the last one for each
+		for (i=0; i<[rawEntries count]; i++) {
+			NSDictionary *rawEntry = [rawEntries objectAtIndex:i];
+			[entriesDict setObject:[rawEntries objectAtIndex:i] forKey:[rawEntry objectForKey:@"id"]];
+			lastCV = [[rawEntry objectForKey:@"cv"] copy];
+		}
+		NSLog(@"remote: %u updates", [rawEntries count]);
+		for (NSString *noteKey in entriesDict) {
+			NSDictionary *rawEntry = [entriesDict objectForKey:noteKey];
+			NSNumber *version = [rawEntry objectForKey:@"ev"];
+			NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithCapacity:2];
+			[entry setObject:noteKey forKey:@"key"];
+			[entry setObject:version forKey:@"version"];
+			if ([@"-" isEqualToString:[rawEntry objectForKey:@"o"]]) {
+				[removedEntries addObject:entry];
+			} else {
+				[entries addObject:entry];
+			}
+		}
+
+		[self _updateSyncTime];
+		[delegate syncSession:self receivedPartialNoteList:entries withRemovedList:removedEntries];
+		if ([entries count] || [removedEntries count]) {
+			[changesFetcher autorelease];
+			changesFetcher = nil;
+		}
+
+    } else if (fetcher == listFetcher) {
+		lastIndexAuthFailed = NO;
+		@try {
+			responseDictionary = [NSDictionary dictionaryWithJSONString:bodyString];
+			if (responseDictionary) {
+				rawEntries = [responseDictionary objectForKey:@"index"];
+			}
 		} @catch (NSException *e) {
 			NSLog(@"Exception while parsing Simplenote JSON index: %@", [e reason]);
 		} @finally {
@@ -881,30 +1172,82 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 				return;
 			}
 		}
-		//convert dates and "deleted" indicator into NSNumbers
-		NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
-		NSUInteger i = 0;
+
+		//convert syncnum, dates and "deleted" indicator into NSNumbers
+		entries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
 		for (i=0; i<[rawEntries count]; i++) {
 			NSDictionary *rawEntry = [rawEntries objectAtIndex:i];
-			
-			NSString *noteKey = [rawEntry objectForKey:@"key"];
-			NSString *modifiedDateString = [rawEntry objectForKey:@"modify"];
-			
-			if ([noteKey length] && [modifiedDateString length]) {
-				//convenient intermediate format
-				[entries addObject:[NSDictionary dictionaryWithObjectsAndKeys:
-									noteKey, @"key", 
-									[NSNumber numberWithInt:[[rawEntry objectForKey:@"deleted"] intValue]], @"deleted", 
-									[NSNumber numberWithDouble:[modifiedDateString absoluteTimeFromSimplenoteDate]], @"modify", nil]];
+			NSString *noteKey = [rawEntry objectForKey:@"id"];
+			NSNumber *version = [NSNumber numberWithInt:[[rawEntry objectForKey:@"v"] intValue]];
+
+			NSDictionary *noteData = [rawEntry objectForKey:@"d"];
+			NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithCapacity:6];
+			if (noteData) {
+				[entry setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[noteData objectForKey:@"modificationDate"] doubleValue]] timeIntervalSinceReferenceDate]] forKey:@"modify"];
+				[entry setObject:[NSNumber numberWithInt:[[noteData objectForKey:@"deleted"] intValue]] forKey:@"deleted"];
+				[entry setObject:[noteData objectForKey:@"systemTags"] forKey:@"systemtags"];
+				[entry setObject:[noteData objectForKey:@"tags"] forKey:@"tags"];
+			}
+			if ([noteKey length] && [version intValue]) {
+				[entry setObject:noteKey forKey:@"key"];
+				[entry setObject:version forKey:@"version"];
+				[entries addObject:entry];
 			}
 		}
-		
-		[self _updateSyncTime];
+
 		[lastErrorString autorelease];
 		lastErrorString = nil;
 		
-		[delegate syncSession:self receivedFullNoteList:entries];
+		reachabilityFailed = NO;
 		
+		if (!indexEntryBuffer) {
+			indexEntryBuffer = [[NSMutableArray alloc] initWithArray: entries];
+		} else {
+			[indexEntryBuffer addObjectsFromArray: entries];
+		}
+		
+		//simperium index api will only return the id and version per item (note), this means
+		//we must fetch a note to check if it has been deleted. version and id are part of
+		//the note meta-data so no longer appear in the actual note data. 'version' will be
+		//increased for any change in note (not just content), so it replaces previous
+		//sn api2 'syncnum' functionality. lastCV is used as bookmark to fetch
+		//only the latest changes from simperium after downloading full index for the first time.
+		//when retrieving index, if more entries remain, the response includes a 'mark' key to use in the next
+		//request. When this happens, we want to kick off another fetcher and act as though
+		//it were simply a continuation of the current one (meaning we don't want
+		//other tasks to wake up until we've processed the full note list).
+		//Ultimately, we should probably re-architect this so that a partitioned
+		//index can be processed in a less-hacky manner.
+		//we can no longer rely on the URL for listFetcher remaining constant,
+		//so we don't reuse it. (we could consider extending SyncResponseFetcher to support
+		//dynamic URLS instead)
+		[listFetcher autorelease];
+		listFetcher = nil;
+		[indexMark release];
+		indexMark = [[responseDictionary objectForKey:@"mark"] copy];
+
+		//'current' stores the most recent change marker, if it's different between index page loads,
+		//we need to start over trying to fetch the index
+		if (lastCV && [lastCV isEqualToString:[responseDictionary objectForKey:@"current"]] == NO) {
+			//someone has made a change to notes since we started fetching index, start over
+			[indexEntryBuffer autorelease];
+			indexEntryBuffer = nil;
+			[indexMark release];
+			indexMark = nil;
+			[lastCV release];
+			lastCV = nil;
+		}
+		[lastCV release];
+		lastCV = [[responseDictionary objectForKey:@"current"] copy];
+
+		if (indexMark || !indexEntryBuffer) {
+			[[self listFetcher] start];
+		} else {
+			[self _updateSyncTime];
+			[delegate syncSession:self receivedFullNoteList:indexEntryBuffer];
+			[indexEntryBuffer autorelease];
+			indexEntryBuffer = nil;
+		}
 	} else {
 		NSLog(@"unknown fetcher returned: %@, body: %@", fetcher, bodyString);
 	}
@@ -920,16 +1263,20 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 - (void)dealloc {
 	
+	[self invalidateReachabilityRefs];
+	
 	[queuedNoteInvocations release];
 	[notesBeingModified release];
 	[notesToSuppressPushing release];
 	[unsyncedServiceNotes release];
 	[emailAddress release];
 	[password release];
-	[authToken release];
+	[simperiumToken release];
+	[indexMark release];
+	[lastCV release];
+	[indexEntryBuffer release];
 	[listFetcher release];
 	[loginFetcher release];
-	[lastSyncedTime release];
 	[collectorsInProgress release];
 	[lastErrorString release];
 	
